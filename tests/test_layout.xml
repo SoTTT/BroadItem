@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+    <column space="8" padding="12" background-color="#f0f0f0" background-radius="8">
+        <text font-size="18" bold="true" bind="title">默认标题</text>
+        <row space="4">
+            <text font-size="12" color="#666">状态:</text>
+            <text font-size="12" bind="status">未知</text>
+        </row>
+        <row space="4">
+            <text font-size="12" color="#666">IP:</text>
+            <text font-size="12" bind="ip">0.0.0.0</text>
+        </row>
+    </column>
+</root>
