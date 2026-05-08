@@ -34,4 +34,4 @@ target_link_libraries(BroadItem PUBLIC Qt5::Core Qt5::Widgets Qt5::Xml)
 
 # Tests
 enable_testing()
-add_subdirectory(tests)
+add_subdirectory(example)
