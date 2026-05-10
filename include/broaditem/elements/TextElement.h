@@ -17,7 +17,9 @@ public:
 
 private:
     QString m_text;
-    QString m_bindProperty;
+    QString m_contentLiteral;
+    bool m_hasContentLiteral = false;
+    QString m_propertyName;
     QFont m_font;
     QString m_vAlign = "baseline";
     QString m_hAlign = "left";

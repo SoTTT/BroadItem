@@ -107,7 +107,7 @@ void TestParser::testBindProperty()
 {
     QString xml = R"(
         <root>
-            <text bind="title">Default</text>
+            <text :content="title">Default</text>
         </root>
     )";
     auto root = BroadItem::XmlLayoutParser::parseString(xml);
@@ -120,7 +120,7 @@ void TestParser::testIfHas()
 {
     QString xml = R"(
         <root>
-            <if-has bind="show">
+            <if-has :prop="show">
                 <text>Visible</text>
             </if-has>
         </root>

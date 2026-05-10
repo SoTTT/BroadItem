@@ -155,11 +155,12 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
         return container;
     }
 
-    // Handle pseudo-attributes: for, if-has
-    QString forBind = xml.attribute("for");
-    QString ifHasBind = xml.attribute("if-has");
-    bool hasFor = xml.hasAttribute("for");
-    bool hasIfHas = xml.hasAttribute("if-has");
+    // Pseudo-attribute wrappers: for non-control elements, :of and :prop
+    // create implicit <for>/<if-has> wrappers.  Control elements themselves
+    // are exempt: <for :of="list"> is a real for-element, not a wrapper.
+    // Must be checked BEFORE createElement to avoid double-wrapping.
+    bool wrapFor = xml.hasAttribute(":of") && tag != "for" && tag != "if-has";
+    bool wrapIfHas = xml.hasAttribute(":prop") && tag != "for" && tag != "if-has";
 
     ElementPtr element = createElement(tag);
     if (!element)
@@ -211,17 +212,17 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
         // TextElement handles its own text content, no children to parse
     }
 
-    // Wrap with for/if-has if pseudo-attributes exist
-    if (hasFor) {
+    // Wrap with for/if-has if pseudo-attributes exist on a non-control element
+    if (wrapFor) {
         auto wrapper = std::make_shared<ForElement>();
-        wrapper->setBindProperty(forBind);
+        wrapper->setBindProperty(xml.attribute(":of"));
         wrapper->setTemplate(element);
         return wrapper;
     }
 
-    if (hasIfHas) {
+    if (wrapIfHas) {
         auto wrapper = std::make_shared<IfHasElement>();
-        wrapper->setBindProperty(ifHasBind);
+        wrapper->setBindProperty(xml.attribute(":prop"));
         wrapper->setNot(false);
         wrapper->setChild(element);
         return wrapper;

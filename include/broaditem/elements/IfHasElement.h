@@ -25,7 +25,7 @@ public:
     std::vector<ElementPtr> expand(const LayoutContext& ctx) const;
 
 private:
-    QString m_bindProperty;
+    QString m_propertyName;
     bool m_not = false;
     ElementPtr m_child;
 

@@ -59,7 +59,6 @@ static QStringList makeProcesses()
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
-    QRandomGenerator::global()->seed(QDateTime::currentMSecsSinceEpoch());
 
     QGraphicsScene scene;
     scene.setSceneRect(0, 0, 500, 500);

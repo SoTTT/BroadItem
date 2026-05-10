@@ -34,19 +34,13 @@ public:
 
     ElementPtr clone() const override;
 
-    void setSpace(double space);
-    double space() const { return m_space; }
-    bool hasExplicitSpace() const { return m_hasExplicitSpace; }
-
     // Expand this for-element into a list of cloned element instances,
     // one per bound value, with interpolation applied.
     std::vector<ElementPtr> expand(const LayoutContext& ctx) const;
 
 private:
-    QString m_bindProperty;
+    QString m_ofProperty;
     int m_step = 1;
-    double m_space = 0;
-    bool m_hasExplicitSpace = false;
     ElementPtr m_template;
 };
 

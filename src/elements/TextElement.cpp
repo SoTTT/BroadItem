@@ -12,8 +12,19 @@ void TextElement::parse(const QDomElement& xml)
 
     m_text = xml.text().trimmed();
 
-    if (xml.hasAttribute("bind"))
-        m_bindProperty = xml.attribute("bind");
+    bool hasContentLiteral = xml.hasAttribute("content");
+    bool hasContentBinding = xml.hasAttribute(":content");
+
+    if (hasContentLiteral && hasContentBinding) {
+        qCritical() << "TextElement: 'content' and ':content' are mutually exclusive";
+    }
+
+    if (xml.hasAttribute("content")) {
+        m_contentLiteral = xml.attribute("content");
+        m_hasContentLiteral = true;
+    }
+    if (xml.hasAttribute(":content"))
+        m_propertyName = xml.attribute(":content");
     if (xml.hasAttribute("v-align"))
         m_vAlign = xml.attribute("v-align");
     if (xml.hasAttribute("h-align"))
@@ -41,11 +52,13 @@ void TextElement::parse(const QDomElement& xml)
 
 QString TextElement::resolvedText(const LayoutContext& ctx) const
 {
-    if (!m_bindProperty.isEmpty() && ctx.hasProperty(m_bindProperty)) {
-        QVariant v = ctx.property(m_bindProperty);
+    if (m_hasContentLiteral)
+        return m_contentLiteral;
+    if (!m_propertyName.isEmpty() && ctx.hasProperty(m_propertyName)) {
+        QVariant v = ctx.property(m_propertyName);
         if (v.type() == QVariant::String)
             return v.toString();
-        qCritical() << "TextElement: bind property" << m_bindProperty
+        qCritical() << "TextElement: property" << m_propertyName
                      << "expected QString, got" << v.typeName();
     }
     return m_text;
@@ -189,14 +202,16 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
 
 bool TextElement::bindsProperty(const QString& name) const
 {
-    return matchesProperty(m_bindProperty, name);
+    return matchesProperty(m_propertyName, name);
 }
 
 ElementPtr TextElement::clone() const
 {
     auto copy = std::make_shared<TextElement>();
     copy->m_text = m_text;
-    copy->m_bindProperty = m_bindProperty;
+    copy->m_contentLiteral = m_contentLiteral;
+    copy->m_hasContentLiteral = m_hasContentLiteral;
+    copy->m_propertyName = m_propertyName;
     copy->m_font = m_font;
     copy->m_vAlign = m_vAlign;
     copy->m_hAlign = m_hAlign;
@@ -214,7 +229,10 @@ ElementPtr TextElement::clone() const
 
 void TextElement::interpolateValues(const QStringList& values)
 {
-    m_text = interpolate(m_text, values);
+    if (m_hasContentLiteral)
+        m_contentLiteral = interpolate(m_contentLiteral, values);
+    else
+        m_text = interpolate(m_text, values);
 }
 
 } // namespace BroadItem
