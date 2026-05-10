@@ -12,7 +12,7 @@ int main(int argc, char* argv[])
     QGraphicsScene scene;
     scene.setSceneRect(0, 0, 400, 300);
 
-    BroadItem::BroadItem* item = new BroadItem::BroadItem("test_layout.xml");
+    auto* item = new BroadItem::BroadItem("test_layout.xml");
     item->setDynamicProperty("title", "设备状态");
     item->setDynamicProperty("status", "运行中");
     item->setDynamicProperty("ip", "192.168.1.100");
@@ -24,5 +24,6 @@ int main(int argc, char* argv[])
     view.resize(420, 320);
     view.show();
 
+    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     return app.exec();
 }

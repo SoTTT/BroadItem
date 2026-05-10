@@ -31,7 +31,7 @@ void ForElement::setBindProperty(const QString& bind)
 
 void ForElement::setTemplate(ElementPtr templ)
 {
-    m_template = templ;
+    m_template = std::move(templ);
 }
 
 ElementPtr ForElement::clone() const

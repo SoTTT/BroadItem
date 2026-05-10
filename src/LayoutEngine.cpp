@@ -4,7 +4,7 @@
 
 namespace BroadItem {
 
-Size LayoutEngine::measure(ElementPtr root, const LayoutContext& ctx, const LayoutConstraints& constraints)
+Size LayoutEngine::measure(const ElementPtr& root, const LayoutContext& ctx, const LayoutConstraints& constraints)
 {
     if (!root)
         return Size{0, 0};
@@ -12,13 +12,13 @@ Size LayoutEngine::measure(ElementPtr root, const LayoutContext& ctx, const Layo
     return result.intrinsicSize;
 }
 
-void LayoutEngine::layout(ElementPtr root, const LayoutContext& ctx, const Rect& rect)
+void LayoutEngine::layout(const ElementPtr& root, const LayoutContext& ctx, const Rect& rect)
 {
     if (root)
         root->layout(ctx, rect);
 }
 
-void LayoutEngine::render(ElementPtr root, QPainter* painter, const LayoutContext& ctx)
+void LayoutEngine::render(const ElementPtr& root, QPainter* painter, const LayoutContext& ctx)
 {
     if (root)
         root->render(painter, ctx);

@@ -84,10 +84,10 @@ QSizeF TextElement::computeTextSize(const QString& text, const LayoutConstraints
             height += line.height();
         }
         layout.endLayout();
-        return QSizeF(width, height);
+        return {width, height};
     } else {
         QRectF rect = fm.boundingRect(text);
-        return QSizeF(rect.width(), rect.height());
+        return {rect.width(), rect.height()};
     }
 }
 

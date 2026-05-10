@@ -8,24 +8,24 @@ void Element::parse(const QDomElement& xml)
     Q_UNUSED(xml)
 }
 
-double Element::parseDouble(const QString& value, double defaultVal) const
+double Element::parseDouble(const QString& value, double defaultVal)
 {
     bool ok = false;
     double result = value.toDouble(&ok);
     return ok ? result : defaultVal;
 }
 
-QColor Element::parseColor(const QString& value) const
+QColor Element::parseColor(const QString& value)
 {
-    return QColor(value);
+    return {value};
 }
 
-bool Element::parseBool(const QString& value) const
+bool Element::parseBool(const QString& value)
 {
     return value.compare("true", Qt::CaseInsensitive) == 0 || value == "1";
 }
 
-QString Element::interpolate(const QString& text, const QStringList& values) const
+QString Element::interpolate(const QString& text, const QStringList& values)
 {
     QString result = text;
     int index = 0;

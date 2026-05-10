@@ -37,7 +37,7 @@ int LayoutRegistry::loadLayoutsFromDirectory(const QString& dirPath)
     return count;
 }
 
-void LayoutRegistry::registerLayout(int id, ElementPtr root)
+void LayoutRegistry::registerLayout(int id, const ElementPtr& root)
 {
     m_layouts.insert(id, root);
 }

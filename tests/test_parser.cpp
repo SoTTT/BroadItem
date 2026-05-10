@@ -11,6 +11,7 @@ class TestParser : public QObject {
     Q_OBJECT
 
 private slots:
+    // NOLINTBEGIN(readability-convert-member-functions-to-static)
     void testParseSimpleText();
     void testParseColumnWithChildren();
     void testParseDecorators();
@@ -147,6 +148,7 @@ void TestParser::testRegistryLoad()
     // Should load test_layout.xml
     QVERIFY(count >= 1);
 }
+// NOLINTEND(readability-convert-member-functions-to-static)
 
 QTEST_MAIN(TestParser)
 #include "test_parser.moc"

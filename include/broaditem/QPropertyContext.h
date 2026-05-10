@@ -32,7 +32,7 @@ public:
     {
         if (name.isEmpty())
             return QVariant();
-        const QObject* obj = m_target ? m_target : static_cast<const QPropertyContext*>(this);
+        const QObject* obj = m_target ? m_target : this;
         if (!name.contains('.') && !name.contains('['))
             return obj->property(name.toUtf8().constData());
         return walkPathFromObject(obj, name);
@@ -42,7 +42,7 @@ public:
     {
         if (name.isEmpty())
             return false;
-        const QObject* obj = m_target ? m_target : static_cast<const QPropertyContext*>(this);
+        const QObject* obj = m_target ? m_target : this;
         if (!name.contains('.') && !name.contains('['))
             return obj->metaObject()->indexOfProperty(name.toUtf8().constData()) >= 0;
         return walkPathFromObject(obj, name).isValid();
@@ -51,7 +51,7 @@ public:
     void setProperty(const QString& name, const QVariant& value) override
     {
         ensureConnected();
-        QObject* obj = m_target ? m_target : static_cast<QPropertyContext*>(this);
+        QObject* obj = m_target ? m_target : this;
         obj->setProperty(name.toUtf8().constData(), value);
     }
 

@@ -16,22 +16,19 @@ class TestQProps : public BroadItem::QPropertyContext {
     Q_PROPERTY(QVariantMap device READ device WRITE setDevice NOTIFY deviceChanged)
     Q_PROPERTY(QVariantList items READ items WRITE setItems NOTIFY itemsChanged)
 public:
-    QString name() const { return m_name; }
+    [[nodiscard]] QString name() const { return m_name; }
     void setName(const QString& v) {
         if (m_name != v) { m_name = v; emit nameChanged(); }
     }
-
-    QStringList tags() const { return m_tags; }
+    [[nodiscard]] QStringList tags() const { return m_tags; }
     void setTags(const QStringList& v) {
         if (m_tags != v) { m_tags = v; emit tagsChanged(); }
     }
-
-    QVariantMap device() const { return m_device; }
+    [[nodiscard]] QVariantMap device() const { return m_device; }
     void setDevice(const QVariantMap& v) {
         if (m_device != v) { m_device = v; emit deviceChanged(); }
     }
-
-    QVariantList items() const { return m_items; }
+    [[nodiscard]] QVariantList items() const { return m_items; }
     void setItems(const QVariantList& v) {
         if (m_items != v) { m_items = v; emit itemsChanged(); }
     }
@@ -61,22 +58,19 @@ class TestPropItem : public BroadItem::BroadItem {
 public:
     using BroadItem::BroadItem;
 
-    QString status() const { return m_status; }
+    [[nodiscard]] QString status() const { return m_status; }
     void setStatus(const QString& v) {
         if (m_status != v) { m_status = v; emit statusChanged(); }
     }
-
-    QString level() const { return m_level; }
+    [[nodiscard]] QString level() const { return m_level; }
     void setLevel(const QString& v) {
         if (m_level != v) { m_level = v; emit levelChanged(); }
     }
-
-    QVariantMap config() const { return m_config; }
+    [[nodiscard]] QVariantMap config() const { return m_config; }
     void setConfig(const QVariantMap& v) {
         if (m_config != v) { m_config = v; emit configChanged(); }
     }
-
-    QVariantList nodes() const { return m_nodes; }
+    [[nodiscard]] QVariantList nodes() const { return m_nodes; }
     void setNodes(const QVariantList& v) {
         if (m_nodes != v) { m_nodes = v; emit nodesChanged(); }
     }
@@ -118,7 +112,7 @@ private slots:
     }
 
     // ==================== MapPropertyContext ====================
-
+    // NOLINTBEGIN(readability-convert-member-functions-to-static)
     void testMapSetGet()
     {
         BroadItem::MapPropertyContext ctx;
@@ -427,9 +421,10 @@ private slots:
         ctx.setProperty("cpu", QVariant());
         QCOMPARE(count, 0);  // 删不存在的 key 不通知
     }
+    // NOLINTEND(readability-convert-member-functions-to-static)
 
     // ==================== QPropertyContext ====================
-
+    // NOLINTBEGIN(readability-convert-member-functions-to-static)
     void testQPropSetGet()
     {
         TestQProps ctx;
@@ -600,6 +595,7 @@ private slots:
         QVERIFY(ctx.hasProperty("device.cpu"));
         QVERIFY(!ctx.hasProperty("device.ram"));
     }
+    // NOLINTEND(readability-convert-member-functions-to-static)
 
     // ==================== ItemPropertyContext ====================
 
@@ -779,6 +775,7 @@ private slots:
         QVERIFY(!ctx.hasProperty("config.port"));
     }
 
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     void testItemNullItem()
     {
         BroadItem::QPropertyContext ctx(nullptr);
@@ -789,6 +786,7 @@ private slots:
         ctx.setProperty("anything", "val");
     }
 
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     void testItemNullItemNotify()
     {
         // null target → 退回自宿主模式，动态属性仍会触发 event() 通知

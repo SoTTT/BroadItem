@@ -20,7 +20,7 @@ void ColumnLayout::parse(const QDomElement& xml)
 
 void ColumnLayout::addChild(ElementPtr child)
 {
-    m_children.push_back(child);
+    m_children.push_back(std::move(child));
 }
 
 ElementPtr ColumnLayout::clone() const
@@ -140,11 +140,11 @@ void ColumnLayout::layoutChildren(const LayoutContext& ctx, const Rect& contentR
         offsetY += extraSpace;
     } else if (m_mainAlign == "space-between" && m_flattened.size() > 1) {
         spacing = m_space + extraSpace / (static_cast<double>(m_flattened.size()) - 1);
-    } else if (m_mainAlign == "space-around" && m_flattened.size() > 0) {
+    } else if (m_mainAlign == "space-around" && !m_flattened.empty()) {
         double perItem = extraSpace / static_cast<double>(m_flattened.size());
         offsetY += perItem / 2.0;
         spacing = m_space + perItem;
-    } else if (m_mainAlign == "space-evenly" && m_flattened.size() > 0) {
+    } else if (m_mainAlign == "space-evenly" && !m_flattened.empty()) {
         double perGap = extraSpace / static_cast<double>(m_flattened.size() + 1);
         offsetY += perGap;
         spacing = m_space + perGap;
@@ -189,11 +189,8 @@ bool ColumnLayout::bindsProperty(const QString& name) const
 {
     if (ContainerElement::bindsProperty(name))
         return true;
-    for (const auto& child : m_children) {
-        if (child && child->bindsProperty(name))
-            return true;
-    }
-    return false;
+    return std::any_of(m_children.begin(), m_children.end(),
+        [&](const auto& child) { return child && child->bindsProperty(name); });
 }
 
 } // namespace BroadItem

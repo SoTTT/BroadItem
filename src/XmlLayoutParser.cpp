@@ -86,7 +86,7 @@ ElementPtr XmlLayoutParser::createElement(const QString& tagName)
     return nullptr;
 }
 
-void XmlLayoutParser::applyPseudoAttributes(ElementPtr element, const QDomElement& xml)
+void XmlLayoutParser::applyPseudoAttributes(const ElementPtr& element, const QDomElement& xml)
 {
     // Already handled in ContainerElement::parse via parseDecorators
     Q_UNUSED(element)

@@ -112,7 +112,6 @@ void ContainerElement::render(QPainter* painter, const LayoutContext& ctx) const
     double mTop = decorators.margin.top;
     double mRight = decorators.margin.right;
     double mBottom = decorators.margin.bottom;
-    double bWidth = decorators.border.width;
 
     Rect marginRect;
     marginRect.pos.x = m_rect.pos.x;
@@ -181,7 +180,7 @@ bool ContainerElement::bindsProperty(const QString& name) const
 
 void ContainerElement::setContent(ElementPtr content)
 {
-    m_content = content;
+    m_content = std::move(content);
 }
 
 ElementPtr ContainerElement::clone() const

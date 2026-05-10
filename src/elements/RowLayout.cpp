@@ -1,6 +1,7 @@
 #include "broaditem/elements/RowLayout.h"
 #include "broaditem/elements/ForElement.h"
 #include "broaditem/elements/IfHasElement.h"
+#include <algorithm>
 #include <QPainter>
 #include <QDomElement>
 
@@ -19,7 +20,7 @@ void RowLayout::parse(const QDomElement& xml)
 
 void RowLayout::addChild(ElementPtr child)
 {
-    m_children.push_back(child);
+    m_children.push_back(std::move(child));
 }
 
 ElementPtr RowLayout::clone() const
@@ -136,11 +137,11 @@ void RowLayout::layoutChildren(const LayoutContext& ctx, const Rect& contentRect
         offsetX += extraSpace;
     } else if (m_mainAlign == "space-between" && m_flattened.size() > 1) {
         spacing = m_space + extraSpace / (static_cast<double>(m_flattened.size()) - 1);
-    } else if (m_mainAlign == "space-around" && m_flattened.size() > 0) {
+    } else if (m_mainAlign == "space-around" && !m_flattened.empty()) {
         double perItem = extraSpace / static_cast<double>(m_flattened.size());
         offsetX += perItem / 2.0;
         spacing = m_space + perItem;
-    } else if (m_mainAlign == "space-evenly" && m_flattened.size() > 0) {
+    } else if (m_mainAlign == "space-evenly" && !m_flattened.empty()) {
         double perGap = extraSpace / static_cast<double>(m_flattened.size() + 1);
         offsetX += perGap;
         spacing = m_space + perGap;
@@ -184,11 +185,8 @@ bool RowLayout::bindsProperty(const QString& name) const
 {
     if (ContainerElement::bindsProperty(name))
         return true;
-    for (const auto& child : m_children) {
-        if (child && child->bindsProperty(name))
-            return true;
-    }
-    return false;
+    return std::any_of(m_children.begin(), m_children.end(),
+        [&](const auto& child) { return child && child->bindsProperty(name); });
 }
 
 } // namespace BroadItem

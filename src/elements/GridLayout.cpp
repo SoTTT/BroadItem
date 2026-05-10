@@ -1,6 +1,7 @@
 #include "broaditem/elements/GridLayout.h"
 #include "broaditem/elements/CellElement.h"
 #include "broaditem/elements/ForElement.h"
+#include <algorithm>
 #include "broaditem/elements/IfHasElement.h"
 #include <QPainter>
 #include <QDomElement>
@@ -38,7 +39,7 @@ void GridLayout::parse(const QDomElement& xml)
 
 void GridLayout::addChild(ElementPtr child)
 {
-    m_children.push_back(child);
+    m_children.push_back(std::move(child));
 }
 
 ElementPtr GridLayout::clone() const
@@ -196,11 +197,8 @@ bool GridLayout::bindsProperty(const QString& name) const
 {
     if (ContainerElement::bindsProperty(name))
         return true;
-    for (const auto& child : m_children) {
-        if (child && child->bindsProperty(name))
-            return true;
-    }
-    return false;
+    return std::any_of(m_children.begin(), m_children.end(),
+        [&](const auto& child) { return child && child->bindsProperty(name); });
 }
 
 } // namespace BroadItem

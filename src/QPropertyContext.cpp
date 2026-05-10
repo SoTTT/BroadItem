@@ -72,6 +72,7 @@ void QPropertyContext::onNotify()
 bool QPropertyContext::event(QEvent* e)
 {
     if (e->type() == QEvent::DynamicPropertyChange) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
         auto* de = static_cast<QDynamicPropertyChangeEvent*>(e);
         QString propName = de->propertyName();
         QVariant value = QObject::property(propName.toUtf8().constData());
@@ -85,6 +86,7 @@ bool QPropertyContext::eventFilter(QObject* obj, QEvent* event)
 {
     if (event->type() == QEvent::DynamicPropertyChange && obj == m_target) {
         ensureConnected();
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
         auto* de = static_cast<QDynamicPropertyChangeEvent*>(event);
         QString propName = de->propertyName();
         QVariant value = obj->property(propName.toUtf8().constData());

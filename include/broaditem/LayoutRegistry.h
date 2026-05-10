@@ -14,7 +14,7 @@ public:
     static LayoutRegistry& instance();
 
     int loadLayoutsFromDirectory(const QString& dirPath);
-    void registerLayout(int id, ElementPtr root);
+    void registerLayout(int id, const ElementPtr& root);
     ElementPtr getLayout(int id) const;
 
 private:

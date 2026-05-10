@@ -53,10 +53,10 @@ protected:
     Rect m_rect;
 
     // Helpers
-    double parseDouble(const QString& value, double defaultVal = 0) const;
-    QColor parseColor(const QString& value) const;
-    bool parseBool(const QString& value) const;
-    QString interpolate(const QString& text, const QStringList& values) const;
+    static double parseDouble(const QString& value, double defaultVal = 0);
+    static QColor parseColor(const QString& value);
+    static bool parseBool(const QString& value);
+    static QString interpolate(const QString& text, const QStringList& values);
 };
 
 } // namespace BroadItem

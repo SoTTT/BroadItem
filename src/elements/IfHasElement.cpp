@@ -24,7 +24,7 @@ void IfHasElement::setNot(bool notValue)
 
 void IfHasElement::setChild(ElementPtr child)
 {
-    m_child = child;
+    m_child = std::move(child);
 }
 
 ElementPtr IfHasElement::clone() const
