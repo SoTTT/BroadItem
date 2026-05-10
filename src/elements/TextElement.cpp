@@ -41,8 +41,13 @@ void TextElement::parse(const QDomElement& xml)
 
 QString TextElement::resolvedText(const LayoutContext& ctx) const
 {
-    if (!m_bindProperty.isEmpty() && ctx.hasProperty(m_bindProperty))
-        return ctx.getString(m_bindProperty);
+    if (!m_bindProperty.isEmpty() && ctx.hasProperty(m_bindProperty)) {
+        QVariant v = ctx.property(m_bindProperty);
+        if (v.type() == QVariant::String)
+            return v.toString();
+        qCritical() << "TextElement: bind property" << m_bindProperty
+                     << "expected QString, got" << v.typeName();
+    }
     return m_text;
 }
 
@@ -184,7 +189,7 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
 
 bool TextElement::bindsProperty(const QString& name) const
 {
-    return m_bindProperty == name;
+    return matchesProperty(m_bindProperty, name);
 }
 
 ElementPtr TextElement::clone() const

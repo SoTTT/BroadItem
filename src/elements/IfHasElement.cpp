@@ -74,7 +74,7 @@ void IfHasElement::render(QPainter* painter, const LayoutContext& ctx) const
 
 bool IfHasElement::bindsProperty(const QString& name) const
 {
-    return m_bindProperty == name || (m_child && m_child->bindsProperty(name));
+    return matchesProperty(m_bindProperty, name) || (m_child && m_child->bindsProperty(name));
 }
 
 } // namespace BroadItem

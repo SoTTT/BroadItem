@@ -52,7 +52,15 @@ std::vector<ElementPtr> ForElement::expand(const LayoutContext& ctx) const
     if (!m_template || m_bindProperty.isEmpty())
         return result;
 
-    QStringList values = ctx.getStringList(m_bindProperty);
+    QVariant v = ctx.property(m_bindProperty);
+    if (v.type() != QVariant::StringList) {
+        if (v.isValid())
+            qCritical() << "ForElement: bind property" << m_bindProperty
+                         << "expected QStringList, got" << v.typeName();
+        return result;
+    }
+
+    QStringList values = v.toStringList();
     for (int i = 0; i < values.size(); i += m_step) {
         auto instance = m_template->clone();
         QStringList itemValues;
@@ -67,7 +75,7 @@ std::vector<ElementPtr> ForElement::expand(const LayoutContext& ctx) const
 
 bool ForElement::bindsProperty(const QString& name) const
 {
-    return m_bindProperty == name || (m_template && m_template->bindsProperty(name));
+    return matchesProperty(m_bindProperty, name) || (m_template && m_template->bindsProperty(name));
 }
 
 } // namespace BroadItem

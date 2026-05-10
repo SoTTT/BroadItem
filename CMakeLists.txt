@@ -11,6 +11,7 @@ find_package(Qt5 REQUIRED COMPONENTS Core Widgets Xml)
 
 add_library(BroadItem STATIC
     src/BroadItem.cpp
+    src/QPropertyContext.cpp
     src/XmlLayoutParser.cpp
     src/LayoutRegistry.cpp
     src/LayoutEngine.cpp
@@ -23,6 +24,10 @@ add_library(BroadItem STATIC
     src/elements/CellElement.cpp
     src/elements/ForElement.cpp
     src/elements/IfHasElement.cpp
+    include/broaditem/BroadItem.h
+    include/broaditem/PropertyContext.h
+    include/broaditem/MapPropertyContext.h
+    include/broaditem/QPropertyContext.h
 )
 
 target_include_directories(BroadItem PUBLIC
@@ -35,3 +40,4 @@ target_link_libraries(BroadItem PUBLIC Qt5::Core Qt5::Widgets Qt5::Xml)
 # Tests
 enable_testing()
 add_subdirectory(example)
+add_subdirectory(tests)

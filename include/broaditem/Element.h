@@ -32,6 +32,9 @@ public:
     // Data binding: return true if this element uses the given property
     virtual bool bindsProperty(const QString& name) const { Q_UNUSED(name) return false; }
 
+    // Check if name matches bindPath (exact, or as prefix of a dotted/bracket path)
+    static bool matchesProperty(const QString& bindPath, const QString& propName);
+
     // Clone this element (deep copy). Must be implemented by all concrete element types.
     virtual ElementPtr clone() const = 0;
 

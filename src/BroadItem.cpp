@@ -1,28 +1,54 @@
 #include "broaditem/BroadItem.h"
 #include "broaditem/Element.h"
+#include "broaditem/MapPropertyContext.h"
 #include "broaditem/XmlLayoutParser.h"
 #include "broaditem/LayoutRegistry.h"
 #include "broaditem/LayoutEngine.h"
 #include <QPainter>
-#include <QDebug>
 
 namespace BroadItem {
 
-BroadItem::BroadItem(const QString& xmlFilePath, QGraphicsItem* parent)
-    : QGraphicsItem(parent)
+BroadItem::BroadItem(const QString& xmlFilePath,
+                     std::shared_ptr<PropertyContext> ctx,
+                     QGraphicsItem* parent)
+    : QGraphicsObject(parent)
+    , m_propertyContext(ctx ? std::move(ctx) : std::make_shared<MapPropertyContext>())
 {
+    setupPropertyContext();
     buildFromFile(xmlFilePath);
     performLayout();
 }
 
-BroadItem::BroadItem(int layoutId, QGraphicsItem* parent)
-    : QGraphicsItem(parent)
+BroadItem::BroadItem(int layoutId,
+                     std::shared_ptr<PropertyContext> ctx,
+                     QGraphicsItem* parent)
+    : QGraphicsObject(parent)
+    , m_propertyContext(ctx ? std::move(ctx) : std::make_shared<MapPropertyContext>())
 {
+    setupPropertyContext();
     buildFromRegistry(layoutId);
     performLayout();
 }
 
 BroadItem::~BroadItem() = default;
+
+void BroadItem::setupPropertyContext()
+{
+    if (m_propertyContext) {
+        m_propertyContext->setOnChanged([this](const QString& name, const QVariant&) {
+            if (m_rootElement && m_rootElement->bindsProperty(name)) {
+                updateLayout();
+                update();
+            }
+        });
+    }
+}
+
+void BroadItem::setPropertyContext(std::shared_ptr<PropertyContext> ctx)
+{
+    m_propertyContext = std::move(ctx);
+    setupPropertyContext();
+}
 
 void BroadItem::buildFromFile(const QString& path)
 {
@@ -33,9 +59,6 @@ void BroadItem::buildFromRegistry(int layoutId)
 {
     auto root = LayoutRegistry::instance().getLayout(layoutId);
     if (root) {
-        // Clone the template root for this instance
-        // For simplicity, we reuse the same element (not safe for multiple BroadItems)
-        // A proper clone() method should be implemented for production use.
         m_rootElement = root;
     }
 }
@@ -44,6 +67,8 @@ void BroadItem::performLayout()
 {
     if (!m_rootElement)
         return;
+
+    m_context.ctx = m_propertyContext.get();
 
     LayoutConstraints constraints;
     constraints.availableWidth = -1;
@@ -69,40 +94,26 @@ void BroadItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
 {
     Q_UNUSED(option)
     Q_UNUSED(widget)
-    if (m_rootElement)
+    if (m_rootElement) {
+        m_context.ctx = m_propertyContext.get();
         m_rootElement->render(painter, m_context);
+    }
 }
 
 void BroadItem::setDynamicProperty(const QString& name, const QVariant& value)
 {
-    // Validate type: only QString and QStringList are supported
-    if (!value.canConvert<QString>() && value.type() != QVariant::StringList) {
-        qWarning() << "BroadItem: dynamic property '" << name
-                   << "' must be QString or QStringList, got type" << value.typeName();
-        return;
-    }
-
-    bool changed = false;
-    QVariant oldValue = m_context.dynamicProperties.value(name);
-    if (oldValue != value) {
-        changed = true;
-        m_context.dynamicProperties.insert(name, value);
-    }
-
-    if (changed && m_rootElement && m_rootElement->bindsProperty(name)) {
-        updateLayout();
-        update();
-    }
+    if (m_propertyContext)
+        m_propertyContext->setProperty(name, value);
 }
 
 QVariant BroadItem::dynamicProperty(const QString& name) const
 {
-    return m_context.dynamicProperties.value(name);
+    return m_propertyContext ? m_propertyContext->property(name) : QVariant();
 }
 
 bool BroadItem::hasDynamicProperty(const QString& name) const
 {
-    return m_context.dynamicProperties.contains(name);
+    return m_propertyContext && m_propertyContext->hasProperty(name);
 }
 
 void BroadItem::updateLayout()

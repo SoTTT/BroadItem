@@ -1,30 +1,30 @@
 #pragma once
 
-#include <QVariantMap>
 #include <QVariant>
 #include <QStringList>
 #include "BoxModel.h"
+#include "PropertyContext.h"
 
 namespace BroadItem {
 
 class LayoutContext {
 public:
-    QVariantMap dynamicProperties;
+    PropertyContext* ctx = nullptr;
 
-    bool hasProperty(const QString& name) const {
-        return dynamicProperties.contains(name);
+    bool hasProperty(const QString& name) const
+    {
+        return ctx && ctx->hasProperty(name);
     }
 
-    QString getString(const QString& name) const {
-        return dynamicProperties.value(name).toString();
+    QVariant property(const QString& name) const
+    {
+        return ctx ? ctx->property(name) : QVariant();
     }
 
-    QStringList getStringList(const QString& name) const {
-        return dynamicProperties.value(name).toStringList();
-    }
-
-    void setProperty(const QString& name, const QVariant& value) {
-        dynamicProperties.insert(name, value);
+    void setProperty(const QString& name, const QVariant& value)
+    {
+        if (ctx)
+            ctx->setProperty(name, value);
     }
 };
 
@@ -33,7 +33,7 @@ struct MeasureResult {
 };
 
 struct LayoutConstraints {
-    double availableWidth = -1;  // -1 means unconstrained
+    double availableWidth = -1;
     double availableHeight = -1;
 };
 

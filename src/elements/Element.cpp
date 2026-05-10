@@ -43,4 +43,13 @@ void Element::interpolateValues(const QStringList& values)
     Q_UNUSED(values)
 }
 
+bool Element::matchesProperty(const QString& bindPath, const QString& propName)
+{
+    if (bindPath == propName)
+        return true;
+    if (bindPath.startsWith(propName + ".") || bindPath.startsWith(propName + "["))
+        return true;
+    return false;
+}
+
 } // namespace BroadItem
