@@ -16,6 +16,7 @@ add_library(BroadItem STATIC
     src/LayoutRegistry.cpp
     src/LayoutEngine.cpp
     src/elements/Element.cpp
+    src/elements/SizedElement.cpp
     src/elements/ContainerElement.cpp
     src/elements/TextElement.cpp
     src/elements/ColumnLayout.cpp
@@ -28,6 +29,7 @@ add_library(BroadItem STATIC
     include/broaditem/PropertyContext.h
     include/broaditem/MapPropertyContext.h
     include/broaditem/QPropertyContext.h
+    include/broaditem/SizedElement.h
 )
 
 target_include_directories(BroadItem PUBLIC

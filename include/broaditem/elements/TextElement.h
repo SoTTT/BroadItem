@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../Element.h"
+#include "../SizedElement.h"
 
 namespace BroadItem {
 
-class TextElement : public Element {
+class TextElement : public SizedElement {
 public:
     void parse(const QDomElement& xml) override;
     MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints) override;

@@ -8,7 +8,7 @@ namespace BroadItem {
 
 void TextElement::parse(const QDomElement& xml)
 {
-    Element::parse(xml);
+    SizedElement::parse(xml);
 
     m_text = xml.text().trimmed();
 
@@ -111,6 +111,13 @@ MeasureResult TextElement::measure(const LayoutContext& ctx, const LayoutConstra
     Size result;
     result.width = sz.width();
     result.height = sz.height();
+
+    // Apply specified size as requested size (if any)
+    if (hasWidth())
+        result.width = width();
+    if (hasHeight())
+        result.height = height();
+
     return MeasureResult{result};
 }
 
@@ -136,6 +143,13 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
 
     painter->setFont(font);
     painter->setPen(m_color);
+
+    // Clip if size is specified (content may exceed allocated rect)
+    bool needClip = hasWidth() || hasHeight();
+    if (needClip) {
+        painter->save();
+        painter->setClipRect(m_rect.toQRectF());
+    }
 
     QFontMetricsF fm(font);
     double maxW = m_maxWidth;
@@ -198,6 +212,10 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
 
         painter->drawText(QPointF(x, y + fm.ascent()), text);
     }
+
+    if (needClip) {
+        painter->restore();
+    }
 }
 
 bool TextElement::bindsProperty(const QString& name) const
@@ -222,6 +240,8 @@ ElementPtr TextElement::clone() const
     copy->m_fontSize = m_fontSize;
     copy->m_fontFamily = m_fontFamily;
     copy->m_color = m_color;
+    copy->m_width = m_width;
+    copy->m_height = m_height;
     copy->decorators = decorators;
     copy->m_rect = m_rect;
     return copy;
