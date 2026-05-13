@@ -1,7 +1,7 @@
 find_package(Qt5 REQUIRED COMPONENTS Core Widgets Xml)
 
-configure_file(basic/test_layout.xml ${CMAKE_BINARY_DIR}/test_layout.xml COPYONLY)
-configure_file(complex/test_complex.xml ${CMAKE_BINARY_DIR}/test_complex.xml COPYONLY)
+configure_file(basic/test_layout.xml ${CMAKE_CURRENT_BINARY_DIR}/test_layout.xml COPYONLY)
+configure_file(complex/test_complex.xml ${CMAKE_CURRENT_BINARY_DIR}/test_complex.xml COPYONLY)
 
 add_executable(test_basic basic/test_basic.cpp)
 target_link_libraries(test_basic PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)

@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
     QGraphicsScene scene;
     scene.setSceneRect(0, 0, 500, 500);
 
-    auto* item = new BroadItem::BroadItem("test_complex.xml");
+    auto* item = new BroadItem::BroadItem(QApplication::applicationDirPath() + "/test_complex.xml");
 
     // 初始数据
     item->setDynamicProperty("device_name", "服务器 #01");
