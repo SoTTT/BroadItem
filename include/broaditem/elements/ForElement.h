@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Element.h"
+#include "../ControlElement.h"
 
 namespace BroadItem {
 
@@ -8,25 +8,10 @@ namespace BroadItem {
 // It does NOT participate in measure/layout/render directly; instead, the parent
 // container calls expand() to get a list of cloned elements that participate in
 // the parent's unified layout.
-class ForElement : public Element {
+class ForElement : public ControlElement {
 public:
     void parse(const QDomElement& xml) override;
     bool bindsProperty(const QString& name) const override;
-
-    // ForElement does not participate in layout directly.
-    MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints) override {
-        Q_UNUSED(ctx)
-        Q_UNUSED(constraints)
-        return MeasureResult{Size{0, 0}};
-    }
-    void layout(const LayoutContext& ctx, const Rect& rect) override {
-        Q_UNUSED(ctx)
-        Q_UNUSED(rect)
-    }
-    void render(QPainter* painter, const LayoutContext& ctx) const override {
-        Q_UNUSED(painter)
-        Q_UNUSED(ctx)
-    }
 
     void setBindProperty(const QString& bind);
     void setTemplate(ElementPtr templ);
@@ -40,6 +25,11 @@ public:
     // Expand this for-element into a list of cloned element instances,
     // one per bound value, with interpolation applied.
     std::vector<ElementPtr> expand(const LayoutContext& ctx) const;
+
+    // Override to delegate to expanded child (when used as root element)
+    MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints) override;
+    void layout(const LayoutContext& ctx, const Rect& rect) override;
+    void render(QPainter* painter, const LayoutContext& ctx) const override;
 
 private:
     QString m_ofProperty;

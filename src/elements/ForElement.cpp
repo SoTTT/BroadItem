@@ -73,6 +73,31 @@ std::vector<ElementPtr> ForElement::expand(const LayoutContext& ctx) const
     return result;
 }
 
+MeasureResult ForElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
+{
+    auto expanded = expand(ctx);
+    if (expanded.empty())
+        return MeasureResult{Size{0, 0}};
+    return expanded[0]->measure(ctx, constraints);
+}
+
+void ForElement::layout(const LayoutContext& ctx, const Rect& rect)
+{
+    m_rect = rect;
+    auto expanded = expand(ctx);
+    if (!expanded.empty()) {
+        expanded[0]->layout(ctx, rect);
+    }
+}
+
+void ForElement::render(QPainter* painter, const LayoutContext& ctx) const
+{
+    auto expanded = expand(ctx);
+    if (!expanded.empty()) {
+        expanded[0]->render(painter, ctx);
+    }
+}
+
 bool ForElement::bindsProperty(const QString& name) const
 {
     return matchesProperty(m_ofProperty, name) || (m_template && m_template->bindsProperty(name));

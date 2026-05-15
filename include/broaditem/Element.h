@@ -46,10 +46,6 @@ public:
     const Rect& rect() const { return m_rect; }
     void setRect(const Rect& r) { m_rect = r; }
 
-    // Decorators (may be null for control elements)
-    Decorators decorators;
-    bool isControlElement = false;
-
     // Return the set of attribute names this element supports (including binding attributes like ":content").
     virtual const QSet<QString>& supportedAttributes() const {
         static const QSet<QString> empty;
@@ -68,18 +64,6 @@ public:
     static bool validateDouble(const QString& value, const QString& attrName, double& out);
     static bool validateInt(const QString& value, const QString& attrName, int& out);
     static bool validateBool(const QString& value, const QString& attrName, bool& out);
-
-    // Parse decorator pseudo-attributes (margin-*, padding-*, border-*, background-*)
-    void parseDecorators(const QDomElement& xml);
-
-    // Render decorators (background, border) into the given rect
-    void renderDecorators(QPainter* painter, const Rect& rect) const;
-
-    // Return the content rect inside decorators (removes margin/border/padding)
-    Rect contentRect(const Rect& outerRect) const;
-
-    // Return all decorator pseudo-attribute names
-    static const QSet<QString>& decoratorAttributeNames();
 
 protected:
     Rect m_rect;

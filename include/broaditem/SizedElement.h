@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Element.h"
+#include "RenderableElement.h"
 #include <QDomElement>
 
 namespace BroadItem {
 
-class SizedElement : public Element {
+class SizedElement : public RenderableElement {
 public:
     virtual ~SizedElement() = default;
 

@@ -4,10 +4,7 @@
 
 namespace BroadItem {
 
-ContainerElement::ContainerElement()
-{
-    isControlElement = false;
-}
+ContainerElement::ContainerElement() = default;
 
 void ContainerElement::parse(const QDomElement& xml)
 {

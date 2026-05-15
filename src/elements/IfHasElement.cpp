@@ -1,5 +1,4 @@
 #include "broaditem/elements/IfHasElement.h"
-#include <QPainter>
 #include <QDomElement>
 
 namespace BroadItem {

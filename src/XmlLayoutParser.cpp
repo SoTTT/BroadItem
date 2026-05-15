@@ -1,5 +1,6 @@
 #include "broaditem/XmlLayoutParser.h"
 #include "broaditem/Element.h"
+#include "broaditem/RenderableElement.h"
 #include "broaditem/ContainerElement.h"
 #include "broaditem/elements/TextElement.h"
 #include "broaditem/elements/ColumnLayout.h"
@@ -104,9 +105,9 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
         QDomElement child = xml.firstChildElement();
         if (!child.isNull()) {
             auto content = parseNode(child);
-            if (content) {
+            if (auto renderable = std::dynamic_pointer_cast<RenderableElement>(content)) {
                 // Merge margin into content's decorators
-                content->decorators.margin = container->decorators.margin;
+                renderable->decorators.margin = container->decorators.margin;
                 return content;
             }
         }
@@ -119,8 +120,8 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
         QDomElement child = xml.firstChildElement();
         if (!child.isNull()) {
             auto content = parseNode(child);
-            if (content) {
-                content->decorators.border = container->decorators.border;
+            if (auto renderable = std::dynamic_pointer_cast<RenderableElement>(content)) {
+                renderable->decorators.border = container->decorators.border;
                 return content;
             }
         }
@@ -133,8 +134,8 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
         QDomElement child = xml.firstChildElement();
         if (!child.isNull()) {
             auto content = parseNode(child);
-            if (content) {
-                content->decorators.background = container->decorators.background;
+            if (auto renderable = std::dynamic_pointer_cast<RenderableElement>(content)) {
+                renderable->decorators.background = container->decorators.background;
                 return content;
             }
         }
@@ -147,8 +148,8 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
         QDomElement child = xml.firstChildElement();
         if (!child.isNull()) {
             auto content = parseNode(child);
-            if (content) {
-                content->decorators.padding = container->decorators.padding;
+            if (auto renderable = std::dynamic_pointer_cast<RenderableElement>(content)) {
+                renderable->decorators.padding = container->decorators.padding;
                 return content;
             }
         }

@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Element.h"
+#include "RenderableElement.h"
 
 namespace BroadItem {
 
 // A container wraps a content element with decorators (margin, border, background, padding)
-class ContainerElement : public Element {
+class ContainerElement : public RenderableElement {
 public:
     ContainerElement();
 
