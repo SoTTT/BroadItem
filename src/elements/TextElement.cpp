@@ -8,18 +8,19 @@ namespace BroadItem {
 
 const QSet<QString>& TextElement::supportedAttributes() const
 {
-    static const QSet<QString> attrs = {
+    static const QSet<QString> attrs = QSet<QString>{
         "width", "height",  // from SizedElement
         "content", ":content", "v-align", "h-align",
         "font-family", "font-size", "bold", "under-line",
         "wrap", "max-width", "color"
-    };
+    } + decoratorAttributeNames();
     return attrs;
 }
 
 void TextElement::parse(const QDomElement& xml)
 {
     SizedElement::parse(xml);
+    parseDecorators(xml);
     validateAttributes(xml);
 
     m_text = xml.text().trimmed();
@@ -131,6 +132,10 @@ MeasureResult TextElement::measure(const LayoutContext& ctx, const LayoutConstra
     if (hasHeight())
         result.height = height();
 
+    // Add decorator sizes
+    result.width += decorators.totalWidth();
+    result.height += decorators.totalHeight();
+
     return MeasureResult{result};
 }
 
@@ -138,10 +143,14 @@ void TextElement::layout(const LayoutContext& ctx, const Rect& rect)
 {
     Q_UNUSED(ctx)
     m_rect = rect;
+    m_contentRect = contentRect(rect);
 }
 
 void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
 {
+    // Render decorators (background, border)
+    renderDecorators(painter, m_rect);
+
     QString text = resolvedText(ctx);
     if (text.isEmpty())
         return;
@@ -157,20 +166,23 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
     painter->setFont(font);
     painter->setPen(m_color);
 
+    // Use content rect for text rendering (inside decorators)
+    const Rect& textRect = m_contentRect;
+
     // Clip if size is specified (content may exceed allocated rect)
     bool needClip = hasWidth() || hasHeight();
     if (needClip) {
         painter->save();
-        painter->setClipRect(m_rect.toQRectF());
+        painter->setClipRect(textRect.toQRectF());
     }
 
     QFontMetricsF fm(font);
     double maxW = m_maxWidth;
-    if (m_rect.size.width > 0 && (maxW < 0 || m_rect.size.width < maxW))
-        maxW = m_rect.size.width;
+    if (textRect.size.width > 0 && (maxW < 0 || textRect.size.width < maxW))
+        maxW = textRect.size.width;
 
-    double x = m_rect.pos.x;
-    double y = m_rect.pos.y;
+    double x = textRect.pos.x;
+    double y = textRect.pos.y;
 
     if (m_wrap && maxW > 0) {
         QTextLayout layout(text, font);
@@ -195,17 +207,17 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
         double totalHeight = layout.boundingRect().height();
         double startY = y;
         if (m_vAlign == "center")
-            startY = y + (m_rect.size.height - totalHeight) / 2.0;
+            startY = y + (textRect.size.height - totalHeight) / 2.0;
         else if (m_vAlign == "bottom")
-            startY = y + m_rect.size.height - totalHeight;
+            startY = y + textRect.size.height - totalHeight;
 
         for (int i = 0; i < layout.lineCount(); ++i) {
             QTextLine line = layout.lineAt(i);
             double lineX = x;
             if (m_hAlign == "center")
-                lineX = x + (m_rect.size.width - line.naturalTextWidth()) / 2.0;
+                lineX = x + (textRect.size.width - line.naturalTextWidth()) / 2.0;
             else if (m_hAlign == "right")
-                lineX = x + m_rect.size.width - line.naturalTextWidth();
+                lineX = x + textRect.size.width - line.naturalTextWidth();
             line.draw(painter, QPointF(lineX, startY + line.y()));
         }
     } else {
@@ -214,14 +226,14 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
         double textH = bounding.height();
 
         if (m_hAlign == "center")
-            x = m_rect.pos.x + (m_rect.size.width - textW) / 2.0;
+            x = textRect.pos.x + (textRect.size.width - textW) / 2.0;
         else if (m_hAlign == "right")
-            x = m_rect.pos.x + m_rect.size.width - textW;
+            x = textRect.pos.x + textRect.size.width - textW;
 
         if (m_vAlign == "center")
-            y = m_rect.pos.y + (m_rect.size.height - textH) / 2.0;
+            y = textRect.pos.y + (textRect.size.height - textH) / 2.0;
         else if (m_vAlign == "bottom")
-            y = m_rect.pos.y + m_rect.size.height - textH;
+            y = textRect.pos.y + textRect.size.height - textH;
 
         painter->drawText(QPointF(x, y + fm.ascent()), text);
     }
@@ -257,6 +269,7 @@ ElementPtr TextElement::clone() const
     copy->m_height = m_height;
     copy->decorators = decorators;
     copy->m_rect = m_rect;
+    copy->m_contentRect = m_contentRect;
     return copy;
 }
 

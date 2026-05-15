@@ -21,15 +21,8 @@ public:
     ElementPtr clone() const override;
     void interpolateValues(const QStringList& values) override;
 
-    // Return all decorator pseudo-attribute names (margin*, padding*, border*, background*)
-    static const QSet<QString>& decoratorAttributeNames();
-
 private:
     ElementPtr m_content;
-
-    void parseDecorators(const QDomElement& xml);
-    void renderBackground(QPainter* p, const Rect& r) const;
-    void renderBorder(QPainter* p, const Rect& r) const;
 };
 
 } // namespace BroadItem

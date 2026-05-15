@@ -9,71 +9,9 @@ ContainerElement::ContainerElement()
     isControlElement = false;
 }
 
-const QSet<QString>& ContainerElement::decoratorAttributeNames()
-{
-    static const QSet<QString> attrs = {
-        "margin", "margin-left", "margin-right", "margin-top", "margin-bottom",
-        "padding", "padding-left", "padding-right", "padding-top", "padding-bottom",
-        "border-radius", "border-style", "border-width", "border-color",
-        "background-color", "background-radius", "background-transparent"
-    };
-    return attrs;
-}
-
 void ContainerElement::parse(const QDomElement& xml)
 {
     parseDecorators(xml);
-}
-
-void ContainerElement::parseDecorators(const QDomElement& xml)
-{
-    // Margin pseudo-properties
-    if (xml.hasAttribute("margin"))
-        decorators.margin.left = decorators.margin.right = decorators.margin.top = decorators.margin.bottom = parseDouble(xml.attribute("margin"));
-    if (xml.hasAttribute("margin-left"))
-        decorators.margin.left = parseDouble(xml.attribute("margin-left"));
-    if (xml.hasAttribute("margin-right"))
-        decorators.margin.right = parseDouble(xml.attribute("margin-right"));
-    if (xml.hasAttribute("margin-top"))
-        decorators.margin.top = parseDouble(xml.attribute("margin-top"));
-    if (xml.hasAttribute("margin-bottom"))
-        decorators.margin.bottom = parseDouble(xml.attribute("margin-bottom"));
-
-    // Padding pseudo-properties
-    if (xml.hasAttribute("padding"))
-        decorators.padding.left = decorators.padding.right = decorators.padding.top = decorators.padding.bottom = parseDouble(xml.attribute("padding"));
-    if (xml.hasAttribute("padding-left"))
-        decorators.padding.left = parseDouble(xml.attribute("padding-left"));
-    if (xml.hasAttribute("padding-right"))
-        decorators.padding.right = parseDouble(xml.attribute("padding-right"));
-    if (xml.hasAttribute("padding-top"))
-        decorators.padding.top = parseDouble(xml.attribute("padding-top"));
-    if (xml.hasAttribute("padding-bottom"))
-        decorators.padding.bottom = parseDouble(xml.attribute("padding-bottom"));
-
-    // Border pseudo-properties
-    if (xml.hasAttribute("border-radius"))
-        decorators.border.radius = parseDouble(xml.attribute("border-radius"));
-    if (xml.hasAttribute("border-style"))
-        decorators.border.style = xml.attribute("border-style");
-    if (xml.hasAttribute("border-width"))
-        decorators.border.width = parseDouble(xml.attribute("border-width"));
-    if (xml.hasAttribute("border-color"))
-        decorators.border.color = parseColor(xml.attribute("border-color"));
-
-    // Background pseudo-properties
-    if (xml.hasAttribute("background-color")) {
-        decorators.background.color = parseColor(xml.attribute("background-color"));
-        decorators.background.enabled = true;
-    }
-    if (xml.hasAttribute("background-radius")) {
-        decorators.background.radius = parseDouble(xml.attribute("background-radius"));
-        decorators.background.enabled = true;
-    }
-    if (xml.hasAttribute("background-transparent")) {
-        decorators.background.transparent = parseDouble(xml.attribute("background-transparent"));
-        decorators.background.enabled = true;
-    }
 }
 
 MeasureResult ContainerElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
@@ -118,70 +56,9 @@ void ContainerElement::layout(const LayoutContext& ctx, const Rect& rect)
 
 void ContainerElement::render(QPainter* painter, const LayoutContext& ctx) const
 {
-    // Compute decorator rectangles
-    double mLeft = decorators.margin.left;
-    double mTop = decorators.margin.top;
-    double mRight = decorators.margin.right;
-    double mBottom = decorators.margin.bottom;
-
-    Rect marginRect;
-    marginRect.pos.x = m_rect.pos.x;
-    marginRect.pos.y = m_rect.pos.y;
-    marginRect.size.width = m_rect.size.width;
-    marginRect.size.height = m_rect.size.height;
-
-    Rect borderRect;
-    borderRect.pos.x = marginRect.pos.x + mLeft;
-    borderRect.pos.y = marginRect.pos.y + mTop;
-    borderRect.size.width = std::max(0.0, marginRect.size.width - mLeft - mRight);
-    borderRect.size.height = std::max(0.0, marginRect.size.height - mTop - mBottom);
-
-    // Background fills border-box area
-    Rect bgRect = borderRect;
-
-    renderBackground(painter, bgRect);
-    renderBorder(painter, borderRect);
+    renderDecorators(painter, m_rect);
     if (m_content)
         m_content->render(painter, ctx);
-}
-
-void ContainerElement::renderBackground(QPainter* p, const Rect& r) const
-{
-    if (!decorators.background.visible())
-        return;
-
-    QColor c = decorators.background.color;
-    c.setAlphaF(1.0 - decorators.background.transparent);
-    p->setBrush(c);
-    p->setPen(Qt::NoPen);
-
-    double radius = decorators.background.radius;
-    if (radius > 0)
-        p->drawRoundedRect(r.toQRectF(), radius, radius);
-    else
-        p->drawRect(r.toQRectF());
-}
-
-void ContainerElement::renderBorder(QPainter* p, const Rect& r) const
-{
-    if (!decorators.border.visible())
-        return;
-
-    QPen pen(decorators.border.color);
-    pen.setWidthF(decorators.border.width);
-    p->setPen(pen);
-    p->setBrush(Qt::NoBrush);
-
-    double radius = decorators.border.radius;
-    double halfW = decorators.border.width / 2.0;
-    QRectF adjusted(r.pos.x + halfW, r.pos.y + halfW,
-                    std::max(0.0, r.size.width - decorators.border.width),
-                    std::max(0.0, r.size.height - decorators.border.width));
-
-    if (radius > 0)
-        p->drawRoundedRect(adjusted, radius, radius);
-    else
-        p->drawRect(adjusted);
 }
 
 bool ContainerElement::bindsProperty(const QString& name) const

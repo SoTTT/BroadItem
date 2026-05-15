@@ -69,6 +69,18 @@ public:
     static bool validateInt(const QString& value, const QString& attrName, int& out);
     static bool validateBool(const QString& value, const QString& attrName, bool& out);
 
+    // Parse decorator pseudo-attributes (margin-*, padding-*, border-*, background-*)
+    void parseDecorators(const QDomElement& xml);
+
+    // Render decorators (background, border) into the given rect
+    void renderDecorators(QPainter* painter, const Rect& rect) const;
+
+    // Return the content rect inside decorators (removes margin/border/padding)
+    Rect contentRect(const Rect& outerRect) const;
+
+    // Return all decorator pseudo-attribute names
+    static const QSet<QString>& decoratorAttributeNames();
+
 protected:
     Rect m_rect;
 

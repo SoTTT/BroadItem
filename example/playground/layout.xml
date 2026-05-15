@@ -1,9 +1,9 @@
 <root>
     <column space="12" padding="24" background-color="#F5F5F5" background-radius="12">
-        <text font-size="20" bold="true" color="#333">
+        <text font-size="20" bold="true" color="#333" margin-bottom="16">
             :content="title"
         </text>
-        <row space="8">
+        <row space="8" margin-bottom="8">
             <text font-size="14" color="#666">CPU: </text>
             <text font-size="14" bold="true" color="#2196F3">:content="cpu"</text>
         </row>

@@ -33,6 +33,7 @@ private:
     double m_fontSize = 12;
     QString m_fontFamily;
     QColor m_color = Qt::black;
+    Rect m_contentRect;
 
     QString resolvedText(const LayoutContext& ctx) const;
     QSizeF computeTextSize(const QString& text, const LayoutConstraints& constraints) const;
