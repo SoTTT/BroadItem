@@ -21,6 +21,9 @@ public:
     ElementPtr clone() const override;
     void interpolateValues(const QStringList& values) override;
 
+    // Return all decorator pseudo-attribute names (margin*, padding*, border*, background*)
+    static const QSet<QString>& decoratorAttributeNames();
+
 private:
     ElementPtr m_content;
 

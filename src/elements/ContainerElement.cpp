@@ -9,6 +9,17 @@ ContainerElement::ContainerElement()
     isControlElement = false;
 }
 
+const QSet<QString>& ContainerElement::decoratorAttributeNames()
+{
+    static const QSet<QString> attrs = {
+        "margin", "margin-left", "margin-right", "margin-top", "margin-bottom",
+        "padding", "padding-left", "padding-right", "padding-top", "padding-bottom",
+        "border-radius", "border-style", "border-width", "border-color",
+        "background-color", "background-radius", "background-transparent"
+    };
+    return attrs;
+}
+
 void ContainerElement::parse(const QDomElement& xml)
 {
     parseDecorators(xml);

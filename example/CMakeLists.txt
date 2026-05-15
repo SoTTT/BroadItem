@@ -8,3 +8,7 @@ target_link_libraries(test_basic PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::X
 
 add_executable(test_complex complex/test_complex.cpp)
 target_link_libraries(test_complex PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)
+
+# Empty playground target for user experiments
+add_executable(playground playground/main.cpp)
+target_link_libraries(playground PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)

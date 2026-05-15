@@ -9,7 +9,7 @@ namespace BroadItem {
 
 const QSet<QString>& RowLayout::supportedAttributes() const
 {
-    static const QSet<QString> attrs = {"main-align", "cross-align", "space"};
+    static const QSet<QString> attrs = QSet<QString>{"main-align", "cross-align", "space"} + decoratorAttributeNames();
     return attrs;
 }
 

@@ -6,7 +6,7 @@ namespace BroadItem {
 
 const QSet<QString>& CellElement::supportedAttributes() const
 {
-    static const QSet<QString> attrs = {"v-align", "h-align"};
+    static const QSet<QString> attrs = QSet<QString>{"v-align", "h-align"} + decoratorAttributeNames();
     return attrs;
 }
 

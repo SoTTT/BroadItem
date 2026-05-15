@@ -11,7 +11,7 @@ namespace BroadItem {
 
 const QSet<QString>& GridLayout::supportedAttributes() const
 {
-    static const QSet<QString> attrs = {"columns", "rows", "space", "space-row", "space-column"};
+    static const QSet<QString> attrs = QSet<QString>{"columns", "rows", "space", "space-row", "space-column"} + decoratorAttributeNames();
     return attrs;
 }
 
