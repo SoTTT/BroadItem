@@ -115,6 +115,8 @@ const QSet<QString>& Element::decoratorAttributeNames()
 
 void Element::parseDecorators(const QDomElement& xml)
 {
+    if (isControlElement)
+        return;
     // Margin pseudo-properties
     if (xml.hasAttribute("margin"))
         decorators.margin.left = decorators.margin.right = decorators.margin.top = decorators.margin.bottom = parseDouble(xml.attribute("margin"));
@@ -166,6 +168,8 @@ void Element::parseDecorators(const QDomElement& xml)
 
 void Element::renderDecorators(QPainter* painter, const Rect& rect) const
 {
+    if (isControlElement)
+        return;
     double mLeft = decorators.margin.left;
     double mTop = decorators.margin.top;
     double mRight = decorators.margin.right;
