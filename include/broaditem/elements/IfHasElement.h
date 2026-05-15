@@ -15,6 +15,9 @@ public:
     void render(QPainter* painter, const LayoutContext& ctx) const override;
     bool bindsProperty(const QString& name) const override;
 
+    const QSet<QString>& supportedAttributes() const override;
+    bool canHaveChildren() const override { return true; }
+
     void setBindProperty(const QString& bind);
     void setNot(bool notValue);
     void setChild(ElementPtr child);

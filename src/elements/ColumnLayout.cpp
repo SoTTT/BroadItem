@@ -7,15 +7,22 @@
 
 namespace BroadItem {
 
+const QSet<QString>& ColumnLayout::supportedAttributes() const
+{
+    static const QSet<QString> attrs = {"main-align", "cross-align", "space"};
+    return attrs;
+}
+
 void ColumnLayout::parse(const QDomElement& xml)
 {
     ContainerElement::parse(xml);
+    validateAttributes(xml);
     if (xml.hasAttribute("main-align"))
         m_mainAlign = xml.attribute("main-align");
     if (xml.hasAttribute("cross-align"))
         m_crossAlign = xml.attribute("cross-align");
     if (xml.hasAttribute("space"))
-        m_space = parseDouble(xml.attribute("space"));
+        validateDouble(xml.attribute("space"), "space", m_space);
 }
 
 void ColumnLayout::addChild(ElementPtr child)

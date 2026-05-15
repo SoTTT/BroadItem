@@ -9,29 +9,38 @@
 
 namespace BroadItem {
 
+const QSet<QString>& GridLayout::supportedAttributes() const
+{
+    static const QSet<QString> attrs = {"columns", "rows", "space", "space-row", "space-column"};
+    return attrs;
+}
+
 void GridLayout::parse(const QDomElement& xml)
 {
     ContainerElement::parse(xml);
+    validateAttributes(xml);
     if (xml.hasAttribute("columns")) {
-        m_columns = xml.attribute("columns").toInt();
-        if (m_columns <= 0) {
-            qWarning() << "GridLayout: columns must be positive, got" << m_columns;
-            m_columns = 1;
+        if (validateInt(xml.attribute("columns"), "columns", m_columns)) {
+            if (m_columns <= 0) {
+                qWarning() << "GridLayout: columns must be positive, got" << m_columns;
+                m_columns = 1;
+            }
         }
     }
     if (xml.hasAttribute("rows")) {
-        m_rows = xml.attribute("rows").toInt();
-        if (m_rows <= 0) {
-            qWarning() << "GridLayout: rows must be positive, got" << m_rows;
-            m_rows = 1;
+        if (validateInt(xml.attribute("rows"), "rows", m_rows)) {
+            if (m_rows <= 0) {
+                qWarning() << "GridLayout: rows must be positive, got" << m_rows;
+                m_rows = 1;
+            }
         }
     }
     if (xml.hasAttribute("space"))
-        m_space = parseDouble(xml.attribute("space"));
+        validateDouble(xml.attribute("space"), "space", m_space);
     if (xml.hasAttribute("space-row"))
-        m_rowSpace = parseDouble(xml.attribute("space-row"));
+        validateDouble(xml.attribute("space-row"), "space-row", m_rowSpace);
     if (xml.hasAttribute("space-column"))
-        m_columnSpace = parseDouble(xml.attribute("space-column"));
+        validateDouble(xml.attribute("space-column"), "space-column", m_columnSpace);
 
     if (m_rowSpace == 0) m_rowSpace = m_space;
     if (m_columnSpace == 0) m_columnSpace = m_space;

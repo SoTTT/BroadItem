@@ -6,9 +6,21 @@
 
 namespace BroadItem {
 
+const QSet<QString>& TextElement::supportedAttributes() const
+{
+    static const QSet<QString> attrs = {
+        "width", "height",  // from SizedElement
+        "content", ":content", "v-align", "h-align",
+        "font-family", "font-size", "bold", "under-line",
+        "wrap", "max-width", "color"
+    };
+    return attrs;
+}
+
 void TextElement::parse(const QDomElement& xml)
 {
     SizedElement::parse(xml);
+    validateAttributes(xml);
 
     m_text = xml.text().trimmed();
 
@@ -32,20 +44,21 @@ void TextElement::parse(const QDomElement& xml)
     if (xml.hasAttribute("font-family"))
         m_fontFamily = xml.attribute("font-family");
     if (xml.hasAttribute("font-size")) {
-        m_fontSize = parseDouble(xml.attribute("font-size"), 12);
-        if (m_fontSize <= 0) {
-            qWarning() << "TextElement: font-size must be positive, got" << m_fontSize;
-            m_fontSize = 12;
+        if (validateDouble(xml.attribute("font-size"), "font-size", m_fontSize)) {
+            if (m_fontSize <= 0) {
+                qWarning() << "TextElement: font-size must be positive, got" << m_fontSize;
+                m_fontSize = 12;
+            }
         }
     }
     if (xml.hasAttribute("bold"))
-        m_bold = parseBool(xml.attribute("bold"));
+        validateBool(xml.attribute("bold"), "bold", m_bold);
     if (xml.hasAttribute("under-line"))
-        m_underLine = parseBool(xml.attribute("under-line"));
+        validateBool(xml.attribute("under-line"), "under-line", m_underLine);
     if (xml.hasAttribute("wrap"))
-        m_wrap = parseBool(xml.attribute("wrap"));
+        validateBool(xml.attribute("wrap"), "wrap", m_wrap);
     if (xml.hasAttribute("max-width"))
-        m_maxWidth = parseDouble(xml.attribute("max-width"), -1);
+        validateDouble(xml.attribute("max-width"), "max-width", m_maxWidth);
     if (xml.hasAttribute("color"))
         m_color = parseColor(xml.attribute("color"));
 }

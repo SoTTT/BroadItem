@@ -3,6 +3,7 @@
 #include <QPainter>
 #include <QDomElement>
 #include <QStringList>
+#include <QSet>
 #include <memory>
 #include <vector>
 #include "BoxModel.h"
@@ -48,6 +49,25 @@ public:
     // Decorators (may be null for control elements)
     Decorators decorators;
     bool isControlElement = false;
+
+    // Return the set of attribute names this element supports (including binding attributes like ":content").
+    virtual const QSet<QString>& supportedAttributes() const {
+        static const QSet<QString> empty;
+        return empty;
+    }
+
+    // Return true if this element type may have child elements.
+    virtual bool canHaveChildren() const { return false; }
+
+    // Validate attributes in the XML element against supportedAttributes.
+    // Unknown attributes trigger qWarning and are skipped.
+    void validateAttributes(const QDomElement& xml) const;
+
+    // Validate attribute value type. Returns true if valid.
+    // Invalid values trigger qCritical, use default, and return false.
+    static bool validateDouble(const QString& value, const QString& attrName, double& out);
+    static bool validateInt(const QString& value, const QString& attrName, int& out);
+    static bool validateBool(const QString& value, const QString& attrName, bool& out);
 
 protected:
     Rect m_rect;

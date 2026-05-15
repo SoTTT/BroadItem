@@ -19,6 +19,9 @@ public:
     double columnSpace() const { return m_columnSpace; }
     double rowSpace() const { return m_rowSpace; }
 
+    const QSet<QString>& supportedAttributes() const override;
+    bool canHaveChildren() const override { return true; }
+
     ElementPtr clone() const override;
     void interpolateValues(const QStringList& values) override;
 

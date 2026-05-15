@@ -20,6 +20,9 @@ private slots:
     void testBindProperty();
     void testIfHas();
     void testRegistryLoad();
+    void testUnknownAttributeWarning();
+    void testInvalidChildError();
+    void testInvalidAttributeTypeError();
 };
 
 void TestParser::testParseSimpleText()
@@ -147,6 +150,44 @@ void TestParser::testRegistryLoad()
     int count = BroadItem::loadLayoutsFromDirectory(".");
     // Should load test_layout.xml
     QVERIFY(count >= 1);
+}
+
+void TestParser::testUnknownAttributeWarning()
+{
+    // Unknown attributes should trigger qWarning but not fail parsing
+    QString xml = R"(
+        <root>
+            <text unknown-attr="value" font-size="12">Hello</text>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root != nullptr);
+}
+
+void TestParser::testInvalidChildError()
+{
+    // Text element should not have child elements -> parse should fail
+    QString xml = R"(
+        <root>
+            <text font-size="12">
+                <text>Nested</text>
+            </text>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root == nullptr);
+}
+
+void TestParser::testInvalidAttributeTypeError()
+{
+    // Invalid type should trigger qCritical but parse should still succeed with default
+    QString xml = R"(
+        <root>
+            <text font-size="not-a-number">Hello</text>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root != nullptr);
 }
 // NOLINTEND(readability-convert-member-functions-to-static)
 

@@ -168,6 +168,12 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
 
     element->parse(xml);
 
+    // Validate child constraints: elements that cannot have children
+    if (!element->canHaveChildren() && !xml.firstChildElement().isNull()) {
+        qCritical() << "<" << tag << "> should not have child elements";
+        return nullptr;
+    }
+
     // Parse children for container elements
     auto container = std::dynamic_pointer_cast<ContainerElement>(element);
     auto column = std::dynamic_pointer_cast<ColumnLayout>(element);

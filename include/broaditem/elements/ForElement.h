@@ -34,6 +34,9 @@ public:
 
     ElementPtr clone() const override;
 
+    const QSet<QString>& supportedAttributes() const override;
+    bool canHaveChildren() const override { return true; }
+
     // Expand this for-element into a list of cloned element instances,
     // one per bound value, with interpolation applied.
     std::vector<ElementPtr> expand(const LayoutContext& ctx) const;

@@ -4,15 +4,26 @@
 
 namespace BroadItem {
 
+const QSet<QString>& ForElement::supportedAttributes() const
+{
+    static const QSet<QString> attrs = {":of", "step"};
+    return attrs;
+}
+
 void ForElement::parse(const QDomElement& xml)
 {
     Element::parse(xml);
+    validateAttributes(xml);
     if (xml.hasAttribute(":of"))
         m_ofProperty = xml.attribute(":of");
-    if (xml.hasAttribute("step"))
-        m_step = xml.attribute("step").toInt();
-    if (m_step < 1)
-        m_step = 1;
+    if (xml.hasAttribute("step")) {
+        if (validateInt(xml.attribute("step"), "step", m_step)) {
+            if (m_step < 1) {
+                qWarning() << "ForElement: step must be >= 1, got" << m_step;
+                m_step = 1;
+            }
+        }
+    }
 }
 
 void ForElement::setBindProperty(const QString& bind)

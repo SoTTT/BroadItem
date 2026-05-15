@@ -12,6 +12,9 @@ public:
     void render(QPainter* painter, const LayoutContext& ctx) const override;
     bool bindsProperty(const QString& name) const override;
 
+    const QSet<QString>& supportedAttributes() const override;
+    bool canHaveChildren() const override { return true; }
+
     ElementPtr clone() const override;
     void interpolateValues(const QStringList& values) override;
 

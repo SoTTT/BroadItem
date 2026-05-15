@@ -4,9 +4,16 @@
 
 namespace BroadItem {
 
+const QSet<QString>& IfHasElement::supportedAttributes() const
+{
+    static const QSet<QString> attrs = {":prop", "not"};
+    return attrs;
+}
+
 void IfHasElement::parse(const QDomElement& xml)
 {
     Element::parse(xml);
+    validateAttributes(xml);
     if (xml.hasAttribute(":prop"))
         m_propertyName = xml.attribute(":prop");
     m_not = xml.hasAttribute("not");

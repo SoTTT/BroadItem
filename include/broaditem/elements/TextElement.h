@@ -15,6 +15,9 @@ public:
     ElementPtr clone() const override;
     void interpolateValues(const QStringList& values) override;
 
+    const QSet<QString>& supportedAttributes() const override;
+    bool canHaveChildren() const override { return false; }
+
 private:
     QString m_text;
     QString m_contentLiteral;

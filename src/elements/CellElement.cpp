@@ -4,9 +4,16 @@
 
 namespace BroadItem {
 
+const QSet<QString>& CellElement::supportedAttributes() const
+{
+    static const QSet<QString> attrs = {"v-align", "h-align"};
+    return attrs;
+}
+
 void CellElement::parse(const QDomElement& xml)
 {
     ContainerElement::parse(xml);
+    validateAttributes(xml);
     if (xml.hasAttribute("v-align"))
         m_vAlign = xml.attribute("v-align");
     if (xml.hasAttribute("h-align"))

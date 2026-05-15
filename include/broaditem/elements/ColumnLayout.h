@@ -15,6 +15,9 @@ public:
     void addChild(ElementPtr child);
     double space() const { return m_space; }
 
+    const QSet<QString>& supportedAttributes() const override;
+    bool canHaveChildren() const override { return true; }
+
     ElementPtr clone() const override;
     void interpolateValues(const QStringList& values) override;
 

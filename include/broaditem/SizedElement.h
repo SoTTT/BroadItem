@@ -16,6 +16,11 @@ public:
     bool hasWidth() const { return m_width >= 0; }
     bool hasHeight() const { return m_height >= 0; }
 
+    const QSet<QString>& supportedAttributes() const override {
+        static const QSet<QString> attrs = {"width", "height"};
+        return attrs;
+    }
+
 protected:
     double m_width = -1;   // -1 means not specified
     double m_height = -1;
