@@ -45,8 +45,8 @@ void TestSizedElement::testMeasureWithSize()
     BroadItem::LayoutConstraints constraints;
 
     auto result = BroadItem::LayoutEngine::measure(root, layoutCtx, constraints);
-    QCOMPARE(result.width, 100.0);
-    QCOMPARE(result.height, 50.0);
+    QCOMPARE(result.width(), 100.0);
+    QCOMPARE(result.height(), 50.0);
 }
 
 void TestSizedElement::testMeasureWithoutSize()
@@ -66,8 +66,8 @@ void TestSizedElement::testMeasureWithoutSize()
 
     auto result = BroadItem::LayoutEngine::measure(root, layoutCtx, constraints);
     // Without width/height, size should be based on content
-    QVERIFY(result.width > 0);
-    QVERIFY(result.height > 0);
+    QVERIFY(result.width() > 0);
+    QVERIFY(result.height() > 0);
 }
 
 void TestSizedElement::testClonePreservesSize()
@@ -110,9 +110,7 @@ void TestSizedElement::testLayoutStretch()
     constraints.availableHeight = 100;
 
     auto result = BroadItem::LayoutEngine::measure(root, layoutCtx, constraints);
-    BroadItem::Rect rect;
-    rect.pos = {0, 0};
-    rect.size = result;
+    QRectF rect(0, 0, result.width(), result.height());
     BroadItem::LayoutEngine::layout(root, layoutCtx, rect);
 }
 

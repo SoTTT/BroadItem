@@ -4,15 +4,15 @@
 
 namespace BroadItem {
 
-Size LayoutEngine::measure(const ElementPtr& root, const LayoutContext& ctx, const LayoutConstraints& constraints)
+QSizeF LayoutEngine::measure(const ElementPtr& root, const LayoutContext& ctx, const LayoutConstraints& constraints)
 {
     if (!root)
-        return Size{0, 0};
+        return QSizeF(0, 0);
     auto result = root->measure(ctx, constraints);
     return result.intrinsicSize;
 }
 
-void LayoutEngine::layout(const ElementPtr& root, const LayoutContext& ctx, const Rect& rect)
+void LayoutEngine::layout(const ElementPtr& root, const LayoutContext& ctx, const QRectF& rect)
 {
     if (root)
         root->layout(ctx, rect);

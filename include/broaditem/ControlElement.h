@@ -15,9 +15,9 @@ public:
     MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints) override {
         Q_UNUSED(ctx)
         Q_UNUSED(constraints)
-        return MeasureResult{Size{0, 0}};
+        return MeasureResult{QSizeF(0, 0)};
     }
-    void layout(const LayoutContext& ctx, const Rect& rect) override {
+    void layout(const LayoutContext& ctx, const QRectF& rect) override {
         Q_UNUSED(ctx)
         Q_UNUSED(rect)
     }

@@ -75,13 +75,9 @@ void BroadItem::performLayout()
     constraints.availableHeight = -1;
 
     auto result = m_rootElement->measure(m_context, constraints);
-    m_boundingRect = QRectF(0, 0, result.intrinsicSize.width, result.intrinsicSize.height);
+    m_boundingRect = QRectF(0, 0, result.intrinsicSize.width(), result.intrinsicSize.height());
 
-    Rect rootRect;
-    rootRect.pos.x = 0;
-    rootRect.pos.y = 0;
-    rootRect.size.width = result.intrinsicSize.width;
-    rootRect.size.height = result.intrinsicSize.height;
+    QRectF rootRect(0, 0, result.intrinsicSize.width(), result.intrinsicSize.height());
     m_rootElement->layout(m_context, rootRect);
 }
 

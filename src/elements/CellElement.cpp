@@ -43,7 +43,7 @@ MeasureResult CellElement::measure(const LayoutContext& ctx, const LayoutConstra
     return ContainerElement::measure(ctx, constraints);
 }
 
-void CellElement::layout(const LayoutContext& ctx, const Rect& rect)
+void CellElement::layout(const LayoutContext& ctx, const QRectF& rect)
 {
     // Cell may be stretched by grid; we center/stretch content as specified
     ContainerElement::layout(ctx, rect);
@@ -54,36 +54,30 @@ void CellElement::layout(const LayoutContext& ctx, const Rect& rect)
     // After ContainerElement::layout, content has been placed at top-left of content area.
     // We now adjust content position based on alignments if content is smaller than cell.
     // For simplicity, we re-layout content with adjusted rect.
-    Rect contentArea;
-    contentArea.pos.x = rect.pos.x + decorators.margin.left + decorators.border.width + decorators.padding.left;
-    contentArea.pos.y = rect.pos.y + decorators.margin.top + decorators.border.width + decorators.padding.top;
-    contentArea.size.width = std::max(0.0, rect.size.width - decorators.totalWidth());
-    contentArea.size.height = std::max(0.0, rect.size.height - decorators.totalHeight());
+    QRectF contentArea(rect.x() + decorators.margin.left + decorators.border.width + decorators.padding.left,
+                       rect.y() + decorators.margin.top + decorators.border.width + decorators.padding.top,
+                       std::max(0.0, rect.width() - decorators.totalWidth()),
+                       std::max(0.0, rect.height() - decorators.totalHeight()));
 
     // Re-measure content to get intrinsic size
-    auto result = content()->measure(ctx, LayoutConstraints{contentArea.size.width, contentArea.size.height});
-    double cw = result.intrinsicSize.width;
-    double ch = result.intrinsicSize.height;
+    auto result = content()->measure(ctx, LayoutConstraints{contentArea.width(), contentArea.height()});
+    double cw = result.intrinsicSize.width();
+    double ch = result.intrinsicSize.height();
 
-    double cx = contentArea.pos.x;
-    double cy = contentArea.pos.y;
+    double cx = contentArea.x();
+    double cy = contentArea.y();
 
     if (m_hAlign == "center")
-        cx = contentArea.pos.x + (contentArea.size.width - cw) / 2.0;
+        cx = contentArea.x() + (contentArea.width() - cw) / 2.0;
     else if (m_hAlign == "right")
-        cx = contentArea.pos.x + contentArea.size.width - cw;
+        cx = contentArea.x() + contentArea.width() - cw;
 
     if (m_vAlign == "center")
-        cy = contentArea.pos.y + (contentArea.size.height - ch) / 2.0;
+        cy = contentArea.y() + (contentArea.height() - ch) / 2.0;
     else if (m_vAlign == "bottom")
-        cy = contentArea.pos.y + contentArea.size.height - ch;
+        cy = contentArea.y() + contentArea.height() - ch;
 
-    Rect childRect;
-    childRect.pos.x = cx;
-    childRect.pos.y = cy;
-    childRect.size.width = std::min(cw, contentArea.size.width);
-    childRect.size.height = std::min(ch, contentArea.size.height);
-
+    QRectF childRect(cx, cy, std::min(cw, contentArea.width()), std::min(ch, contentArea.height()));
     content()->layout(ctx, childRect);
 }
 

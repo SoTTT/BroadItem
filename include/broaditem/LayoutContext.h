@@ -2,7 +2,7 @@
 
 #include <QVariant>
 #include <QStringList>
-#include "BoxModel.h"
+#include <QSizeF>
 #include "PropertyContext.h"
 
 namespace BroadItem {
@@ -29,7 +29,7 @@ public:
 };
 
 struct MeasureResult {
-    Size intrinsicSize;
+    QSizeF intrinsicSize;
 };
 
 struct LayoutConstraints {

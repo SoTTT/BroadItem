@@ -82,8 +82,8 @@ void TestParser::testMeasureText()
     BroadItem::LayoutContext ctx;
     BroadItem::LayoutConstraints constraints;
     auto result = root->measure(ctx, constraints);
-    QVERIFY(result.intrinsicSize.width > 0);
-    QVERIFY(result.intrinsicSize.height > 0);
+    QVERIFY(result.intrinsicSize.width() > 0);
+    QVERIFY(result.intrinsicSize.height() > 0);
 }
 
 void TestParser::testColumnMeasure()
@@ -102,8 +102,8 @@ void TestParser::testColumnMeasure()
     BroadItem::LayoutContext ctx;
     BroadItem::LayoutConstraints constraints;
     auto result = root->measure(ctx, constraints);
-    QVERIFY(result.intrinsicSize.width > 0);
-    QVERIFY(result.intrinsicSize.height > 0);
+    QVERIFY(result.intrinsicSize.width() > 0);
+    QVERIFY(result.intrinsicSize.height() > 0);
 }
 
 void TestParser::testBindProperty()
@@ -137,12 +137,12 @@ void TestParser::testIfHas()
 
     // Property not set -> should not show
     auto result = root->measure(ctx, BroadItem::LayoutConstraints{});
-    QCOMPARE(result.intrinsicSize.width, 0.0);
-    QCOMPARE(result.intrinsicSize.height, 0.0);
+    QCOMPARE(result.intrinsicSize.width(), 0.0);
+    QCOMPARE(result.intrinsicSize.height(), 0.0);
 
     mapCtx.setProperty("show", "yes");
     result = root->measure(ctx, BroadItem::LayoutConstraints{});
-    QVERIFY(result.intrinsicSize.width > 0);
+    QVERIFY(result.intrinsicSize.width() > 0);
 }
 
 void TestParser::testRegistryLoad()

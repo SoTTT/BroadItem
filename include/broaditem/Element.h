@@ -4,9 +4,9 @@
 #include <QDomElement>
 #include <QStringList>
 #include <QSet>
+#include <QRectF>
 #include <memory>
 #include <vector>
-#include "BoxModel.h"
 #include "LayoutContext.h"
 
 namespace BroadItem {
@@ -25,7 +25,7 @@ public:
     virtual MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints) = 0;
 
     // Layout phase: assign final position and size
-    virtual void layout(const LayoutContext& ctx, const Rect& rect) = 0;
+    virtual void layout(const LayoutContext& ctx, const QRectF& rect) = 0;
 
     // Render
     virtual void render(QPainter* painter, const LayoutContext& ctx) const = 0;
@@ -43,8 +43,8 @@ public:
     // Default implementation does nothing.
     virtual void interpolateValues(const QStringList& values);
 
-    const Rect& rect() const { return m_rect; }
-    void setRect(const Rect& r) { m_rect = r; }
+    const QRectF& rect() const { return m_rect; }
+    void setRect(const QRectF& r) { m_rect = r; }
 
     // Return the set of attribute names this element supports (including binding attributes like ":content").
     virtual const QSet<QString>& supportedAttributes() const {
@@ -66,7 +66,7 @@ public:
     static bool validateBool(const QString& value, const QString& attrName, bool& out);
 
 protected:
-    Rect m_rect;
+    QRectF m_rect;
 
     // Helpers
     static double parseDouble(const QString& value, double defaultVal = 0);

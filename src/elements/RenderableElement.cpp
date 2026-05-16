@@ -66,21 +66,19 @@ void RenderableElement::parseDecorators(const QDomElement& xml)
     }
 }
 
-void RenderableElement::renderDecorators(QPainter* painter, const Rect& rect) const
+void RenderableElement::renderDecorators(QPainter* painter, const QRectF& rect) const
 {
     double mLeft = decorators.margin.left;
     double mTop = decorators.margin.top;
     double mRight = decorators.margin.right;
     double mBottom = decorators.margin.bottom;
 
-    Rect borderRect;
-    borderRect.pos.x = rect.pos.x + mLeft;
-    borderRect.pos.y = rect.pos.y + mTop;
-    borderRect.size.width = std::max(0.0, rect.size.width - mLeft - mRight);
-    borderRect.size.height = std::max(0.0, rect.size.height - mTop - mBottom);
+    QRectF borderRect(rect.x() + mLeft, rect.y() + mTop,
+                      std::max(0.0, rect.width() - mLeft - mRight),
+                      std::max(0.0, rect.height() - mTop - mBottom));
 
     // Background fills border-box area
-    Rect bgRect = borderRect;
+    QRectF bgRect = borderRect;
 
     // Render background
     if (decorators.background.visible()) {
@@ -91,9 +89,9 @@ void RenderableElement::renderDecorators(QPainter* painter, const Rect& rect) co
 
         double radius = decorators.background.radius;
         if (radius > 0)
-            painter->drawRoundedRect(bgRect.toQRectF(), radius, radius);
+            painter->drawRoundedRect(bgRect, radius, radius);
         else
-            painter->drawRect(bgRect.toQRectF());
+            painter->drawRect(bgRect);
     }
 
     // Render border
@@ -105,9 +103,9 @@ void RenderableElement::renderDecorators(QPainter* painter, const Rect& rect) co
 
         double radius = decorators.border.radius;
         double halfW = decorators.border.width / 2.0;
-        QRectF adjusted(borderRect.pos.x + halfW, borderRect.pos.y + halfW,
-                        std::max(0.0, borderRect.size.width - decorators.border.width),
-                        std::max(0.0, borderRect.size.height - decorators.border.width));
+        QRectF adjusted(borderRect.x() + halfW, borderRect.y() + halfW,
+                        std::max(0.0, borderRect.width() - decorators.border.width),
+                        std::max(0.0, borderRect.height() - decorators.border.width));
 
         if (radius > 0)
             painter->drawRoundedRect(adjusted, radius, radius);
@@ -116,14 +114,12 @@ void RenderableElement::renderDecorators(QPainter* painter, const Rect& rect) co
     }
 }
 
-Rect RenderableElement::contentRect(const Rect& outerRect) const
+QRectF RenderableElement::contentRect(const QRectF& outerRect) const
 {
-    Rect content;
-    content.pos.x = outerRect.pos.x + decorators.margin.left + decorators.border.width + decorators.padding.left;
-    content.pos.y = outerRect.pos.y + decorators.margin.top + decorators.border.width + decorators.padding.top;
-    content.size.width = std::max(0.0, outerRect.size.width - decorators.totalWidth());
-    content.size.height = std::max(0.0, outerRect.size.height - decorators.totalHeight());
-    return content;
+    return QRectF(outerRect.x() + decorators.margin.left + decorators.border.width + decorators.padding.left,
+                  outerRect.y() + decorators.margin.top + decorators.border.width + decorators.padding.top,
+                  std::max(0.0, outerRect.width() - decorators.totalWidth()),
+                  std::max(0.0, outerRect.height() - decorators.totalHeight()));
 }
 
 } // namespace BroadItem

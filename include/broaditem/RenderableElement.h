@@ -18,10 +18,10 @@ public:
     void parseDecorators(const QDomElement& xml);
 
     // Render decorators (background, border) into the given rect
-    void renderDecorators(QPainter* painter, const Rect& rect) const;
+    void renderDecorators(QPainter* painter, const QRectF& rect) const;
 
     // Return the content rect inside decorators (removes margin/border/padding)
-    Rect contentRect(const Rect& outerRect) const;
+    QRectF contentRect(const QRectF& outerRect) const;
 
     // Return all decorator pseudo-attribute names
     static const QSet<QString>& decoratorAttributeNames();

@@ -89,53 +89,50 @@ MeasureResult RowLayout::measure(const LayoutContext& ctx, const LayoutConstrain
     m_flattened = flattenChildren(ctx);
     for (size_t i = 0; i < m_flattened.size(); ++i) {
         auto result = m_flattened[i]->measure(ctx, childConstraints);
-        totalWidth += result.intrinsicSize.width;
-        maxHeight = std::max(maxHeight, result.intrinsicSize.height);
+        totalWidth += result.intrinsicSize.width();
+        maxHeight = std::max(maxHeight, result.intrinsicSize.height());
         if (i + 1 < m_flattened.size())
             totalWidth += m_space;
     }
 
-    Size sz;
-    sz.width = totalWidth + decoW;
-    sz.height = maxHeight + decoH;
+    QSizeF sz(totalWidth + decoW, maxHeight + decoH);
     return MeasureResult{sz};
 }
 
-void RowLayout::layout(const LayoutContext& ctx, const Rect& rect)
+void RowLayout::layout(const LayoutContext& ctx, const QRectF& rect)
 {
     ContainerElement::layout(ctx, rect);
 
-    Rect contentRect;
-    contentRect.pos.x = rect.pos.x + decorators.margin.left + decorators.border.width + decorators.padding.left;
-    contentRect.pos.y = rect.pos.y + decorators.margin.top + decorators.border.width + decorators.padding.top;
-    contentRect.size.width = std::max(0.0, rect.size.width - decorators.totalWidth());
-    contentRect.size.height = std::max(0.0, rect.size.height - decorators.totalHeight());
+    QRectF contentRect(rect.x() + decorators.margin.left + decorators.border.width + decorators.padding.left,
+                       rect.y() + decorators.margin.top + decorators.border.width + decorators.padding.top,
+                       std::max(0.0, rect.width() - decorators.totalWidth()),
+                       std::max(0.0, rect.height() - decorators.totalHeight()));
 
     m_flattened = flattenChildren(ctx);
     layoutChildren(ctx, contentRect);
 }
 
-void RowLayout::layoutChildren(const LayoutContext& ctx, const Rect& contentRect)
+void RowLayout::layoutChildren(const LayoutContext& ctx, const QRectF& contentRect)
 {
     if (m_flattened.empty())
         return;
 
-    std::vector<Size> childSizes;
+    std::vector<QSizeF> childSizes;
     double totalIntrinsicWidth = 0;
     LayoutConstraints childConstraints;
     childConstraints.availableWidth = -1;
-    childConstraints.availableHeight = contentRect.size.height;
+    childConstraints.availableHeight = contentRect.height();
 
     for (size_t i = 0; i < m_flattened.size(); ++i) {
         auto result = m_flattened[i]->measure(ctx, childConstraints);
         childSizes.push_back(result.intrinsicSize);
-        totalIntrinsicWidth += result.intrinsicSize.width;
+        totalIntrinsicWidth += result.intrinsicSize.width();
         if (i + 1 < m_flattened.size())
             totalIntrinsicWidth += m_space;
     }
 
-    double extraSpace = contentRect.size.width - totalIntrinsicWidth;
-    double offsetX = contentRect.pos.x;
+    double extraSpace = contentRect.width() - totalIntrinsicWidth;
+    double offsetX = contentRect.x();
 
     double spacing = m_space;
     if (m_mainAlign == "center") {
@@ -155,26 +152,21 @@ void RowLayout::layoutChildren(const LayoutContext& ctx, const Rect& contentRect
     }
 
     for (size_t i = 0; i < m_flattened.size(); ++i) {
-        double childWidth = childSizes[i].width;
-        double childHeight = childSizes[i].height;
+        double childWidth = childSizes[i].width();
+        double childHeight = childSizes[i].height();
 
         if (m_crossAlign == "stretch") {
-            childHeight = contentRect.size.height;
+            childHeight = contentRect.height();
         }
 
-        double childY = contentRect.pos.y;
+        double childY = contentRect.y();
         if (m_crossAlign == "center") {
-            childY = contentRect.pos.y + (contentRect.size.height - childHeight) / 2.0;
+            childY = contentRect.y() + (contentRect.height() - childHeight) / 2.0;
         } else if (m_crossAlign == "end") {
-            childY = contentRect.pos.y + contentRect.size.height - childHeight;
+            childY = contentRect.y() + contentRect.height() - childHeight;
         }
 
-        Rect childRect;
-        childRect.pos.x = offsetX;
-        childRect.pos.y = childY;
-        childRect.size.width = childWidth;
-        childRect.size.height = childHeight;
-
+        QRectF childRect(offsetX, childY, childWidth, childHeight);
         m_flattened[i]->layout(ctx, childRect);
         offsetX += childWidth + spacing;
     }

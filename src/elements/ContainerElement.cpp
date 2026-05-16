@@ -14,9 +14,7 @@ void ContainerElement::parse(const QDomElement& xml)
 MeasureResult ContainerElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
 {
     if (!m_content) {
-        Size sz;
-        sz.width = decorators.totalWidth();
-        sz.height = decorators.totalHeight();
+        QSizeF sz(decorators.totalWidth(), decorators.totalHeight());
         return MeasureResult{sz};
     }
 
@@ -30,23 +28,20 @@ MeasureResult ContainerElement::measure(const LayoutContext& ctx, const LayoutCo
         childConstraints.availableHeight = std::max(0.0, constraints.availableHeight - decoH);
 
     auto result = m_content->measure(ctx, childConstraints);
-    Size sz;
-    sz.width = result.intrinsicSize.width + decoW;
-    sz.height = result.intrinsicSize.height + decoH;
+    QSizeF sz(result.intrinsicSize.width() + decoW, result.intrinsicSize.height() + decoH);
     return MeasureResult{sz};
 }
 
-void ContainerElement::layout(const LayoutContext& ctx, const Rect& rect)
+void ContainerElement::layout(const LayoutContext& ctx, const QRectF& rect)
 {
     m_rect = rect;
     if (!m_content)
         return;
 
-    Rect contentRect;
-    contentRect.pos.x = rect.pos.x + decorators.margin.left + decorators.border.width + decorators.padding.left;
-    contentRect.pos.y = rect.pos.y + decorators.margin.top + decorators.border.width + decorators.padding.top;
-    contentRect.size.width = std::max(0.0, rect.size.width - decorators.totalWidth());
-    contentRect.size.height = std::max(0.0, rect.size.height - decorators.totalHeight());
+    QRectF contentRect(rect.x() + decorators.margin.left + decorators.border.width + decorators.padding.left,
+                       rect.y() + decorators.margin.top + decorators.border.width + decorators.padding.top,
+                       std::max(0.0, rect.width() - decorators.totalWidth()),
+                       std::max(0.0, rect.height() - decorators.totalHeight()));
 
     m_content->layout(ctx, contentRect);
 }

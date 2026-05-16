@@ -8,7 +8,7 @@ class ColumnLayout : public ContainerElement {
 public:
     void parse(const QDomElement& xml) override;
     MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints) override;
-    void layout(const LayoutContext& ctx, const Rect& rect) override;
+    void layout(const LayoutContext& ctx, const QRectF& rect) override;
     void render(QPainter* painter, const LayoutContext& ctx) const override;
     bool bindsProperty(const QString& name) const override;
 
@@ -30,7 +30,7 @@ private:
     // Cached flattened children, populated during measure/layout and reused by render.
     mutable std::vector<ElementPtr> m_flattened;
 
-    void layoutChildren(const LayoutContext& ctx, const Rect& contentRect);
+    void layoutChildren(const LayoutContext& ctx, const QRectF& contentRect);
 
     std::vector<ElementPtr> flattenChildren(const LayoutContext& ctx) const;
 };

@@ -28,7 +28,7 @@ public:
 
     // Override to delegate to expanded child (when used as root element)
     MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints) override;
-    void layout(const LayoutContext& ctx, const Rect& rect) override;
+    void layout(const LayoutContext& ctx, const QRectF& rect) override;
     void render(QPainter* painter, const LayoutContext& ctx) const override;
 
 private:

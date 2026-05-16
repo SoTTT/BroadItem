@@ -59,11 +59,11 @@ std::vector<ElementPtr> IfHasElement::expand(const LayoutContext& ctx) const
 MeasureResult IfHasElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
 {
     if (!shouldShow(ctx) || !m_child)
-        return MeasureResult{Size{0, 0}};
+        return MeasureResult{QSizeF(0, 0)};
     return m_child->measure(ctx, constraints);
 }
 
-void IfHasElement::layout(const LayoutContext& ctx, const Rect& rect)
+void IfHasElement::layout(const LayoutContext& ctx, const QRectF& rect)
 {
     m_rect = rect;
     if (!shouldShow(ctx) || !m_child)

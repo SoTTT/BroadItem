@@ -60,23 +60,4 @@ struct Decorators {
     }
 };
 
-struct Size {
-    double width = 0;
-    double height = 0;
-};
-
-struct Point {
-    double x = 0;
-    double y = 0;
-};
-
-struct Rect {
-    Point pos;
-    Size size;
-
-    QRectF toQRectF() const {
-        return QRectF(pos.x, pos.y, size.width, size.height);
-    }
-};
-
 } // namespace BroadItem

@@ -77,11 +77,11 @@ MeasureResult ForElement::measure(const LayoutContext& ctx, const LayoutConstrai
 {
     auto expanded = expand(ctx);
     if (expanded.empty())
-        return MeasureResult{Size{0, 0}};
+        return MeasureResult{QSizeF(0, 0)};
     return expanded[0]->measure(ctx, constraints);
 }
 
-void ForElement::layout(const LayoutContext& ctx, const Rect& rect)
+void ForElement::layout(const LayoutContext& ctx, const QRectF& rect)
 {
     m_rect = rect;
     auto expanded = expand(ctx);
