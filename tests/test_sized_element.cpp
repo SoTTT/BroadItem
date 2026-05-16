@@ -4,7 +4,9 @@
 #include "broaditem/MapPropertyContext.h"
 #include "broaditem/LayoutEngine.h"
 #include "broaditem/Element.h"
+#include "broaditem/SizedElement.h"
 #include "broaditem/elements/TextElement.h"
+#include "broaditem/elements/RowLayout.h"
 #include <QDebug>
 
 class TestSizedElement : public QObject {
@@ -91,7 +93,8 @@ void TestSizedElement::testClonePreservesSize()
 
 void TestSizedElement::testLayoutStretch()
 {
-    // Test that width/height are request sizes, layout can stretch
+    // Test that width/height are hard constraints: layout does NOT stretch
+    // elements that have explicitly specified sizes.
     QString xml = R"(
         <root>
             <row cross-align="stretch">
@@ -102,16 +105,22 @@ void TestSizedElement::testLayoutStretch()
     auto root = BroadItem::XmlLayoutParser::parseString(xml);
     QVERIFY(root != nullptr);
 
-    auto ctx = std::make_shared<BroadItem::MapPropertyContext>();
-    BroadItem::LayoutContext layoutCtx;
-    layoutCtx.ctx = ctx.get();
-    BroadItem::LayoutConstraints constraints;
-    constraints.availableWidth = 200;
-    constraints.availableHeight = 100;
-
-    auto result = BroadItem::LayoutEngine::measure(root, layoutCtx, constraints);
-    QRectF rect(0, 0, result.width(), result.height());
-    BroadItem::LayoutEngine::layout(root, layoutCtx, rect);
+    BroadItem::LayoutContext lctx;
+    auto result = BroadItem::LayoutEngine::measure(root, lctx, BroadItem::LayoutConstraints{});
+    // Layout into a rect larger than the text request size
+    QRectF bigRect(0, 0, 300, 150);
+    BroadItem::LayoutEngine::layout(root, lctx, bigRect);
+    // Text has height=50; row has cross-align=stretch but should NOT stretch it
+    // Verify text rect height is near 50 (not stretched to ~150)
+    auto row = std::dynamic_pointer_cast<BroadItem::RowLayout>(root);
+    QVERIFY(row != nullptr);
+    const auto& flat = row->flattenedChildren();
+    QVERIFY(!flat.empty());
+    auto text = std::dynamic_pointer_cast<BroadItem::TextElement>(flat[0]);
+    QVERIFY(text != nullptr);
+    double textHeight = text->rect().height();
+    QVERIFY2(textHeight > 0 && textHeight < 100,
+             QString("Text height should stay ~50 (not stretched), got %1").arg(textHeight).toUtf8());
 }
 
 QTEST_MAIN(TestSizedElement)

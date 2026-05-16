@@ -1,6 +1,7 @@
 #include "broaditem/elements/ColumnLayout.h"
 #include "broaditem/elements/ForElement.h"
 #include "broaditem/elements/IfHasElement.h"
+#include "broaditem/SizedElement.h"
 #include <QPainter>
 #include <QDomElement>
 #include <QDebug>
@@ -160,7 +161,9 @@ void ColumnLayout::layoutChildren(const LayoutContext& ctx, const QRectF& conten
 
         // Cross-axis alignment determines width
         if (m_crossAlign == "stretch") {
-            childWidth = contentRect.width();
+            auto* sized = dynamic_cast<SizedElement*>(m_flattened[i].get());
+            if (!sized || !sized->hasWidth())
+                childWidth = contentRect.width();
         }
 
         double childX = contentRect.x();

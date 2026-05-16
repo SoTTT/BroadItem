@@ -13,6 +13,7 @@ public:
     bool bindsProperty(const QString& name) const override;
 
     void addChild(ElementPtr child);
+    const std::vector<ElementPtr>& children() const { return m_children; }
 
     int columns() const { return m_columns; }
     int rows() const { return m_rows; }

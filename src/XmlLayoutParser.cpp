@@ -193,6 +193,30 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
                 else if (grid) grid->addChild(childEl);
             }
         }
+        // GridLayout cell count validation
+        if (grid) {
+            int cellCount = 0;
+            bool hasControlChildren = false;
+            for (const auto& child : grid->children()) {
+                if (std::dynamic_pointer_cast<CellElement>(child)) {
+                    cellCount++;
+                } else if (std::dynamic_pointer_cast<ForElement>(child) ||
+                           std::dynamic_pointer_cast<IfHasElement>(child)) {
+                    hasControlChildren = true;
+                } else {
+                    qCritical() << "GridLayout: child must be <cell>, <for>, or <if-has>";
+                    return nullptr;
+                }
+            }
+            if (!hasControlChildren) {
+                int expected = grid->columns() * grid->rows();
+                if (cellCount != expected) {
+                    qCritical() << "GridLayout: expected" << expected << "cells ("
+                                << grid->columns() << "x" << grid->rows() << "), got" << cellCount;
+                    return nullptr;
+                }
+            }
+        }
     } else if (cell) {
         QDomElement child = xml.firstChildElement();
         if (!child.isNull()) {

@@ -40,10 +40,10 @@ struct Border {
 struct Background {
     QColor color = Qt::white;
     double radius = 0;
-    double transparent = 0;
+    double opacity = 1;
     bool enabled = false;
 
-    bool visible() const { return enabled && transparent < 1.0; }
+    bool visible() const { return enabled && opacity > 0; }
 };
 
 struct Decorators {

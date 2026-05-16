@@ -1,6 +1,7 @@
 #include "broaditem/elements/RowLayout.h"
 #include "broaditem/elements/ForElement.h"
 #include "broaditem/elements/IfHasElement.h"
+#include "broaditem/SizedElement.h"
 #include <algorithm>
 #include <QPainter>
 #include <QDomElement>
@@ -156,7 +157,9 @@ void RowLayout::layoutChildren(const LayoutContext& ctx, const QRectF& contentRe
         double childHeight = childSizes[i].height();
 
         if (m_crossAlign == "stretch") {
-            childHeight = contentRect.height();
+            auto* sized = dynamic_cast<SizedElement*>(m_flattened[i].get());
+            if (!sized || !sized->hasHeight())
+                childHeight = contentRect.height();
         }
 
         double childY = contentRect.y();

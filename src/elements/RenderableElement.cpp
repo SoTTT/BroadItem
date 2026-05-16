@@ -10,7 +10,7 @@ const QSet<QString>& RenderableElement::decoratorAttributeNames()
         "margin", "margin-left", "margin-right", "margin-top", "margin-bottom",
         "padding", "padding-left", "padding-right", "padding-top", "padding-bottom",
         "border-radius", "border-style", "border-width", "border-color",
-        "background-color", "background-radius", "background-transparent"
+        "background-color", "background-radius", "background-opacity"
     };
     return attrs;
 }
@@ -60,8 +60,8 @@ void RenderableElement::parseDecorators(const QDomElement& xml)
         decorators.background.radius = parseDouble(xml.attribute("background-radius"));
         decorators.background.enabled = true;
     }
-    if (xml.hasAttribute("background-transparent")) {
-        decorators.background.transparent = parseDouble(xml.attribute("background-transparent"));
+    if (xml.hasAttribute("background-opacity")) {
+        decorators.background.opacity = parseDouble(xml.attribute("background-opacity"));
         decorators.background.enabled = true;
     }
 }
@@ -83,7 +83,7 @@ void RenderableElement::renderDecorators(QPainter* painter, const QRectF& rect) 
     // Render background
     if (decorators.background.visible()) {
         QColor c = decorators.background.color;
-        c.setAlphaF(1.0 - decorators.background.transparent);
+        c.setAlphaF(decorators.background.opacity);
         painter->setBrush(c);
         painter->setPen(Qt::NoPen);
 
