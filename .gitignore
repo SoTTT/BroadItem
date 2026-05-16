@@ -1,0 +1,16 @@
+# Build
+build/
+
+# IDE
+.idea/
+*.user
+*.pro.user
+
+# macOS
+.DS_Store
+
+# Qt
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+*.moc
