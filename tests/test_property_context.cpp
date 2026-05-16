@@ -423,7 +423,292 @@ private slots:
     }
     // NOLINTEND(readability-convert-member-functions-to-static)
 
-    // ==================== QPropertyContext ====================
+    // ==================== MapPropertyContext 嵌套写入 ====================
+    // NOLINTBEGIN(readability-convert-member-functions-to-static)
+    void testMapSetNestedDot()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantMap dev;
+        dev["cpu"] = "45%";
+        dev["mem"] = "60%";
+        ctx.setProperty("device", dev);
+
+        ctx.setProperty("device.cpu", "100%");
+        QCOMPARE(ctx.property("device.cpu").toString(), QString("100%"));
+        QCOMPARE(ctx.property("device.mem").toString(), QString("60%"));
+    }
+
+    void testMapSetNestedBracket()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantList items;
+        items << "a" << "b" << "c";
+        ctx.setProperty("items", items);
+
+        ctx.setProperty("items[1]", "X");
+        QCOMPARE(ctx.property("items[1]").toString(), QString("X"));
+        QCOMPARE(ctx.property("items[0]").toString(), QString("a"));
+        QCOMPARE(ctx.property("items[2]").toString(), QString("c"));
+    }
+
+    void testMapSetNestedBracketDot()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantMap inner;
+        inner["name"] = "nginx";
+        inner["pid"] = "1234";
+        QVariantList items;
+        items << inner;
+        ctx.setProperty("processes", items);
+
+        ctx.setProperty("processes[0].name", "httpd");
+        QCOMPARE(ctx.property("processes[0].name").toString(), QString("httpd"));
+        QCOMPARE(ctx.property("processes[0].pid").toString(), QString("1234"));
+    }
+
+    void testMapSetNestedDeep()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantMap inner;
+        inner["value"] = "old";
+        QVariantMap middle;
+        middle["inner"] = inner;
+        ctx.setProperty("outer", middle);
+
+        ctx.setProperty("outer.inner.value", "new");
+        QCOMPARE(ctx.property("outer.inner.value").toString(), QString("new"));
+    }
+
+    void testMapSetNestedMultiBracket()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantList row0;
+        row0 << "a0" << "a1";
+        QVariantList row1;
+        row1 << "b0";
+        QVariantList grid;
+        grid << QVariant(row0) << QVariant(row1);
+        ctx.setProperty("grid", grid);
+
+        ctx.setProperty("grid[0][1]", "X");
+        QCOMPARE(ctx.property("grid[0][1]").toString(), QString("X"));
+        QCOMPARE(ctx.property("grid[0][0]").toString(), QString("a0"));
+    }
+
+    void testMapSetNestedNotify()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantMap dev;
+        dev["cpu"] = "45%";
+        ctx.setProperty("device", dev);
+
+        QString lastName;
+        QVariant lastValue;
+        ctx.setOnChanged([&](const QString& n, const QVariant& v) {
+            lastName = n;
+            lastValue = v;
+        });
+
+        ctx.setProperty("device.cpu", "100%");
+        QCOMPARE(lastName, QString("device"));
+        QVERIFY(lastValue.isValid());
+    }
+
+    // ---------- 嵌套写入：类型/存在性错误 ----------
+
+    void testMapSetNestedMissingTopLevel()
+    {
+        BroadItem::MapPropertyContext ctx;
+        ctx.setProperty("nonexistent.cpu", "val");
+        // 首段不存在 → 不写入，不抛出
+        QVERIFY(true);
+    }
+
+    void testMapSetNestedNotMap()
+    {
+        BroadItem::MapPropertyContext ctx;
+        ctx.setProperty("str", "hello");
+        ctx.setProperty("str.key", "val");
+        // "str" 是字面量，不是 map → 不写入
+        QCOMPARE(ctx.property("str").toString(), QString("hello"));
+    }
+
+    void testMapSetNestedNotList()
+    {
+        BroadItem::MapPropertyContext ctx;
+        ctx.setProperty("str", "hello");
+        ctx.setProperty("str[0]", "val");
+        // "str" 不是 list → 不写入
+        QCOMPARE(ctx.property("str").toString(), QString("hello"));
+    }
+
+    void testMapSetNestedIndexOOB()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantList items;
+        items << "only";
+        ctx.setProperty("items", items);
+        ctx.setProperty("items[3]", "val");
+        QCOMPARE(ctx.property("items[0]").toString(), QString("only"));
+    }
+
+    // ---------- 嵌套写入：语法错误 ----------
+
+    void testMapSetNestedSyntaxDoubleDot()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantMap root;
+        root["a"] = "val";
+        ctx.setProperty("root", root);
+        ctx.setProperty("root..a", "X");
+        QCOMPARE(ctx.property("root.a").toString(), QString("val"));
+    }
+
+    void testMapSetNestedSyntaxTrailingDot()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantMap root;
+        root["a"] = "val";
+        ctx.setProperty("root", root);
+        ctx.setProperty("root.", "X");
+        QCOMPARE(ctx.property("root.a").toString(), QString("val"));
+    }
+
+    void testMapSetNestedSyntaxUnmatched()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantList items;
+        items << "x";
+        ctx.setProperty("items", items);
+        ctx.setProperty("items[0", "X");
+        QCOMPARE(ctx.property("items[0]").toString(), QString("x"));
+    }
+
+    void testMapSetNestedSyntaxBadIndex()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantList items;
+        items << "x";
+        ctx.setProperty("items", items);
+        ctx.setProperty("items[abc]", "X");
+        QCOMPARE(ctx.property("items[0]").toString(), QString("x"));
+    }
+
+    void testMapSetNestedSyntaxNegative()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantList items;
+        items << "x";
+        ctx.setProperty("items", items);
+        ctx.setProperty("items[-1]", "X");
+        QCOMPARE(ctx.property("items[0]").toString(), QString("x"));
+    }
+
+    void testMapSetNestedSyntaxNoDot()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantMap inner;
+        inner["x"] = "y";
+        QVariantList items;
+        items << QVariant(inner);
+        ctx.setProperty("items", items);
+        ctx.setProperty("items[0]x", "Z");
+        QCOMPARE(ctx.property("items[0].x").toString(), QString("y"));
+    }
+
+    // ---------- MapPropertyContext PropertyProxy 语法糖 ----------
+
+    void testMapProxyRead()
+    {
+        BroadItem::MapPropertyContext ctx;
+        ctx.setProperty("cpu", "45%");
+        QVariant v = ctx["cpu"];
+        QCOMPARE(v.toString(), QString("45%"));
+    }
+
+    void testMapProxyWrite()
+    {
+        BroadItem::MapPropertyContext ctx;
+        ctx["cpu"] = "45%";
+        QCOMPARE(ctx.property("cpu").toString(), QString("45%"));
+    }
+
+    void testMapProxyReadNested()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantMap dev;
+        dev["cpu"] = "45%";
+        ctx.setProperty("device", dev);
+
+        QVariant v = ctx["device"]["cpu"];
+        QCOMPARE(v.toString(), QString("45%"));
+    }
+
+    void testMapProxyWriteNested()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantMap dev;
+        dev["cpu"] = "45%";
+        ctx.setProperty("device", dev);
+
+        ctx["device"]["cpu"] = "100%";
+        QCOMPARE(ctx.property("device.cpu").toString(), QString("100%"));
+    }
+
+    void testMapProxyChain()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantList items;
+        QVariantMap item;
+        item["name"] = "a";
+        items << item;
+        ctx.setProperty("items", items);
+
+        QVariant v = ctx["items"][0]["name"];
+        QCOMPARE(v.toString(), QString("a"));
+
+        ctx["items"][0]["name"] = "b";
+        QCOMPARE(ctx.property("items[0].name").toString(), QString("b"));
+    }
+
+    void testMapProxyFlatWriteNotify()
+    {
+        BroadItem::MapPropertyContext ctx;
+        int count = 0;
+        ctx.setOnChanged([&](const QString&, const QVariant&) { ++count; });
+
+        ctx["cpu"] = "45%";
+        QCOMPARE(count, 1);
+    }
+
+    void testMapProxyNestedWriteNotify()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantMap dev;
+        dev["cpu"] = "45%";
+        ctx.setProperty("device", dev);
+
+        int count = 0;
+        QString lastName;
+        ctx.setOnChanged([&](const QString& n, const QVariant&) {
+            ++count;
+            lastName = n;
+        });
+
+        ctx["device"]["cpu"] = "100%";
+        QCOMPARE(count, 1);
+        QCOMPARE(lastName, QString("device"));
+    }
+
+    void testMapProxyReadSyntaxError()
+    {
+        BroadItem::MapPropertyContext ctx;
+        ctx.setProperty("items", QVariantList{"a"});
+        // 语法错误路径 → property 返回 invalid，proxy 应返回无效 QVariant
+        QVariant v = ctx["items"][0]["unknown"];
+        QVERIFY(!v.isValid());
+    }
+    // NOLINTEND(readability-convert-member-functions-to-static)
     // NOLINTBEGIN(readability-convert-member-functions-to-static)
     void testQPropSetGet()
     {
@@ -597,7 +882,64 @@ private slots:
     }
     // NOLINTEND(readability-convert-member-functions-to-static)
 
-    // ==================== ItemPropertyContext ====================
+    // ==================== QPropertyContext 嵌套写入 ====================
+    // NOLINTBEGIN(readability-convert-member-functions-to-static)
+
+    void testQPropSetNestedDot()
+    {
+        TestQProps ctx;
+        QVariantMap dev;
+        dev["cpu"] = "45%";
+        dev["mem"] = "60%";
+        ctx.setProperty("device", dev);
+
+        ctx.setProperty("device.cpu", "100%");
+        QCOMPARE(ctx.property("device.cpu").toString(), QString("100%"));
+        QCOMPARE(ctx.device()["cpu"].toString(), QString("100%"));
+    }
+
+    void testQPropSetNestedBracket()
+    {
+        TestQProps ctx;
+        QVariantList items;
+        items << "a" << "b" << "c";
+        ctx.setProperty("items", items);
+
+        ctx.setProperty("items[1]", "X");
+        QCOMPARE(ctx.property("items[1]").toString(), QString("X"));
+    }
+
+    void testQPropSetNestedBracketDot()
+    {
+        TestQProps ctx;
+        QVariantMap proc;
+        proc["name"] = "nginx";
+        QVariantList items;
+        items << proc;
+        ctx.setProperty("items", items);
+
+        ctx.setProperty("items[0].name", "httpd");
+        QCOMPARE(ctx.property("items[0].name").toString(), QString("httpd"));
+    }
+
+    void testQPropSetNestedMissingTopLevel()
+    {
+        TestQProps ctx;
+        ctx.setProperty("nonexistent.cpu", "val");
+        QVERIFY(true); // should not crash
+    }
+
+    void testQPropSetNestedSyntax()
+    {
+        TestQProps ctx;
+        QVariantMap dev;
+        dev["cpu"] = "45%";
+        ctx.setProperty("device", dev);
+        // unmatched bracket → error, no crash
+        ctx.setProperty("device[0", "X");
+        QCOMPARE(ctx.property("device.cpu").toString(), QString("45%"));
+    }
+    // NOLINTEND(readability-convert-member-functions-to-static)
 
     void testItemSetGet()
     {
@@ -815,6 +1157,57 @@ private slots:
         item.setStatus("second");
         QCOMPARE(count, 1); // 析构后不再通知
     }
+    // NOLINTEND(readability-convert-member-functions-to-static)
+
+    // ==================== BroadItem operator[] ====================
+    // NOLINTBEGIN(readability-convert-member-functions-to-static)
+
+    void testItemProxyRead()
+    {
+        TestPropItem item(m_tempXmlPath);
+        BroadItem::QPropertyContext ctx(&item);
+        ctx.setProperty("status", "running");
+
+        QVariant v = ctx["status"];
+        QCOMPARE(v.toString(), QString("running"));
+    }
+
+    void testItemProxyWrite()
+    {
+        TestPropItem item(m_tempXmlPath);
+        BroadItem::QPropertyContext ctx(&item);
+        ctx["status"] = "from-proxy";
+
+        QCOMPARE(ctx.property("status").toString(), QString("from-proxy"));
+        QCOMPARE(item.status(), QString("from-proxy"));
+    }
+
+    void testItemProxyReadNested()
+    {
+        TestPropItem item(m_tempXmlPath);
+        BroadItem::QPropertyContext ctx(&item);
+        QVariantMap cfg;
+        cfg["host"] = "localhost";
+        ctx.setProperty("config", cfg);
+
+        QVariant v = ctx["config"]["host"];
+        QCOMPARE(v.toString(), QString("localhost"));
+    }
+
+    void testItemProxyWriteNested()
+    {
+        TestPropItem item(m_tempXmlPath);
+        BroadItem::QPropertyContext ctx(&item);
+        QVariantMap cfg;
+        cfg["host"] = "localhost";
+        ctx.setProperty("config", cfg);
+
+        ctx["config"]["host"] = "example.com";
+        QCOMPARE(ctx.property("config.host").toString(), QString("example.com"));
+        QCOMPARE(item.config()["host"].toString(), QString("example.com"));
+    }
+
+    // NOLINTEND(readability-convert-member-functions-to-static)
 };
 
 QTEST_MAIN(TestPropertyContext)

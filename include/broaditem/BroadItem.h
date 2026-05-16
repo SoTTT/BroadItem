@@ -33,6 +33,11 @@ public:
 
     void updateLayout();
 
+    PropertyProxy operator[](const QString& key)
+    {
+        return m_propertyContext ? (*m_propertyContext)[key] : PropertyProxy(nullptr, QString());
+    }
+
 private:
     ElementPtr m_rootElement;
     std::shared_ptr<PropertyContext> m_propertyContext;

@@ -10,6 +10,34 @@
 
 namespace BroadItem {
 
+class PropertyContext;
+
+/**
+ * @brief 方括号语法糖代理对象。
+ *
+ * 由 PropertyContext::operator[] 和 BroadItem::operator[] 返回，
+ * 支持链式方括号访问（键名与数组下标），最终通过隐式转换读取或通过
+ * operator= 写入。路径拼接规则与 property/setProperty 的嵌套路径格式一致。
+ */
+class PropertyProxy {
+public:
+    PropertyProxy() = default;
+
+    PropertyProxy(PropertyContext* ctx, const QString& path)
+        : m_ctx(ctx), m_path(path) {}
+
+    PropertyProxy operator[](const QString& key) const;
+    PropertyProxy operator[](int index) const;
+    operator QVariant() const;
+    PropertyProxy& operator=(const QVariant& value);
+
+    bool isValid() const { return m_ctx != nullptr; }
+
+private:
+    PropertyContext* m_ctx = nullptr;
+    QString m_path;
+};
+
 class PropertyContext {
 public:
     virtual ~PropertyContext() = default;
@@ -45,6 +73,16 @@ public:
     void setOnChanged(OnChanged cb)
     {
         m_onChanged = std::move(cb);
+    }
+
+    /**
+     * @brief 方括号语法糖入口。
+     * @param key 首段键名。
+     * @return PropertyProxy 代理对象，支持链式方括号访问。
+     */
+    PropertyProxy operator[](const QString& key) const
+    {
+        return PropertyProxy(const_cast<PropertyContext*>(this), key);
     }
 
 protected:
@@ -183,6 +221,126 @@ protected:
         return walkNested(current, path, pos);
     }
 
+    /**
+     * @brief 嵌套写入辅助：沿 path[pos:] 遍历 current 的嵌套结构，在叶子位置设置 value。
+     *
+     * 每步执行类型断言，失败时返回 false 且不修改 current（无副作用）。
+     *
+     * @param[in,out] current 当前值引用。成功时在叶子位置被修改。
+     * @param path    原始路径（用于错误日志及遍历）。
+     * @param pos     起始位置（跳过首段 key）。
+     * @param value   待设置的值。
+     * @return true 写入成功；false 类型/存在性校验失败。
+     */
+    static bool setWalkInto(QVariant& current, const QString& path, int pos, const QVariant& value)
+    {
+        int len = path.length();
+
+        while (pos < len) {
+            if (path[pos] == '[') {
+                int closePos = path.indexOf(']', pos);
+                if (closePos < 0) {
+                    qCritical() << "PropertyContext: unmatched '[' (path:" << path << ")";
+                    return false;
+                }
+                QString indexStr = path.mid(pos + 1, closePos - pos - 1);
+                bool ok;
+                int index = indexStr.toInt(&ok);
+                if (!ok || index < 0) {
+                    qCritical() << "PropertyContext: invalid index" << indexStr
+                                << "(path:" << path << ")";
+                    return false;
+                }
+                if (current.type() != QVariant::List) {
+                    qCritical() << "PropertyContext: cannot index into non-array type"
+                                << current.typeName() << "(path:" << path << ")";
+                    return false;
+                }
+                QVariantList list = current.toList();
+                if (index >= list.size()) {
+                    qCritical() << "PropertyContext: index" << index
+                                << "out of bounds, size" << list.size()
+                                << "(path:" << path << ")";
+                    return false;
+                }
+
+                pos = closePos + 1;
+                if (pos >= len) {
+                    list[index] = value;
+                    current = list;
+                    return true;
+                }
+
+                if (path[pos] != '.' && path[pos] != '[') {
+                    qCritical() << "PropertyContext: expected '.' or '[' after ']', got"
+                                << path[pos] << "(path:" << path << ")";
+                    return false;
+                }
+
+                QVariant child = list.at(index);
+                if (!setWalkInto(child, path, pos, value))
+                    return false;
+                list[index] = child;
+                current = list;
+                return true;
+
+            } else if (path[pos] == '.') {
+                pos++;
+
+                int dotPos = path.indexOf('.', pos);
+                int bracketPos = path.indexOf('[', pos);
+                int segEnd = len;
+                if (dotPos >= 0 && bracketPos >= 0)
+                    segEnd = qMin(dotPos, bracketPos);
+                else if (dotPos >= 0)
+                    segEnd = dotPos;
+                else if (bracketPos >= 0)
+                    segEnd = bracketPos;
+
+                QString key = path.mid(pos, segEnd - pos);
+                if (key.isEmpty()) {
+                    qCritical() << "PropertyContext: empty key in path" << path;
+                    return false;
+                }
+
+                if (current.type() != QVariant::Map) {
+                    qCritical() << "PropertyContext: cannot access" << key
+                                << "on non-object type" << current.typeName()
+                                << "(path:" << path << ")";
+                    return false;
+                }
+                QVariantMap map = current.toMap();
+                if (!map.contains(key)) {
+                    qCritical() << "PropertyContext:" << key
+                                << "not found in object (path:" << path << ")";
+                    return false;
+                }
+
+                int savedSegEnd = segEnd;
+                pos = savedSegEnd;
+                if (pos >= len) {
+                    map[key] = value;
+                    current = map;
+                    return true;
+                }
+
+                QVariant child = map.value(key);
+                if (!setWalkInto(child, path, pos, value))
+                    return false;
+                map[key] = child;
+                current = map;
+                return true;
+
+            } else {
+                qCritical() << "PropertyContext: unexpected character"
+                            << path[pos] << "in path" << path;
+                return false;
+            }
+        }
+
+        return false;
+    }
+
 protected:
     /**
      * @brief 消化路径中的数组索引 [n]，修改 current 并返回新位置。
@@ -237,5 +395,29 @@ protected:
 private:
     OnChanged m_onChanged;
 };
+
+// ========== PropertyProxy inline implementations ==========
+
+inline PropertyProxy PropertyProxy::operator[](const QString& key) const
+{
+    return PropertyProxy(m_ctx, m_path + "." + key);
+}
+
+inline PropertyProxy PropertyProxy::operator[](int index) const
+{
+    return PropertyProxy(m_ctx, m_path + "[" + QString::number(index) + "]");
+}
+
+inline PropertyProxy::operator QVariant() const
+{
+    return m_ctx ? m_ctx->property(m_path) : QVariant();
+}
+
+inline PropertyProxy& PropertyProxy::operator=(const QVariant& value)
+{
+    if (m_ctx)
+        m_ctx->setProperty(m_path, value);
+    return *this;
+}
 
 } // namespace BroadItem

@@ -96,4 +96,49 @@ bool QPropertyContext::eventFilter(QObject* obj, QEvent* event)
     return QObject::eventFilter(obj, event);
 }
 
+void QPropertyContext::setPropertyNested(const QString& path, const QVariant& value)
+{
+    int len = path.length();
+    int dotPos = path.indexOf('.');
+    int bracketPos = path.indexOf('[');
+    int segEnd = len;
+    if (dotPos >= 0 && bracketPos >= 0)
+        segEnd = qMin(dotPos, bracketPos);
+    else if (dotPos >= 0)
+        segEnd = dotPos;
+    else if (bracketPos >= 0)
+        segEnd = bracketPos;
+
+    QString firstKey = path.left(segEnd);
+    if (firstKey.isEmpty()) {
+        qCritical() << "QPropertyContext: empty first key in path" << path;
+        return;
+    }
+
+    ensureConnected();
+    QObject* obj = m_target ? m_target : this;
+    QByteArray firstKeyBa = firstKey.toUtf8();
+
+    QVariant root = obj->property(firstKeyBa.constData());
+    if (!root.isValid()) {
+        qCritical() << "QPropertyContext: property" << firstKey
+                    << "not found on object (path:" << path << ")";
+        return;
+    }
+
+    if (!setWalkInto(root, path, segEnd, value))
+        return;
+
+    if (obj->metaObject()->indexOfProperty(firstKeyBa.constData()) >= 0) {
+        if (!obj->setProperty(firstKeyBa.constData(), root)) {
+            qWarning() << "QPropertyContext::setProperty: type mismatch for" << firstKey
+                       << "(nested path:" << path << ")";
+        }
+    } else {
+        obj->setProperty(firstKeyBa.constData(), root);
+    }
+    // Notification is delivered automatically via Q_PROPERTY NOTIFY signal
+    // (for declared properties) or QDynamicPropertyChangeEvent (for dynamic ones).
+}
+
 } // namespace BroadItem

@@ -50,24 +50,23 @@ public:
 
     void setProperty(const QString& name, const QVariant& value) override
     {
-        ensureConnected();
-        QObject* obj = m_target ? m_target : this;
-        QByteArray nameBa = name.toUtf8();
-        // Type check: declared Q_PROPERTY must match the value's QVariant type.
-        //   Pass — Qt invokes the property setter; no message emitted.
-        //   Fail — QObject::setProperty returns false; qWarning logs the
-        //          declared property name and the mismatching value type.
-        //   Dynamic properties (no Q_PROPERTY) bypass this check — they have
-        //          no type declaration to validate against.
-        if (obj->metaObject()->indexOfProperty(nameBa.constData()) >= 0) {
-            if (!obj->setProperty(nameBa.constData(), value)) {
-                qWarning() << "QPropertyContext::setProperty: type mismatch for" << name
-                           << "(type:" << value.typeName() << ")";
+        if (!name.contains('.') && !name.contains('[')) {
+            // Flat key — existing behavior
+            ensureConnected();
+            QObject* obj = m_target ? m_target : this;
+            QByteArray nameBa = name.toUtf8();
+            if (obj->metaObject()->indexOfProperty(nameBa.constData()) >= 0) {
+                if (!obj->setProperty(nameBa.constData(), value)) {
+                    qWarning() << "QPropertyContext::setProperty: type mismatch for" << name
+                               << "(type:" << value.typeName() << ")";
+                }
+            } else {
+                obj->setProperty(nameBa.constData(), value);
             }
-        } else {
-            // Dynamic property — no type declaration to validate against
-            obj->setProperty(nameBa.constData(), value);
+            return;
         }
+        // Nested path
+        setPropertyNested(name, value);
     }
 
     bool event(QEvent* e) override;
@@ -80,6 +79,8 @@ private:
     void ensureConnected();
     bool isProxy() const { return m_target != nullptr; }
     void commonSetup();
+
+    void setPropertyNested(const QString& path, const QVariant& value);
 
     QObject* m_target = nullptr;
     bool m_connected = false;
