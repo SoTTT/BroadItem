@@ -71,10 +71,10 @@ QString TextElement::resolvedText(const LayoutContext& ctx) const
     if (!m_propertyName.isEmpty() && ctx.hasProperty(m_propertyName)) {
         QVariant v = ctx.property(m_propertyName);
         // Type check: :content binding requires QString.
-        //   Pass — v.type() == QVariant::String; returns the bound text.
+        //   Pass — v.userType() == QMetaType::QString; returns the bound text.
         //   Fail — v has a different type; qCritical logs the property
         //          name and actual type; falls through to default text.
-        if (v.type() == QVariant::String)
+        if (v.userType() == QMetaType::QString)
             return v.toString();
         qCritical() << "TextElement: property" << m_propertyName
                      << "expected QString, got" << v.typeName();

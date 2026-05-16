@@ -46,6 +46,10 @@ ElementPtr IfHasElement::clone() const
 bool IfHasElement::shouldShow(const LayoutContext& ctx) const
 {
     bool has = ctx.hasProperty(m_propertyName);
+    if (has) {
+        QVariant v = ctx.property(m_propertyName);
+        has = !v.isNull();
+    }
     return m_not ? !has : has;
 }
 

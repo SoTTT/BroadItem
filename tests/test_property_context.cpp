@@ -143,7 +143,7 @@ private slots:
     {
         BroadItem::MapPropertyContext ctx;
         ctx.setProperty("cpu", "45%");
-        ctx.setProperty("cpu", QVariant(QVariant::Invalid));
+        ctx.setProperty("cpu", QVariant());
         QVERIFY(!ctx.hasProperty("cpu"));
     }
 

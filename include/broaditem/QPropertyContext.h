@@ -16,7 +16,7 @@ namespace BroadItem {
  * 代理模式（target = QObject*）：
  *   监视目标对象的 Q_PROPERTY，通过 eventFilter 拦截动态属性。
  *
- * 通知机制通过 NOTIFY 信号自动连接（QTimer::singleShot + setProperty 同步兜底）
+ * 通知机制通过 NOTIFY 信号自动连接（构造后 QTimer::singleShot 延迟连接 + 各 API 同步兜底）
  * 和 QDynamicPropertyChangeEvent 拦截实现。
  */
 class QPropertyContext : public QObject, public PropertyContext {
@@ -32,6 +32,7 @@ public:
     {
         if (name.isEmpty())
             return QVariant();
+        const_cast<QPropertyContext*>(this)->ensureConnected();
         const QObject* obj = m_target ? m_target : this;
         if (!name.contains('.') && !name.contains('['))
             return obj->property(name.toUtf8().constData());
@@ -42,6 +43,7 @@ public:
     {
         if (name.isEmpty())
             return false;
+        const_cast<QPropertyContext*>(this)->ensureConnected();
         const QObject* obj = m_target ? m_target : this;
         if (!name.contains('.') && !name.contains('['))
             return obj->metaObject()->indexOfProperty(name.toUtf8().constData()) >= 0;

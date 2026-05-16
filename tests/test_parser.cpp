@@ -2,10 +2,42 @@
 #include "broaditem/XmlLayoutParser.h"
 #include "broaditem/LayoutContext.h"
 #include "broaditem/MapPropertyContext.h"
+#include "broaditem/QPropertyContext.h"
 #include "broaditem/LayoutEngine.h"
 #include "broaditem/LayoutRegistry.h"
 #include "broaditem/Element.h"
+#include "broaditem/elements/IfHasElement.h"
 #include <QDebug>
+
+// Minimal element for IfHasElement null value test
+class NullTestElement : public BroadItem::Element {
+public:
+    BroadItem::MeasureResult measure(const BroadItem::LayoutContext&,
+                                     const BroadItem::LayoutConstraints&) override
+    {
+        return {QSizeF(100, 20)};
+    }
+    void layout(const BroadItem::LayoutContext&, const QRectF& rect) override { m_rect = rect; }
+    void render(QPainter*, const BroadItem::LayoutContext&) const override {}
+    BroadItem::ElementPtr clone() const override { return std::make_shared<NullTestElement>(); }
+    bool bindsProperty(const QString&) const override { return false; }
+};
+
+// Helper: QObject with declared Q_PROPERTY for testing <if-has> null value behavior
+class IfHasNullHelper : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(QString warning READ warning WRITE setWarning NOTIFY warningChanged)
+public:
+    QString warning() const { return m_warning; }
+    void setWarning(const QString& v)
+    {
+        if (m_warning != v) { m_warning = v; emit warningChanged(); }
+    }
+signals:
+    void warningChanged();
+private:
+    QString m_warning; // default: QString() is null
+};
 
 class TestParser : public QObject {
     Q_OBJECT
@@ -19,6 +51,7 @@ private slots:
     void testColumnMeasure();
     void testBindProperty();
     void testIfHas();
+    void testIfHasNullWithQPropertyContext();
     void testRegistryLoad();
     void testUnknownAttributeWarning();
     void testInvalidChildError();
@@ -136,6 +169,28 @@ void TestParser::testIfHas()
     mapCtx.setProperty("show", "yes");
     result = root->measure(ctx, BroadItem::LayoutConstraints{});
     QVERIFY(result.intrinsicSize.width() > 0);
+}
+
+void TestParser::testIfHasNullWithQPropertyContext()
+{
+    IfHasNullHelper item;
+    BroadItem::QPropertyContext propCtx(&item);
+
+    auto ifEl = std::make_shared<BroadItem::IfHasElement>();
+    ifEl->setBindProperty("warning");
+    ifEl->setChild(std::make_shared<NullTestElement>());
+
+    BroadItem::LayoutContext ctx;
+    ctx.ctx = &propCtx;
+
+    // Default QString() is null -> expand returns empty
+    auto result = ifEl->expand(ctx);
+    QCOMPARE(result.size(), 0);
+
+    // Set to non-null value -> expand returns cloned child
+    item.setWarning("alert");
+    result = ifEl->expand(ctx);
+    QCOMPARE(result.size(), 1);
 }
 
 void TestParser::testRegistryLoad()
