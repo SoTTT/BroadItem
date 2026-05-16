@@ -8,19 +8,19 @@ ContainerElement::ContainerElement() = default;
 
 void ContainerElement::parse(const QDomElement& xml)
 {
-    parseDecorators(xml);
+    parseBoxModel(xml);
 }
 
 MeasureResult ContainerElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
 {
     if (!m_content) {
-        QSizeF sz(decorators.totalWidth(), decorators.totalHeight());
+        QSizeF sz(boxModelWidth(), boxModelHeight());
         return MeasureResult{sz};
     }
 
     LayoutConstraints childConstraints = constraints;
-    double decoW = decorators.totalWidth();
-    double decoH = decorators.totalHeight();
+    double decoW = boxModelWidth();
+    double decoH = boxModelHeight();
 
     if (constraints.availableWidth > 0)
         childConstraints.availableWidth = std::max(0.0, constraints.availableWidth - decoW);
@@ -38,17 +38,13 @@ void ContainerElement::layout(const LayoutContext& ctx, const QRectF& rect)
     if (!m_content)
         return;
 
-    QRectF contentRect(rect.x() + decorators.margin.left + decorators.border.width + decorators.padding.left,
-                       rect.y() + decorators.margin.top + decorators.border.width + decorators.padding.top,
-                       std::max(0.0, rect.width() - decorators.totalWidth()),
-                       std::max(0.0, rect.height() - decorators.totalHeight()));
-
-    m_content->layout(ctx, contentRect);
+    QRectF cr = contentRect(rect);
+    m_content->layout(ctx, cr);
 }
 
 void ContainerElement::render(QPainter* painter, const LayoutContext& ctx) const
 {
-    renderDecorators(painter, m_rect);
+    renderBoxModel(painter, m_rect);
     if (m_content)
         m_content->render(painter, ctx);
 }
@@ -66,7 +62,10 @@ void ContainerElement::setContent(ElementPtr content)
 ElementPtr ContainerElement::clone() const
 {
     auto copy = std::make_shared<ContainerElement>();
-    copy->decorators = decorators;
+    copy->m_margin = m_margin;
+    copy->m_border = m_border;
+    copy->m_background = m_background;
+    copy->m_padding = m_padding;
     copy->m_rect = m_rect;
     if (m_content)
         copy->m_content = m_content->clone();

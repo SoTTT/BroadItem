@@ -5,14 +5,13 @@
 #include "broaditem/LayoutRegistry.h"
 #include <QDebug>
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 
     QGraphicsScene scene;
     scene.setSceneRect(0, 0, 400, 300);
 
-    auto* item = new BroadItem::BroadItem("test_layout.xml");
+    auto *item = new BroadItem::BroadItem(QApplication::applicationDirPath() + "/test_layout.xml");
     item->setDynamicProperty("title", "设备状态");
     item->setDynamicProperty("status", "运行中");
     item->setDynamicProperty("ip", "192.168.1.100");

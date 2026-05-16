@@ -46,18 +46,4 @@ struct Background {
     bool visible() const { return enabled && opacity > 0; }
 };
 
-struct Decorators {
-    Margin margin;
-    Border border;
-    Background background;
-    Padding padding;
-
-    double totalWidth() const {
-        return margin.width() + border.width * 2 + padding.width();
-    }
-    double totalHeight() const {
-        return margin.height() + border.width * 2 + padding.height();
-    }
-};
-
 } // namespace BroadItem

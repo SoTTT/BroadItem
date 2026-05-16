@@ -92,6 +92,12 @@ protected:
                 return QVariant();
             }
 
+            // Type check: .key navigation requires QVariant::Map as parent.
+            //   Pass — current.type() == QVariant::Map; extracts the nested
+            //          value by key.  Missing key is a separate error (qCritical
+            //          + returns invalid QVariant).
+            //   Fail — current is not a Map; qCritical logs the key name and
+            //          actual type; returns QVariant() to terminate the path.
             if (current.type() == QVariant::Map) {
                 QVariantMap map = current.toMap();
                 if (!map.contains(key)) {
@@ -204,6 +210,11 @@ protected:
                             << "(path:" << path << ")";
                 return -1;
             }
+            // Type check: [n] indexing requires QVariant::List as parent.
+            //   Pass — current.type() == QVariant::List; reads list[n].
+            //          Out-of-bounds is a separate error (qCritical + returns -1).
+            //   Fail — current is not a List; qCritical logs the actual type
+            //          name; returns -1 to terminate the path.
             if (current.type() != QVariant::List) {
                 qCritical() << "PropertyContext: cannot index into non-array type"
                             << current.typeName() << "(path:" << path << ")";

@@ -11,7 +11,7 @@ namespace BroadItem {
 
 const QSet<QString>& GridLayout::supportedAttributes() const
 {
-    static const QSet<QString> attrs = QSet<QString>{"columns", "rows", "space", "space-row", "space-column"} + decoratorAttributeNames();
+    static const QSet<QString> attrs = QSet<QString>{"columns", "rows", "space", "space-row", "space-column"} + boxModelAttributeNames();
     return attrs;
 }
 
@@ -54,7 +54,10 @@ void GridLayout::addChild(ElementPtr child)
 ElementPtr GridLayout::clone() const
 {
     auto copy = std::make_shared<GridLayout>();
-    copy->decorators = decorators;
+    copy->m_margin = m_margin;
+    copy->m_border = m_border;
+    copy->m_background = m_background;
+    copy->m_padding = m_padding;
     copy->m_rect = m_rect;
     copy->m_columns = m_columns;
     copy->m_rows = m_rows;
@@ -97,8 +100,8 @@ std::vector<ElementPtr> GridLayout::flattenChildren(const LayoutContext& ctx) co
 
 MeasureResult GridLayout::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
 {
-    double decoW = decorators.totalWidth();
-    double decoH = decorators.totalHeight();
+    double decoW = boxModelWidth();
+    double decoH = boxModelHeight();
 
     LayoutConstraints childConstraints = constraints;
     if (constraints.availableWidth > 0)
@@ -140,12 +143,8 @@ void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect)
 {
     ContainerElement::layout(ctx, rect);
 
-    QRectF contentRect(rect.x() + decorators.margin.left + decorators.border.width + decorators.padding.left,
-                       rect.y() + decorators.margin.top + decorators.border.width + decorators.padding.top,
-                       std::max(0.0, rect.width() - decorators.totalWidth()),
-                       std::max(0.0, rect.height() - decorators.totalHeight()));
+    QRectF cr = contentRect(rect);
 
-    // Distribute extra space proportionally
     double measuredWidth = 0;
     for (double w : m_colWidths)
         measuredWidth += w;
@@ -156,8 +155,8 @@ void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect)
         measuredHeight += h;
     measuredHeight += (m_rows - 1) * m_rowSpace;
 
-    double extraW = contentRect.width() - measuredWidth;
-    double extraH = contentRect.height() - measuredHeight;
+    double extraW = cr.width() - measuredWidth;
+    double extraH = cr.height() - measuredHeight;
 
     if (extraW > 0 && m_columns > 0) {
         double add = extraW / m_columns;
@@ -170,9 +169,9 @@ void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect)
             h += add;
     }
 
-    double y = contentRect.y();
+    double y = cr.y();
     for (int row = 0; row < m_rows; ++row) {
-        double x = contentRect.x();
+        double x = cr.x();
         for (int col = 0; col < m_columns; ++col) {
             int idx = row * m_columns + col;
             if (idx >= static_cast<int>(m_flattened.size()))

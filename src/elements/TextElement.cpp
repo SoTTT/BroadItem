@@ -9,18 +9,18 @@ namespace BroadItem {
 const QSet<QString>& TextElement::supportedAttributes() const
 {
     static const QSet<QString> attrs = QSet<QString>{
-        "width", "height",  // from SizedElement
+        "width", "height",
         "content", ":content", "v-align", "h-align",
         "font-family", "font-size", "bold", "under-line",
         "wrap", "max-width", "color"
-    } + decoratorAttributeNames();
+    } + boxModelAttributeNames();
     return attrs;
 }
 
 void TextElement::parse(const QDomElement& xml)
 {
     SizedElement::parse(xml);
-    parseDecorators(xml);
+    parseBoxModel(xml);
     validateAttributes(xml);
 
     m_text = xml.text().trimmed();
@@ -70,6 +70,10 @@ QString TextElement::resolvedText(const LayoutContext& ctx) const
         return m_contentLiteral;
     if (!m_propertyName.isEmpty() && ctx.hasProperty(m_propertyName)) {
         QVariant v = ctx.property(m_propertyName);
+        // Type check: :content binding requires QString.
+        //   Pass — v.type() == QVariant::String; returns the bound text.
+        //   Fail — v has a different type; qCritical logs the property
+        //          name and actual type; falls through to default text.
         if (v.type() == QVariant::String)
             return v.toString();
         qCritical() << "TextElement: property" << m_propertyName
@@ -125,15 +129,13 @@ MeasureResult TextElement::measure(const LayoutContext& ctx, const LayoutConstra
     double w = sz.width();
     double h = sz.height();
 
-    // Apply specified size as requested size (if any)
     if (hasWidth())
         w = width();
     if (hasHeight())
         h = height();
 
-    // Add decorator sizes
-    w += decorators.totalWidth();
-    h += decorators.totalHeight();
+    w += boxModelWidth();
+    h += boxModelHeight();
 
     return MeasureResult{QSizeF(w, h)};
 }
@@ -147,8 +149,7 @@ void TextElement::layout(const LayoutContext& ctx, const QRectF& rect)
 
 void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
 {
-    // Render decorators (background, border)
-    renderDecorators(painter, m_rect);
+    renderBoxModel(painter, m_rect);
 
     QString text = resolvedText(ctx);
     if (text.isEmpty())
@@ -165,10 +166,8 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
     painter->setFont(font);
     painter->setPen(m_color);
 
-    // Use content rect for text rendering (inside decorators)
     const QRectF& textRect = m_contentRect;
 
-    // Clip if size is specified (content may exceed allocated rect)
     bool needClip = hasWidth() || hasHeight();
     if (needClip) {
         painter->save();
@@ -266,7 +265,10 @@ ElementPtr TextElement::clone() const
     copy->m_color = m_color;
     copy->m_width = m_width;
     copy->m_height = m_height;
-    copy->decorators = decorators;
+    copy->m_margin = m_margin;
+    copy->m_border = m_border;
+    copy->m_background = m_background;
+    copy->m_padding = m_padding;
     copy->m_rect = m_rect;
     copy->m_contentRect = m_contentRect;
     return copy;

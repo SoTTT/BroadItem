@@ -104,7 +104,7 @@ int main(int argc, char* argv[])
 
         // 偶尔移除/恢复警告
         if (rnd(5) == 0) {
-            item->setDynamicProperty("warning", "");
+            item->setDynamicProperty("warning", QVariant{});
         } else {
             static const QStringList warnings = {
                 "CPU 使用率超过阈值！",

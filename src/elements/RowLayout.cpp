@@ -10,7 +10,7 @@ namespace BroadItem {
 
 const QSet<QString>& RowLayout::supportedAttributes() const
 {
-    static const QSet<QString> attrs = QSet<QString>{"main-align", "cross-align", "space"} + decoratorAttributeNames();
+    static const QSet<QString> attrs = QSet<QString>{"main-align", "cross-align", "space"} + boxModelAttributeNames();
     return attrs;
 }
 
@@ -34,7 +34,10 @@ void RowLayout::addChild(ElementPtr child)
 ElementPtr RowLayout::clone() const
 {
     auto copy = std::make_shared<RowLayout>();
-    copy->decorators = decorators;
+    copy->m_margin = m_margin;
+    copy->m_border = m_border;
+    copy->m_background = m_background;
+    copy->m_padding = m_padding;
     copy->m_rect = m_rect;
     copy->m_mainAlign = m_mainAlign;
     copy->m_crossAlign = m_crossAlign;
@@ -79,8 +82,8 @@ MeasureResult RowLayout::measure(const LayoutContext& ctx, const LayoutConstrain
     double maxHeight = 0;
 
     LayoutConstraints childConstraints = constraints;
-    double decoW = decorators.totalWidth();
-    double decoH = decorators.totalHeight();
+    double decoW = boxModelWidth();
+    double decoH = boxModelHeight();
 
     if (constraints.availableWidth > 0)
         childConstraints.availableWidth = std::max(0.0, constraints.availableWidth - decoW);
@@ -104,13 +107,10 @@ void RowLayout::layout(const LayoutContext& ctx, const QRectF& rect)
 {
     ContainerElement::layout(ctx, rect);
 
-    QRectF contentRect(rect.x() + decorators.margin.left + decorators.border.width + decorators.padding.left,
-                       rect.y() + decorators.margin.top + decorators.border.width + decorators.padding.top,
-                       std::max(0.0, rect.width() - decorators.totalWidth()),
-                       std::max(0.0, rect.height() - decorators.totalHeight()));
+    QRectF cr = contentRect(rect);
 
     m_flattened = flattenChildren(ctx);
-    layoutChildren(ctx, contentRect);
+    layoutChildren(ctx, cr);
 }
 
 void RowLayout::layoutChildren(const LayoutContext& ctx, const QRectF& contentRect)

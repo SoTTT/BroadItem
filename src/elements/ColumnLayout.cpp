@@ -10,7 +10,7 @@ namespace BroadItem {
 
 const QSet<QString>& ColumnLayout::supportedAttributes() const
 {
-    static const QSet<QString> attrs = QSet<QString>{"main-align", "cross-align", "space"} + decoratorAttributeNames();
+    static const QSet<QString> attrs = QSet<QString>{"main-align", "cross-align", "space"} + boxModelAttributeNames();
     return attrs;
 }
 
@@ -34,7 +34,10 @@ void ColumnLayout::addChild(ElementPtr child)
 ElementPtr ColumnLayout::clone() const
 {
     auto copy = std::make_shared<ColumnLayout>();
-    copy->decorators = decorators;
+    copy->m_margin = m_margin;
+    copy->m_border = m_border;
+    copy->m_background = m_background;
+    copy->m_padding = m_padding;
     copy->m_rect = m_rect;
     copy->m_mainAlign = m_mainAlign;
     copy->m_crossAlign = m_crossAlign;
@@ -79,8 +82,8 @@ MeasureResult ColumnLayout::measure(const LayoutContext& ctx, const LayoutConstr
     double maxWidth = 0;
 
     LayoutConstraints childConstraints = constraints;
-    double decoH = decorators.totalHeight();
-    double decoW = decorators.totalWidth();
+    double decoH = boxModelHeight();
+    double decoW = boxModelWidth();
 
     if (constraints.availableWidth > 0)
         childConstraints.availableWidth = std::max(0.0, constraints.availableWidth - decoW);
@@ -104,14 +107,10 @@ void ColumnLayout::layout(const LayoutContext& ctx, const QRectF& rect)
 {
     ContainerElement::layout(ctx, rect);
 
-    // Content rect after decorators
-    QRectF contentRect(rect.x() + decorators.margin.left + decorators.border.width + decorators.padding.left,
-                       rect.y() + decorators.margin.top + decorators.border.width + decorators.padding.top,
-                       std::max(0.0, rect.width() - decorators.totalWidth()),
-                       std::max(0.0, rect.height() - decorators.totalHeight()));
+    QRectF cr = contentRect(rect);
 
     m_flattened = flattenChildren(ctx);
-    layoutChildren(ctx, contentRect);
+    layoutChildren(ctx, cr);
 }
 
 void ColumnLayout::layoutChildren(const LayoutContext& ctx, const QRectF& contentRect)
@@ -119,7 +118,6 @@ void ColumnLayout::layoutChildren(const LayoutContext& ctx, const QRectF& conten
     if (m_flattened.empty())
         return;
 
-    // Measure all children
     std::vector<QSizeF> childSizes;
     double totalIntrinsicHeight = 0;
     LayoutConstraints childConstraints;
@@ -137,7 +135,6 @@ void ColumnLayout::layoutChildren(const LayoutContext& ctx, const QRectF& conten
     double extraSpace = contentRect.height() - totalIntrinsicHeight;
     double offsetY = contentRect.y();
 
-    // Compute start offset and spacing based on main-align
     double spacing = m_space;
     if (m_mainAlign == "center") {
         offsetY += extraSpace / 2.0;
@@ -159,7 +156,6 @@ void ColumnLayout::layoutChildren(const LayoutContext& ctx, const QRectF& conten
         double childHeight = childSizes[i].height();
         double childWidth = childSizes[i].width();
 
-        // Cross-axis alignment determines width
         if (m_crossAlign == "stretch") {
             auto* sized = dynamic_cast<SizedElement*>(m_flattened[i].get());
             if (!sized || !sized->hasWidth())

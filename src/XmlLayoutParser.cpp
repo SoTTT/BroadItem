@@ -1,6 +1,5 @@
 #include "broaditem/XmlLayoutParser.h"
 #include "broaditem/Element.h"
-#include "broaditem/RenderableElement.h"
 #include "broaditem/ContainerElement.h"
 #include "broaditem/elements/TextElement.h"
 #include "broaditem/elements/ColumnLayout.h"
@@ -53,7 +52,6 @@ ElementPtr XmlLayoutParser::parseString(const QString& xmlContent)
         return nullptr;
     }
 
-    // Check there is only one child
     QDomElement secondChild = firstChild.nextSiblingElement();
     if (!secondChild.isNull()) {
         qWarning() << "<root> must have exactly one child element";
@@ -80,86 +78,17 @@ ElementPtr XmlLayoutParser::createElement(const QString& tagName)
     if (tagName == "if-has")
         return std::make_shared<IfHasElement>();
     if (tagName == "margin" || tagName == "border" || tagName == "padding" || tagName == "background") {
-        // These are decorators and should be handled in parseNode
+        qWarning() << "Deprecated decorator tag <" << tagName << ">. Use inline attributes instead (e.g. margin=\"4\" border-width=\"1\").";
         return nullptr;
     }
     qWarning() << "Unknown element tag:" << tagName;
     return nullptr;
 }
 
-void XmlLayoutParser::applyPseudoAttributes(const ElementPtr& element, const QDomElement& xml)
-{
-    // Already handled in ContainerElement::parse via parseDecorators
-    Q_UNUSED(element)
-    Q_UNUSED(xml)
-}
-
 ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
 {
     QString tag = xml.tagName();
 
-    // Handle decorators
-    if (tag == "margin") {
-        auto container = std::make_shared<ContainerElement>();
-        container->parse(xml);
-        QDomElement child = xml.firstChildElement();
-        if (!child.isNull()) {
-            auto content = parseNode(child);
-            if (auto renderable = std::dynamic_pointer_cast<RenderableElement>(content)) {
-                // Merge margin into content's decorators
-                renderable->decorators.margin = container->decorators.margin;
-                return content;
-            }
-        }
-        return container;
-    }
-
-    if (tag == "border") {
-        auto container = std::make_shared<ContainerElement>();
-        container->parse(xml);
-        QDomElement child = xml.firstChildElement();
-        if (!child.isNull()) {
-            auto content = parseNode(child);
-            if (auto renderable = std::dynamic_pointer_cast<RenderableElement>(content)) {
-                renderable->decorators.border = container->decorators.border;
-                return content;
-            }
-        }
-        return container;
-    }
-
-    if (tag == "background") {
-        auto container = std::make_shared<ContainerElement>();
-        container->parse(xml);
-        QDomElement child = xml.firstChildElement();
-        if (!child.isNull()) {
-            auto content = parseNode(child);
-            if (auto renderable = std::dynamic_pointer_cast<RenderableElement>(content)) {
-                renderable->decorators.background = container->decorators.background;
-                return content;
-            }
-        }
-        return container;
-    }
-
-    if (tag == "padding") {
-        auto container = std::make_shared<ContainerElement>();
-        container->parse(xml);
-        QDomElement child = xml.firstChildElement();
-        if (!child.isNull()) {
-            auto content = parseNode(child);
-            if (auto renderable = std::dynamic_pointer_cast<RenderableElement>(content)) {
-                renderable->decorators.padding = container->decorators.padding;
-                return content;
-            }
-        }
-        return container;
-    }
-
-    // Pseudo-attribute wrappers: for non-control elements, :of and :prop
-    // create implicit <for>/<if-has> wrappers.  Control elements themselves
-    // are exempt: <for :of="list"> is a real for-element, not a wrapper.
-    // Must be checked BEFORE createElement to avoid double-wrapping.
     bool wrapFor = xml.hasAttribute(":of") && tag != "for" && tag != "if-has";
     bool wrapIfHas = xml.hasAttribute(":prop") && tag != "for" && tag != "if-has";
 
@@ -169,13 +98,11 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
 
     element->parse(xml);
 
-    // Validate child constraints: elements that cannot have children
     if (!element->canHaveChildren() && !xml.firstChildElement().isNull()) {
         qCritical() << "<" << tag << "> should not have child elements";
         return nullptr;
     }
 
-    // Parse children for container elements
     auto container = std::dynamic_pointer_cast<ContainerElement>(element);
     auto column = std::dynamic_pointer_cast<ColumnLayout>(element);
     auto row = std::dynamic_pointer_cast<RowLayout>(element);
@@ -193,7 +120,6 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
                 else if (grid) grid->addChild(childEl);
             }
         }
-        // GridLayout cell count validation
         if (grid) {
             int cellCount = 0;
             bool hasControlChildren = false;
@@ -239,11 +165,9 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
                 ifEl->setChild(childEl);
         }
     } else if (container && xml.firstChildElement().isNull()) {
-        // Leaf container (e.g., text with no child but has decorators)
-        // TextElement handles its own text content, no children to parse
+        // Leaf container
     }
 
-    // Wrap with for/if-has if pseudo-attributes exist on a non-control element
     if (wrapFor) {
         auto wrapper = std::make_shared<ForElement>();
         wrapper->setBindProperty(xml.attribute(":of"));

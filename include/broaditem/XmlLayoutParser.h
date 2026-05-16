@@ -19,7 +19,6 @@ public:
 private:
     static ElementPtr parseNode(const QDomElement& xml);
     static ElementPtr createElement(const QString& tagName);
-    static void applyPseudoAttributes(const ElementPtr& element, const QDomElement& xml);
 };
 
 } // namespace BroadItem

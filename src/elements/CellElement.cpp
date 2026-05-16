@@ -6,7 +6,7 @@ namespace BroadItem {
 
 const QSet<QString>& CellElement::supportedAttributes() const
 {
-    static const QSet<QString> attrs = QSet<QString>{"v-align", "h-align"} + decoratorAttributeNames();
+    static const QSet<QString> attrs = QSet<QString>{"v-align", "h-align"} + boxModelAttributeNames();
     return attrs;
 }
 
@@ -23,7 +23,10 @@ void CellElement::parse(const QDomElement& xml)
 ElementPtr CellElement::clone() const
 {
     auto copy = std::make_shared<CellElement>();
-    copy->decorators = decorators;
+    copy->m_margin = m_margin;
+    copy->m_border = m_border;
+    copy->m_background = m_background;
+    copy->m_padding = m_padding;
     copy->m_rect = m_rect;
     copy->m_vAlign = m_vAlign;
     copy->m_hAlign = m_hAlign;
@@ -45,21 +48,13 @@ MeasureResult CellElement::measure(const LayoutContext& ctx, const LayoutConstra
 
 void CellElement::layout(const LayoutContext& ctx, const QRectF& rect)
 {
-    // Cell may be stretched by grid; we center/stretch content as specified
     ContainerElement::layout(ctx, rect);
 
     if (!content())
         return;
 
-    // After ContainerElement::layout, content has been placed at top-left of content area.
-    // We now adjust content position based on alignments if content is smaller than cell.
-    // For simplicity, we re-layout content with adjusted rect.
-    QRectF contentArea(rect.x() + decorators.margin.left + decorators.border.width + decorators.padding.left,
-                       rect.y() + decorators.margin.top + decorators.border.width + decorators.padding.top,
-                       std::max(0.0, rect.width() - decorators.totalWidth()),
-                       std::max(0.0, rect.height() - decorators.totalHeight()));
+    QRectF contentArea = contentRect(rect);
 
-    // Re-measure content to get intrinsic size
     auto result = content()->measure(ctx, LayoutConstraints{contentArea.width(), contentArea.height()});
     double cw = result.intrinsicSize.width();
     double ch = result.intrinsicSize.height();

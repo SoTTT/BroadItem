@@ -53,6 +53,12 @@ std::vector<ElementPtr> ForElement::expand(const LayoutContext& ctx) const
         return result;
 
     QVariant v = ctx.property(m_ofProperty);
+    // Type check: <for :of> requires QStringList for iteration.
+    //   Pass — v.type() == QVariant::StringList; proceeds to clone the
+    //          template and interpolate values per step.
+    //   Fail — v is invalid (property unset → silently returns empty list,
+    //          no output); or wrong type → qCritical with expected/got,
+    //          returns empty list.
     if (v.type() != QVariant::StringList) {
         if (v.isValid())
             qCritical() << "ForElement: property" << m_ofProperty

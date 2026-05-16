@@ -2,6 +2,7 @@
 #include <QGraphicsView>
 #include <QGraphicsScene>
 #include <QDebug>
+#include <QDir>
 #include <QFileInfo>
 #include "broaditem/BroadItem.h"
 #include "broaditem/MapPropertyContext.h"
@@ -37,12 +38,12 @@ int main(int argc, char* argv[])
     QGraphicsView view(&scene);
     view.setWindowTitle("BroadItem Playground");
     view.setRenderHints(QPainter::Antialiasing | QPainter::TextAntialiasing);
-    view.setBackgroundBrush(QBrush(QColor("#ECEFF1")));
+    view.setBackgroundBrush(QBrush(QColor(0xECEFF1)));
     view.setFixedSize(400, 300);
     view.setAlignment(Qt::AlignCenter);
     
     // 显示
     view.show();
 
-    return app.exec();
+    return QApplication::exec();
 }

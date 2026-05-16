@@ -52,7 +52,22 @@ public:
     {
         ensureConnected();
         QObject* obj = m_target ? m_target : this;
-        obj->setProperty(name.toUtf8().constData(), value);
+        QByteArray nameBa = name.toUtf8();
+        // Type check: declared Q_PROPERTY must match the value's QVariant type.
+        //   Pass — Qt invokes the property setter; no message emitted.
+        //   Fail — QObject::setProperty returns false; qWarning logs the
+        //          declared property name and the mismatching value type.
+        //   Dynamic properties (no Q_PROPERTY) bypass this check — they have
+        //          no type declaration to validate against.
+        if (obj->metaObject()->indexOfProperty(nameBa.constData()) >= 0) {
+            if (!obj->setProperty(nameBa.constData(), value)) {
+                qWarning() << "QPropertyContext::setProperty: type mismatch for" << name
+                           << "(type:" << value.typeName() << ")";
+            }
+        } else {
+            // Dynamic property — no type declaration to validate against
+            obj->setProperty(nameBa.constData(), value);
+        }
     }
 
     bool event(QEvent* e) override;

@@ -54,15 +54,8 @@ void TestParser::testParseDecorators()
 {
     QString xml = R"(
         <root>
-            <margin all="4">
-                <border width="1" color="#555" radius="4">
-                    <background color="#333" radius="3">
-                        <padding all="8">
-                            <text>设备状态</text>
-                        </padding>
-                    </background>
-                </border>
-            </margin>
+            <text margin="4" border-width="1" border-color="#555" border-radius="4"
+                  background-color="#333" background-radius="3" padding="8">设备状态</text>
         </root>
     )";
     auto root = BroadItem::XmlLayoutParser::parseString(xml);
