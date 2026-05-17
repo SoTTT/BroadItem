@@ -3,12 +3,16 @@
 
 namespace BroadItem {
 
+/// @brief 返回 IfHasElement 支持的 XML 属性集合。
+/// @return Reference to a static set containing ":prop" and "not".
 const QSet<QString>& IfHasElement::supportedAttributes() const
 {
     static const QSet<QString> attrs = {":prop", "not"};
     return attrs;
 }
 
+/// @brief 从 XML 元素解析 :prop 和 not 属性。
+/// @param xml The DOM element to parse.
 void IfHasElement::parse(const QDomElement& xml)
 {
     Element::parse(xml);
@@ -18,21 +22,29 @@ void IfHasElement::parse(const QDomElement& xml)
     m_not = xml.hasAttribute("not");
 }
 
+/// @brief 设置要检查条件显示的属性名。
+/// @param bind The property name.
 void IfHasElement::setBindProperty(const QString& bind)
 {
     m_propertyName = bind;
 }
 
+/// @brief 设置条件是否取反。
+/// @param notValue If true, the element is shown when the property is absent.
 void IfHasElement::setNot(bool notValue)
 {
     m_not = notValue;
 }
 
+/// @brief 设置要条件显示的子元素。
+/// @param child The child element.
 void IfHasElement::setChild(ElementPtr child)
 {
     m_child = std::move(child);
 }
 
+/// @brief 创建此 IfHasElement 的深拷贝，包括子元素。
+/// @return A new IfHasElement with cloned child.
 ElementPtr IfHasElement::clone() const
 {
     auto copy = std::make_shared<IfHasElement>();
@@ -43,6 +55,9 @@ ElementPtr IfHasElement::clone() const
     return copy;
 }
 
+/// @brief 根据属性存在性和空值检查决定是否显示子元素。
+/// @param ctx The layout context to query.
+/// @return True if the condition is met (respecting the "not" flag).
 bool IfHasElement::shouldShow(const LayoutContext& ctx) const
 {
     bool has = ctx.hasProperty(m_propertyName);
@@ -53,6 +68,9 @@ bool IfHasElement::shouldShow(const LayoutContext& ctx) const
     return m_not ? !has : has;
 }
 
+/// @brief 条件满足时展开为克隆的子元素，否则返回空向量。
+/// @param ctx The layout context.
+/// @return A vector with one cloned child, or empty.
 std::vector<ElementPtr> IfHasElement::expand(const LayoutContext& ctx) const
 {
     if (!shouldShow(ctx) || !m_child)
@@ -60,6 +78,10 @@ std::vector<ElementPtr> IfHasElement::expand(const LayoutContext& ctx) const
     return { m_child->clone() };
 }
 
+/// @brief 条件满足时测量子元素，否则返回零尺寸。
+/// @param ctx The layout context.
+/// @param constraints Available width/height constraints.
+/// @return The child's measured size, or zero if hidden.
 MeasureResult IfHasElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
 {
     if (!shouldShow(ctx) || !m_child)
@@ -67,6 +89,9 @@ MeasureResult IfHasElement::measure(const LayoutContext& ctx, const LayoutConstr
     return m_child->measure(ctx, constraints);
 }
 
+/// @brief 条件满足时布局子元素。
+/// @param ctx The layout context.
+/// @param rect The bounding rectangle for the child.
 void IfHasElement::layout(const LayoutContext& ctx, const QRectF& rect)
 {
     m_rect = rect;
@@ -75,6 +100,9 @@ void IfHasElement::layout(const LayoutContext& ctx, const QRectF& rect)
     m_child->layout(ctx, rect);
 }
 
+/// @brief 条件满足时渲染子元素。
+/// @param painter The QPainter to render onto.
+/// @param ctx The layout context.
 void IfHasElement::render(QPainter* painter, const LayoutContext& ctx) const
 {
     if (!shouldShow(ctx) || !m_child)
@@ -82,6 +110,9 @@ void IfHasElement::render(QPainter* painter, const LayoutContext& ctx) const
     m_child->render(painter, ctx);
 }
 
+/// @brief 检查此元素是否绑定指定属性（通过 :prop 或在子元素中）。
+/// @param name The property name to check.
+/// @return True if the property is bound.
 bool IfHasElement::bindsProperty(const QString& name) const
 {
     return matchesProperty(m_propertyName, name) || (m_child && m_child->bindsProperty(name));

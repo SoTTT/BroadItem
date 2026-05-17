@@ -4,12 +4,16 @@
 
 namespace BroadItem {
 
+/// @brief 返回 CellElement 支持的 XML 属性集合。
+/// @return Reference to a static set containing "v-align", "h-align", and box model attributes.
 const QSet<QString>& CellElement::supportedAttributes() const
 {
     static const QSet<QString> attrs = QSet<QString>{"v-align", "h-align"} + boxModelAttributeNames();
     return attrs;
 }
 
+/// @brief 解析对齐设置的 XML 属性。
+/// @param xml The DOM element to parse.
 void CellElement::parse(const QDomElement& xml)
 {
     ContainerElement::parse(xml);
@@ -20,6 +24,8 @@ void CellElement::parse(const QDomElement& xml)
         m_hAlign = xml.attribute("h-align");
 }
 
+/// @brief 创建此单元格元素的深拷贝。
+/// @return A new CellElement with copied properties and cloned content.
 ElementPtr CellElement::clone() const
 {
     auto copy = std::make_shared<CellElement>();
@@ -35,17 +41,26 @@ ElementPtr CellElement::clone() const
     return copy;
 }
 
+/// @brief 将插值值传播给内容元素。
+/// @param values The string values to interpolate.
 void CellElement::interpolateValues(const QStringList& values)
 {
     if (content())
         content()->interpolateValues(values);
 }
 
+/// @brief 通过委托 ContainerElement::measure() 测量单元格。
+/// @param ctx The layout context.
+/// @param constraints Available width/height constraints.
+/// @return The measured size of the cell.
 MeasureResult CellElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
 {
     return ContainerElement::measure(ctx, constraints);
 }
 
+/// @brief 在单元格内布局内容元素，应用水平和垂直对齐。
+/// @param ctx The layout context.
+/// @param rect The bounding rectangle assigned to this cell.
 void CellElement::layout(const LayoutContext& ctx, const QRectF& rect)
 {
     ContainerElement::layout(ctx, rect);
@@ -76,11 +91,17 @@ void CellElement::layout(const LayoutContext& ctx, const QRectF& rect)
     content()->layout(ctx, childRect);
 }
 
+/// @brief 通过 ContainerElement::render() 渲染单元格及其内容。
+/// @param painter The QPainter to render onto.
+/// @param ctx The layout context.
 void CellElement::render(QPainter* painter, const LayoutContext& ctx) const
 {
     ContainerElement::render(painter, ctx);
 }
 
+/// @brief 检查此单元格或其内容是否绑定指定属性。
+/// @param name The property name to check.
+/// @return True if the property is bound.
 bool CellElement::bindsProperty(const QString& name) const
 {
     return ContainerElement::bindsProperty(name);

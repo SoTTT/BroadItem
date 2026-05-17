@@ -38,6 +38,7 @@ private:
     QString m_path;
 };
 
+/// @brief 属性上下文的抽象基类，为布局元素提供数据绑定。
 class PropertyContext {
 public:
     virtual ~PropertyContext() = default;
@@ -394,7 +395,7 @@ protected:
     }
 
 private:
-    OnChanged m_onChanged;
+    OnChanged m_onChanged;  ///< Registered callback for property change notifications.
 };
 
 // ========== PropertyProxy inline implementations ==========

@@ -6,6 +6,8 @@
 
 namespace BroadItem {
 
+/// @brief 返回 TextElement 支持的 XML 属性集合。
+/// @return Reference to a static set including content, font, alignment, and box model attributes.
 const QSet<QString>& TextElement::supportedAttributes() const
 {
     static const QSet<QString> attrs = QSet<QString>{
@@ -17,6 +19,8 @@ const QSet<QString>& TextElement::supportedAttributes() const
     return attrs;
 }
 
+/// @brief 解析文本特定属性：content、:content 绑定、字体、对齐、换行等。
+/// @param xml The DOM element to parse.
 void TextElement::parse(const QDomElement& xml)
 {
     SizedElement::parse(xml);
@@ -64,6 +68,9 @@ void TextElement::parse(const QDomElement& xml)
         m_color = parseColor(xml.attribute("color"));
 }
 
+/// @brief 解析显示的文本：字面量内容、绑定的 :content 属性或解析的 XML 文本。
+/// @param ctx The layout context for property lookup.
+/// @return The resolved text string.
 QString TextElement::resolvedText(const LayoutContext& ctx) const
 {
     if (m_hasContentLiteral)
@@ -82,6 +89,10 @@ QString TextElement::resolvedText(const LayoutContext& ctx) const
     return m_text;
 }
 
+/// @brief 计算给定文本的渲染尺寸，考虑字体、换行和 max-width 约束。
+/// @param text The text to measure.
+/// @param constraints Available width/height constraints.
+/// @return The computed text size.
 QSizeF TextElement::computeTextSize(const QString& text, const LayoutConstraints& constraints) const
 {
     QFont font = m_font;
@@ -122,6 +133,10 @@ QSizeF TextElement::computeTextSize(const QString& text, const LayoutConstraints
     }
 }
 
+/// @brief 测量文本元素：解析文本、计算尺寸、应用显式宽度/高度。
+/// @param ctx The layout context.
+/// @param constraints Available width/height constraints.
+/// @return The measured size including box model decoration.
 MeasureResult TextElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
 {
     QString text = resolvedText(ctx);
@@ -140,6 +155,9 @@ MeasureResult TextElement::measure(const LayoutContext& ctx, const LayoutConstra
     return MeasureResult{QSizeF(w, h)};
 }
 
+/// @brief 存储分配的矩形并计算文本渲染的内容区域。
+/// @param ctx The layout context (unused).
+/// @param rect The bounding rectangle assigned to this text element.
 void TextElement::layout(const LayoutContext& ctx, const QRectF& rect)
 {
     Q_UNUSED(ctx)
@@ -147,6 +165,9 @@ void TextElement::layout(const LayoutContext& ctx, const QRectF& rect)
     m_contentRect = contentRect(rect);
 }
 
+/// @brief 渲染文本元素：盒模型装饰，然后使用字体、对齐和换行渲染文本。
+/// @param painter The QPainter to render onto.
+/// @param ctx The layout context for property resolution.
 void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
 {
     renderBoxModel(painter, m_rect);
@@ -241,11 +262,16 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
     }
 }
 
+/// @brief 检查此文本元素是否通过 :content 绑定指定属性。
+/// @param name The property name to check.
+/// @return True if the property matches the :content binding.
 bool TextElement::bindsProperty(const QString& name) const
 {
     return matchesProperty(m_propertyName, name);
 }
 
+/// @brief 创建此文本元素的深拷贝，包含所有属性。
+/// @return A new TextElement with identical settings.
 ElementPtr TextElement::clone() const
 {
     auto copy = std::make_shared<TextElement>();
@@ -274,6 +300,8 @@ ElementPtr TextElement::clone() const
     return copy;
 }
 
+/// @brief 用给定值插值文本内容中的 "{}" 占位符。
+/// @param values The string values to substitute.
 void TextElement::interpolateValues(const QStringList& values)
 {
     if (m_hasContentLiteral)

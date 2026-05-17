@@ -7,6 +7,7 @@
 #include "broaditem/BroadItem.h"
 #include "broaditem/MapPropertyContext.h"
 
+/// @brief 入口点。加载带 MapPropertyContext 的布局 XML 并显示。
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);

@@ -4,12 +4,16 @@
 
 namespace BroadItem {
 
+/// @brief 返回 ForElement 支持的 XML 属性集合。
+/// @return Reference to a static set containing ":of" and "step".
 const QSet<QString>& ForElement::supportedAttributes() const
 {
     static const QSet<QString> attrs = {":of", "step"};
     return attrs;
 }
 
+/// @brief 从 XML 元素解析 :of 和 step 属性。
+/// @param xml The DOM element to parse.
 void ForElement::parse(const QDomElement& xml)
 {
     Element::parse(xml);
@@ -26,16 +30,22 @@ void ForElement::parse(const QDomElement& xml)
     }
 }
 
+/// @brief 设置提供迭代列表的绑定属性。
+/// @param bind The property name for the data source (QStringList).
 void ForElement::setBindProperty(const QString& bind)
 {
     m_ofProperty = bind;
 }
 
+/// @brief 设置要每次迭代克隆的模板元素。
+/// @param templ The template element.
 void ForElement::setTemplate(ElementPtr templ)
 {
     m_template = std::move(templ);
 }
 
+/// @brief 创建此 ForElement 的深拷贝，包括模板。
+/// @return A new ForElement with cloned template.
 ElementPtr ForElement::clone() const
 {
     auto copy = std::make_shared<ForElement>();
@@ -46,6 +56,9 @@ ElementPtr ForElement::clone() const
     return copy;
 }
 
+/// @brief 通过遍历绑定的 QStringList 将此控制元素展开为具体元素。
+/// @param ctx The layout context providing the data property.
+/// @return A vector of cloned and interpolated element instances.
 std::vector<ElementPtr> ForElement::expand(const LayoutContext& ctx) const
 {
     std::vector<ElementPtr> result;
@@ -79,6 +92,10 @@ std::vector<ElementPtr> ForElement::expand(const LayoutContext& ctx) const
     return result;
 }
 
+/// @brief 测量第一个展开的实例（控制元素将测量委托给展开的内容）。
+/// @param ctx The layout context.
+/// @param constraints Available width/height constraints.
+/// @return The measured size of the first expanded element, or zero if empty.
 MeasureResult ForElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
 {
     auto expanded = expand(ctx);
@@ -87,6 +104,9 @@ MeasureResult ForElement::measure(const LayoutContext& ctx, const LayoutConstrai
     return expanded[0]->measure(ctx, constraints);
 }
 
+/// @brief 在给定矩形内布局第一个展开的实例。
+/// @param ctx The layout context.
+/// @param rect The bounding rectangle for the first expanded element.
 void ForElement::layout(const LayoutContext& ctx, const QRectF& rect)
 {
     m_rect = rect;
@@ -96,6 +116,9 @@ void ForElement::layout(const LayoutContext& ctx, const QRectF& rect)
     }
 }
 
+/// @brief 渲染第一个展开的实例。
+/// @param painter The QPainter to render onto.
+/// @param ctx The layout context.
 void ForElement::render(QPainter* painter, const LayoutContext& ctx) const
 {
     auto expanded = expand(ctx);
@@ -104,6 +127,9 @@ void ForElement::render(QPainter* painter, const LayoutContext& ctx) const
     }
 }
 
+/// @brief 检查此元素是否绑定指定属性（通过 :of 或在模板中）。
+/// @param name The property name to check.
+/// @return True if the property is bound.
 bool ForElement::bindsProperty(const QString& name) const
 {
     return matchesProperty(m_ofProperty, name) || (m_template && m_template->bindsProperty(name));

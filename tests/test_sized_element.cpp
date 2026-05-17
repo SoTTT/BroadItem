@@ -20,6 +20,7 @@ private slots:
     void testLayoutStretch();
 };
 
+/// @brief 解析带 width/height 属性的元素
 void TestSizedElement::testParseWidthHeight()
 {
     QString xml = R"(
@@ -31,6 +32,7 @@ void TestSizedElement::testParseWidthHeight()
     QVERIFY(root != nullptr);
 }
 
+/// @brief 测试固定宽高元素的测量结果与指定尺寸一致
 void TestSizedElement::testMeasureWithSize()
 {
     QString xml = R"(
@@ -51,6 +53,7 @@ void TestSizedElement::testMeasureWithSize()
     QCOMPARE(result.height(), 50.0);
 }
 
+/// @brief 测试未指定宽高时测量基于内容计算
 void TestSizedElement::testMeasureWithoutSize()
 {
     QString xml = R"(
@@ -72,6 +75,7 @@ void TestSizedElement::testMeasureWithoutSize()
     QVERIFY(result.height() > 0);
 }
 
+/// @brief 测试 clone 保留 width/height 属性
 void TestSizedElement::testClonePreservesSize()
 {
     auto text = std::make_shared<BroadItem::TextElement>();
@@ -91,6 +95,7 @@ void TestSizedElement::testClonePreservesSize()
     QVERIFY(clonedText->hasHeight());
 }
 
+/// @brief 测试指定尺寸的元素不会被 cross-align="stretch" 拉伸
 void TestSizedElement::testLayoutStretch()
 {
     // Test that width/height are hard constraints: layout does NOT stretch

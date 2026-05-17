@@ -8,41 +8,49 @@
 #include <QDateTime>
 #include <cmath>
 
+/// @brief 返回 [0, max) 范围内的随机整数。
 static int rnd(int max)
 {
     return QRandomGenerator::global()->bounded(max);
 }
 
+/// @brief 生成随机 CPU 使用率字符串（例如 "45%"）。
 static QString randomCpu()
 {
     return QString::number(20 + rnd(60)) + "%";
 }
 
+/// @brief 生成随机内存使用率字符串（例如 "65%"）。
 static QString randomMemory()
 {
     return QString::number(30 + rnd(50)) + "%";
 }
 
+/// @brief 生成随机磁盘使用率字符串（例如 "72%"）。
 static QString randomDisk()
 {
     return QString::number(40 + rnd(50)) + "%";
 }
 
+/// @brief 生成随机网络入站速度字符串（MB/s）。
 static QString randomNetIn()
 {
     return QString::number(rnd(200) / 10.0, 'f', 1) + " MB/s";
 }
 
+/// @brief 生成随机网络出站速度字符串（MB/s）。
 static QString randomNetOut()
 {
     return QString::number(rnd(80) / 10.0, 'f', 1) + " MB/s";
 }
 
+/// @brief 生成随机温度字符串（例如 "63°C"）。
 static QString randomTemp()
 {
     return QString::number(45 + rnd(35)) + "°C";
 }
 
+/// @brief 构建模拟运行进程列表（名称、PID、CPU 百分比）。
 static QStringList makeProcesses()
 {
     QStringList names = {"nginx", "mysql", "redis", "docker", "chrome", "node", "ssh", "postgres"};
@@ -56,6 +64,7 @@ static QStringList makeProcesses()
     return procs;
 }
 
+/// @brief 入口点。加载复杂的服务器监控布局并通过定时器动画显示实时指标。
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);

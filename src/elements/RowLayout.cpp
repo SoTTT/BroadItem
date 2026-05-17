@@ -8,12 +8,16 @@
 
 namespace BroadItem {
 
+/// @brief 返回 RowLayout 支持的 XML 属性集合。
+/// @return Reference to a static set of attribute names.
 const QSet<QString>& RowLayout::supportedAttributes() const
 {
     static const QSet<QString> attrs = QSet<QString>{"main-align", "cross-align", "space"} + boxModelAttributeNames();
     return attrs;
 }
 
+/// @brief 解析行布局配置的 XML 属性。
+/// @param xml The DOM element to parse.
 void RowLayout::parse(const QDomElement& xml)
 {
     ContainerElement::parse(xml);
@@ -26,11 +30,15 @@ void RowLayout::parse(const QDomElement& xml)
         validateDouble(xml.attribute("space"), "space", m_space);
 }
 
+/// @brief 向此行添加子元素。
+/// @param child The element to add.
 void RowLayout::addChild(ElementPtr child)
 {
     m_children.push_back(std::move(child));
 }
 
+/// @brief 创建此行布局的深拷贝，包括所有子元素。
+/// @return A new RowLayout with cloned properties and children.
 ElementPtr RowLayout::clone() const
 {
     auto copy = std::make_shared<RowLayout>();
@@ -49,6 +57,8 @@ ElementPtr RowLayout::clone() const
     return copy;
 }
 
+/// @brief 将插值值传播给所有子元素。
+/// @param values The string values to interpolate.
 void RowLayout::interpolateValues(const QStringList& values)
 {
     for (const auto& child : m_children) {
@@ -57,6 +67,9 @@ void RowLayout::interpolateValues(const QStringList& values)
     }
 }
 
+/// @brief 通过将控制元素（for、if-has）展开为具体元素来扁平化子元素。
+/// @param ctx The layout context used for control element expansion.
+/// @return A flattened vector of concrete child elements.
 std::vector<ElementPtr> RowLayout::flattenChildren(const LayoutContext& ctx) const
 {
     std::vector<ElementPtr> flat;
@@ -76,6 +89,10 @@ std::vector<ElementPtr> RowLayout::flattenChildren(const LayoutContext& ctx) con
     return flat;
 }
 
+/// @brief 测量行：累加子元素宽度，跟踪最大子元素高度。
+/// @param ctx The layout context.
+/// @param constraints Available width/height constraints.
+/// @return The measured size including box model decoration.
 MeasureResult RowLayout::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
 {
     double totalWidth = 0;
@@ -103,6 +120,9 @@ MeasureResult RowLayout::measure(const LayoutContext& ctx, const LayoutConstrain
     return MeasureResult{sz};
 }
 
+/// @brief 在给定矩形内水平布局子元素，应用对齐和间距。
+/// @param ctx The layout context.
+/// @param rect The bounding rectangle assigned to this row.
 void RowLayout::layout(const LayoutContext& ctx, const QRectF& rect)
 {
     ContainerElement::layout(ctx, rect);
@@ -113,6 +133,9 @@ void RowLayout::layout(const LayoutContext& ctx, const QRectF& rect)
     layoutChildren(ctx, cr);
 }
 
+/// @brief 在内容区域内定位子元素，处理主轴和交叉轴对齐。
+/// @param ctx The layout context.
+/// @param contentRect The content area rect (excluding box model decoration).
 void RowLayout::layoutChildren(const LayoutContext& ctx, const QRectF& contentRect)
 {
     if (m_flattened.empty())
@@ -175,6 +198,9 @@ void RowLayout::layoutChildren(const LayoutContext& ctx, const QRectF& contentRe
     }
 }
 
+/// @brief 渲染行背景/边框，然后委托给每个子元素。
+/// @param painter The QPainter to render onto.
+/// @param ctx The layout context.
 void RowLayout::render(QPainter* painter, const LayoutContext& ctx) const
 {
     ContainerElement::render(painter, ctx);
@@ -183,6 +209,9 @@ void RowLayout::render(QPainter* painter, const LayoutContext& ctx) const
     }
 }
 
+/// @brief 检查此行或其任何子元素是否绑定指定属性。
+/// @param name The property name to check.
+/// @return True if the property is bound anywhere in this subtree.
 bool RowLayout::bindsProperty(const QString& name) const
 {
     if (ContainerElement::bindsProperty(name))

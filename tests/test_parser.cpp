@@ -58,6 +58,7 @@ private slots:
     void testInvalidAttributeTypeError();
 };
 
+/// @brief 解析最简单的文本元素并验证根节点不为空
 void TestParser::testParseSimpleText()
 {
     QString xml = R"(
@@ -69,6 +70,7 @@ void TestParser::testParseSimpleText()
     QVERIFY(root != nullptr);
 }
 
+/// @brief 解析带子元素的列布局
 void TestParser::testParseColumnWithChildren()
 {
     QString xml = R"(
@@ -83,6 +85,7 @@ void TestParser::testParseColumnWithChildren()
     QVERIFY(root != nullptr);
 }
 
+/// @brief 解析带装饰器属性（margin、border、background、padding）的元素
 void TestParser::testParseDecorators()
 {
     QString xml = R"(
@@ -95,6 +98,7 @@ void TestParser::testParseDecorators()
     QVERIFY(root != nullptr);
 }
 
+/// @brief 测量文本元素，验证内容尺寸大于零
 void TestParser::testMeasureText()
 {
     QString xml = R"(
@@ -112,6 +116,7 @@ void TestParser::testMeasureText()
     QVERIFY(result.intrinsicSize.height() > 0);
 }
 
+/// @brief 测量列布局，验证包含多个文本子元素时的尺寸计算
 void TestParser::testColumnMeasure()
 {
     QString xml = R"(
@@ -132,6 +137,7 @@ void TestParser::testColumnMeasure()
     QVERIFY(result.intrinsicSize.height() > 0);
 }
 
+/// @brief 解析带数据绑定属性的元素，验证绑定关系正确注册
 void TestParser::testBindProperty()
 {
     QString xml = R"(
@@ -145,6 +151,7 @@ void TestParser::testBindProperty()
     QVERIFY(!root->bindsProperty("other"));
 }
 
+/// @brief 验证 <if-has> 条件控制元素：属性不存在时隐藏（尺寸为零），存在时显示
 void TestParser::testIfHas()
 {
     QString xml = R"(
@@ -171,6 +178,7 @@ void TestParser::testIfHas()
     QVERIFY(result.intrinsicSize.width() > 0);
 }
 
+/// @brief 验证 QPropertyContext 中 null 值的 <if-has> 行为：默认 null 不展开，设非 null 后展开
 void TestParser::testIfHasNullWithQPropertyContext()
 {
     IfHasNullHelper item;
@@ -193,6 +201,7 @@ void TestParser::testIfHasNullWithQPropertyContext()
     QCOMPARE(result.size(), 1);
 }
 
+/// @brief 验证从目录加载布局注册表，至少加载到 test_layout.xml
 void TestParser::testRegistryLoad()
 {
     int count = BroadItem::loadLayoutsFromDirectory(".");
@@ -200,6 +209,7 @@ void TestParser::testRegistryLoad()
     QVERIFY(count >= 1);
 }
 
+/// @brief 验证未知属性触发 qWarning 但不中断解析，仍能成功构建元素
 void TestParser::testUnknownAttributeWarning()
 {
     // Unknown attributes should trigger qWarning but not fail parsing
@@ -212,6 +222,7 @@ void TestParser::testUnknownAttributeWarning()
     QVERIFY(root != nullptr);
 }
 
+/// @brief 验证文本元素包含子元素时解析失败
 void TestParser::testInvalidChildError()
 {
     // Text element should not have child elements -> parse should fail
@@ -226,6 +237,7 @@ void TestParser::testInvalidChildError()
     QVERIFY(root == nullptr);
 }
 
+/// @brief 验证非法属性类型触发 qCritical 但使用默认值继续解析
 void TestParser::testInvalidAttributeTypeError()
 {
     // Invalid type should trigger qCritical but parse should still succeed with default

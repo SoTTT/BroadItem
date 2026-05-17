@@ -4,13 +4,20 @@
 
 namespace BroadItem {
 
+/// @brief 默认构造函数。
 ContainerElement::ContainerElement() = default;
 
+/// @brief 从 XML 元素解析盒模型属性。
+/// @param xml The DOM element to parse.
 void ContainerElement::parse(const QDomElement& xml)
 {
     parseBoxModel(xml);
 }
 
+/// @brief 测量容器：无内容时返回盒模型尺寸；否则测量内容并添加装饰。
+/// @param ctx The layout context.
+/// @param constraints Available width/height constraints.
+/// @return The measured size of the container.
 MeasureResult ContainerElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
 {
     if (!m_content) {
@@ -32,6 +39,9 @@ MeasureResult ContainerElement::measure(const LayoutContext& ctx, const LayoutCo
     return MeasureResult{sz};
 }
 
+/// @brief 存储分配的矩形并在内容区域内布局内容。
+/// @param ctx The layout context.
+/// @param rect The bounding rectangle assigned to this container.
 void ContainerElement::layout(const LayoutContext& ctx, const QRectF& rect)
 {
     m_rect = rect;
@@ -42,6 +52,9 @@ void ContainerElement::layout(const LayoutContext& ctx, const QRectF& rect)
     m_content->layout(ctx, cr);
 }
 
+/// @brief 渲染盒模型装饰，然后委托给内容元素。
+/// @param painter The QPainter to render onto.
+/// @param ctx The layout context.
 void ContainerElement::render(QPainter* painter, const LayoutContext& ctx) const
 {
     renderBoxModel(painter, m_rect);
@@ -49,16 +62,23 @@ void ContainerElement::render(QPainter* painter, const LayoutContext& ctx) const
         m_content->render(painter, ctx);
 }
 
+/// @brief 检查内容元素是否绑定指定属性。
+/// @param name The property name to check.
+/// @return True if content exists and binds the property.
 bool ContainerElement::bindsProperty(const QString& name) const
 {
     return m_content && m_content->bindsProperty(name);
 }
 
+/// @brief 设置此容器的单一内容子元素。
+/// @param content The element to wrap.
 void ContainerElement::setContent(ElementPtr content)
 {
     m_content = std::move(content);
 }
 
+/// @brief 创建此容器的深拷贝，包括其内容。
+/// @return A new ContainerElement with cloned properties and content.
 ElementPtr ContainerElement::clone() const
 {
     auto copy = std::make_shared<ContainerElement>();
@@ -72,6 +92,8 @@ ElementPtr ContainerElement::clone() const
     return copy;
 }
 
+/// @brief 将插值值传播给内容元素。
+/// @param values The string values to interpolate.
 void ContainerElement::interpolateValues(const QStringList& values)
 {
     if (m_content)

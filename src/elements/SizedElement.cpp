@@ -2,6 +2,8 @@
 
 namespace BroadItem {
 
+/// @brief 从 XML 元素解析 width 和 height 属性。
+/// @param xml The DOM element to parse.
 void SizedElement::parse(const QDomElement& xml)
 {
     Element::parse(xml);

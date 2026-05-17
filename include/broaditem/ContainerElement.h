@@ -4,7 +4,7 @@
 
 namespace BroadItem {
 
-// A container wraps a content element with decorators (margin, border, background, padding)
+/// @brief 用装饰器（边距、边框、背景、内边距）包裹内容元素的容器。
 class ContainerElement : public RenderableElement {
 public:
     ContainerElement();
@@ -15,14 +15,16 @@ public:
     void render(QPainter* painter, const LayoutContext& ctx) const override;
     bool bindsProperty(const QString& name) const override;
 
+    /// @brief 设置此容器内的内容元素。
     void setContent(ElementPtr content);
+    /// @brief 获取此容器内的内容元素。
     ElementPtr content() const { return m_content; }
 
     ElementPtr clone() const override;
     void interpolateValues(const QStringList& values) override;
 
 private:
-    ElementPtr m_content;
+    ElementPtr m_content;  ///< The child content element wrapped by this container.
 };
 
 } // namespace BroadItem

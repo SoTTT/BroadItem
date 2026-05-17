@@ -3,11 +3,17 @@
 
 namespace BroadItem {
 
+/// @brief 基础解析方法；子类覆盖以提取其属性。
+/// @param xml The DOM element to parse.
 void Element::parse(const QDomElement& xml)
 {
     Q_UNUSED(xml)
 }
 
+/// @brief 安全地将字符串解析为 double。
+/// @param value The string to parse.
+/// @param defaultVal Value returned if parsing fails.
+/// @return The parsed double, or defaultVal on failure.
 double Element::parseDouble(const QString& value, double defaultVal)
 {
     bool ok = false;
@@ -15,16 +21,26 @@ double Element::parseDouble(const QString& value, double defaultVal)
     return ok ? result : defaultVal;
 }
 
+/// @brief 将字符串解析为 QColor。
+/// @param value The color string (any format QColor accepts).
+/// @return The parsed QColor.
 QColor Element::parseColor(const QString& value)
 {
     return {value};
 }
 
+/// @brief 将字符串解析为布尔值。
+/// @param value "true"/"1" returns true, everything else false.
+/// @return The parsed boolean value.
 bool Element::parseBool(const QString& value)
 {
     return value.compare("true", Qt::CaseInsensitive) == 0 || value == "1";
 }
 
+/// @brief 按顺序用列表中的值替换文本中的 "{}" 占位符。
+/// @param text Template string containing "{}" markers.
+/// @param values Values to substitute into placeholders.
+/// @return The interpolated string.
 QString Element::interpolate(const QString& text, const QStringList& values)
 {
     QString result = text;
@@ -38,11 +54,17 @@ QString Element::interpolate(const QString& text, const QStringList& values)
     return result;
 }
 
+/// @brief 基础插值钩子；子类覆盖以将值应用到其内容。
+/// @param values The string values to interpolate.
 void Element::interpolateValues(const QStringList& values)
 {
     Q_UNUSED(values)
 }
 
+/// @brief 检查属性名是否匹配绑定路径（支持点和括号子路径）。
+/// @param bindPath The binding path (e.g. "user.name" or "items[0]").
+/// @param propName The property name to match.
+/// @return True if propName is a prefix match for bindPath.
 bool Element::matchesProperty(const QString& bindPath, const QString& propName)
 {
     if (bindPath == propName)
@@ -52,6 +74,8 @@ bool Element::matchesProperty(const QString& bindPath, const QString& propName)
     return false;
 }
 
+/// @brief 通过与 supportedAttributes() 比较来警告未知 XML 属性。
+/// @param xml The DOM element whose attributes to validate.
 void Element::validateAttributes(const QDomElement& xml) const
 {
     const QSet<QString>& known = supportedAttributes();
@@ -65,6 +89,11 @@ void Element::validateAttributes(const QDomElement& xml) const
     }
 }
 
+/// @brief 验证并将字符串解析为 double，失败时记录错误。
+/// @param value The string to parse.
+/// @param attrName Attribute name for error messages.
+/// @param out Output parameter for the parsed value.
+/// @return True if parsing succeeded.
 bool Element::validateDouble(const QString& value, const QString& attrName, double& out)
 {
     bool ok = false;
@@ -76,6 +105,11 @@ bool Element::validateDouble(const QString& value, const QString& attrName, doub
     return true;
 }
 
+/// @brief 验证并将字符串解析为整数，失败时记录错误。
+/// @param value The string to parse.
+/// @param attrName Attribute name for error messages.
+/// @param out Output parameter for the parsed value.
+/// @return True if parsing succeeded.
 bool Element::validateInt(const QString& value, const QString& attrName, int& out)
 {
     bool ok = false;
@@ -87,6 +121,11 @@ bool Element::validateInt(const QString& value, const QString& attrName, int& ou
     return true;
 }
 
+/// @brief 验证并将字符串解析为布尔值（"true"/"false"/"1"/"0"），失败时记录错误。
+/// @param value The string to parse.
+/// @param attrName Attribute name for error messages.
+/// @param out Output parameter for the parsed value.
+/// @return True if parsing succeeded.
 bool Element::validateBool(const QString& value, const QString& attrName, bool& out)
 {
     QString v = value.toLower().trimmed();

@@ -50,6 +50,7 @@ static BroadItem::ElementPtr parseAndLayout(const QString& xmlStr, QRectF layout
 
 // ── RowLayout stretch tests ──
 
+/// @brief RowLayout 不拉伸指定 height 的子元素
 void TestLayoutBehavior::testRowDoesNotStretchSpecifiedHeight()
 {
     QString xml = R"(
@@ -80,6 +81,7 @@ void TestLayoutBehavior::testRowDoesNotStretchSpecifiedHeight()
              QString("Text with height=20 should not be stretched, got %1").arg(text->rect().height()).toUtf8());
 }
 
+/// @brief RowLayout 拉伸未指定 height 的子元素
 void TestLayoutBehavior::testRowStretchesUnspecifiedHeight()
 {
     QString xml = R"(
@@ -111,6 +113,7 @@ void TestLayoutBehavior::testRowStretchesUnspecifiedHeight()
 
 // ── ColumnLayout stretch tests ──
 
+/// @brief ColumnLayout 不拉伸指定 width 的子元素
 void TestLayoutBehavior::testColumnDoesNotStretchSpecifiedWidth()
 {
     QString xml = R"(
@@ -139,6 +142,7 @@ void TestLayoutBehavior::testColumnDoesNotStretchSpecifiedWidth()
              QString("Text with width=50 should not be stretched, got %1").arg(text->rect().width()).toUtf8());
 }
 
+/// @brief ColumnLayout 拉伸未指定 width 的子元素
 void TestLayoutBehavior::testColumnStretchesUnspecifiedWidth()
 {
     QString xml = R"(
@@ -169,6 +173,7 @@ void TestLayoutBehavior::testColumnStretchesUnspecifiedWidth()
 
 // ── Grid cell count validation ──
 
+/// @brief Grid 合法单元格数量（columns×rows）解析成功
 void TestLayoutBehavior::testGridValidCellCount()
 {
     QString xml = R"(
@@ -186,6 +191,7 @@ void TestLayoutBehavior::testGridValidCellCount()
     QVERIFY(root != nullptr);
 }
 
+/// @brief Grid 单元格数量与 columns×rows 不匹配时解析失败
 void TestLayoutBehavior::testGridInvalidCellCountFails()
 {
     QString xml = R"(
@@ -204,6 +210,7 @@ void TestLayoutBehavior::testGridInvalidCellCountFails()
 
 // ── background-opacity ──
 
+/// @brief 测试 background-opacity 属性解析
 void TestLayoutBehavior::testBackgroundOpacityParses()
 {
     QString xml = R"(
@@ -216,6 +223,7 @@ void TestLayoutBehavior::testBackgroundOpacityParses()
     QVERIFY(root != nullptr);
 }
 
+/// @brief 测试 background-opacity 实际渲染半透明效果，通过像素采样验证
 void TestLayoutBehavior::testBackgroundOpacityRendersTransparent()
 {
     QString xmlFull = R"(

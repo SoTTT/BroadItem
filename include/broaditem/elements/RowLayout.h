@@ -4,6 +4,7 @@
 
 namespace BroadItem {
 
+/// @brief 水平行布局，从左到右堆叠子元素。
 class RowLayout : public ContainerElement {
 public:
     void parse(const QDomElement& xml) override;
@@ -12,8 +13,11 @@ public:
     void render(QPainter* painter, const LayoutContext& ctx) const override;
     bool bindsProperty(const QString& name) const override;
 
+    /// @brief 向此行添加子元素。
     void addChild(ElementPtr child);
+    /// @brief 返回子元素之间的间距。
     double space() const { return m_space; }
+    /// @brief 返回缓存的展平子元素列表。
     const std::vector<ElementPtr>& flattenedChildren() const { return m_flattened; }
 
     const QSet<QString>& supportedAttributes() const override;
@@ -23,16 +27,17 @@ public:
     void interpolateValues(const QStringList& values) override;
 
 private:
-    std::vector<ElementPtr> m_children;
-    QString m_mainAlign = "start";
-    QString m_crossAlign = "stretch";
-    double m_space = 0;
+    std::vector<ElementPtr> m_children;  ///< Direct child elements.
+    QString m_mainAlign = "start";       ///< Main-axis alignment ("start", "center", "end").
+    QString m_crossAlign = "stretch";    ///< Cross-axis alignment ("start", "center", "end", "stretch").
+    double m_space = 0;                  ///< Spacing between children in pixels.
 
-    // Cached flattened children, populated during measure/layout and reused by render.
-    mutable std::vector<ElementPtr> m_flattened;
+    mutable std::vector<ElementPtr> m_flattened; ///< Cached flattened children, populated during measure/layout.
 
+    /// @brief 在计算出的内容矩形内布局子元素。
     void layoutChildren(const LayoutContext& ctx, const QRectF& contentRect);
 
+    /// @brief 将控制元素展平为展开后的子元素。
     std::vector<ElementPtr> flattenChildren(const LayoutContext& ctx) const;
 };
 

@@ -9,12 +9,16 @@
 
 namespace BroadItem {
 
+/// @brief 返回 GridLayout 支持的 XML 属性集合。
+/// @return Reference to a static set of attribute names.
 const QSet<QString>& GridLayout::supportedAttributes() const
 {
     static const QSet<QString> attrs = QSet<QString>{"columns", "rows", "space", "space-row", "space-column"} + boxModelAttributeNames();
     return attrs;
 }
 
+/// @brief 解析网格尺寸（列、行）和间距属性。
+/// @param xml The DOM element to parse.
 void GridLayout::parse(const QDomElement& xml)
 {
     ContainerElement::parse(xml);
@@ -46,11 +50,15 @@ void GridLayout::parse(const QDomElement& xml)
     if (m_columnSpace == 0) m_columnSpace = m_space;
 }
 
+/// @brief 向此网格添加子元素（通常是 CellElement）。
+/// @param child The element to add.
 void GridLayout::addChild(ElementPtr child)
 {
     m_children.push_back(std::move(child));
 }
 
+/// @brief 创建此网格布局的深拷贝，包括所有子元素。
+/// @return A new GridLayout with cloned properties and children.
 ElementPtr GridLayout::clone() const
 {
     auto copy = std::make_shared<GridLayout>();
@@ -71,6 +79,8 @@ ElementPtr GridLayout::clone() const
     return copy;
 }
 
+/// @brief 将插值值传播给所有子元素。
+/// @param values The string values to interpolate.
 void GridLayout::interpolateValues(const QStringList& values)
 {
     for (const auto& child : m_children) {
@@ -79,6 +89,9 @@ void GridLayout::interpolateValues(const QStringList& values)
     }
 }
 
+/// @brief 通过将控制元素（for、if-has）展开为具体元素来扁平化子元素。
+/// @param ctx The layout context used for control element expansion.
+/// @return A flattened vector of concrete child elements.
 std::vector<ElementPtr> GridLayout::flattenChildren(const LayoutContext& ctx) const
 {
     std::vector<ElementPtr> flat;
@@ -98,6 +111,10 @@ std::vector<ElementPtr> GridLayout::flattenChildren(const LayoutContext& ctx) co
     return flat;
 }
 
+/// @brief 测量网格：从子元素尺寸计算列宽和行高。
+/// @param ctx The layout context.
+/// @param constraints Available width/height constraints.
+/// @return The measured grid size including box model decoration.
 MeasureResult GridLayout::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
 {
     double decoW = boxModelWidth();
@@ -139,6 +156,9 @@ MeasureResult GridLayout::measure(const LayoutContext& ctx, const LayoutConstrai
     return MeasureResult{sz};
 }
 
+/// @brief 以网格模式定位子元素，均匀分配额外空间。
+/// @param ctx The layout context.
+/// @param rect The bounding rectangle assigned to this grid.
 void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect)
 {
     ContainerElement::layout(ctx, rect);
@@ -185,6 +205,9 @@ void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect)
     }
 }
 
+/// @brief 渲染网格背景/边框，然后委托给每个子元素。
+/// @param painter The QPainter to render onto.
+/// @param ctx The layout context.
 void GridLayout::render(QPainter* painter, const LayoutContext& ctx) const
 {
     ContainerElement::render(painter, ctx);
@@ -193,6 +216,9 @@ void GridLayout::render(QPainter* painter, const LayoutContext& ctx) const
     }
 }
 
+/// @brief 检查此网格或其任何子元素是否绑定指定属性。
+/// @param name The property name to check.
+/// @return True if the property is bound anywhere in this subtree.
 bool GridLayout::bindsProperty(const QString& name) const
 {
     if (ContainerElement::bindsProperty(name))

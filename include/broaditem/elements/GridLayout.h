@@ -4,6 +4,7 @@
 
 namespace BroadItem {
 
+/// @brief 网格布局，在固定的行列网格中排列子元素。
 class GridLayout : public ContainerElement {
 public:
     void parse(const QDomElement& xml) override;
@@ -12,12 +13,18 @@ public:
     void render(QPainter* painter, const LayoutContext& ctx) const override;
     bool bindsProperty(const QString& name) const override;
 
+    /// @brief 向此网格添加子元素。
     void addChild(ElementPtr child);
+    /// @brief 返回直接子元素列表。
     const std::vector<ElementPtr>& children() const { return m_children; }
 
+    /// @brief 返回列数。
     int columns() const { return m_columns; }
+    /// @brief 返回行数。
     int rows() const { return m_rows; }
+    /// @brief 返回列间距。
     double columnSpace() const { return m_columnSpace; }
+    /// @brief 返回行间距。
     double rowSpace() const { return m_rowSpace; }
 
     const QSet<QString>& supportedAttributes() const override;
@@ -27,24 +34,24 @@ public:
     void interpolateValues(const QStringList& values) override;
 
 private:
-    std::vector<ElementPtr> m_children;
-    int m_columns = 1;
-    int m_rows = 1;
-    double m_space = 0;
-    double m_rowSpace = 0;
-    double m_columnSpace = 0;
+    std::vector<ElementPtr> m_children;  ///< Direct child elements.
+    int m_columns = 1;                    ///< Number of columns in the grid.
+    int m_rows = 1;                       ///< Number of rows in the grid.
+    double m_space = 0;                   ///< Default spacing between all cells.
+    double m_rowSpace = 0;                ///< Spacing between rows (overrides m_space if set).
+    double m_columnSpace = 0;             ///< Spacing between columns (overrides m_space if set).
 
     struct CellMeasure {
         double width = 0;
         double height = 0;
     };
-    std::vector<CellMeasure> m_cellMeasures;
-    std::vector<double> m_colWidths;
-    std::vector<double> m_rowHeights;
+    std::vector<CellMeasure> m_cellMeasures;  ///< Per-cell measure results.
+    std::vector<double> m_colWidths;           ///< Computed column widths.
+    std::vector<double> m_rowHeights;          ///< Computed row heights.
 
-    // Cached flattened children, populated during measure/layout and reused by render.
-    mutable std::vector<ElementPtr> m_flattened;
+    mutable std::vector<ElementPtr> m_flattened; ///< Cached flattened children, populated during measure/layout.
 
+    /// @brief 将控制元素展平为展开后的子元素。
     std::vector<ElementPtr> flattenChildren(const LayoutContext& ctx) const;
 };
 

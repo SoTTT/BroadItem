@@ -5,6 +5,7 @@
 #include "broaditem/LayoutRegistry.h"
 #include <QDebug>
 
+/// @brief 入口点。加载 XML 布局并在 QGraphicsView 中显示。
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 

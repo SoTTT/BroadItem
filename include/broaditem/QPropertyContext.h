@@ -22,10 +22,13 @@ namespace BroadItem {
 class QPropertyContext : public QObject, public PropertyContext {
     Q_OBJECT
 public:
+    /// @brief 构造自托管 QPropertyContext。
     QPropertyContext();
+    /// @brief 为指定的目标对象构造代理 QPropertyContext。
     explicit QPropertyContext(QObject* target, QObject* parent = nullptr);
     ~QPropertyContext() override;
 
+    /// @brief 为 Q_PROPERTY 变更设置 NOTIFY 信号连接。
     void setupNotifyConnections();
 
     QVariant property(const QString& name) const override
@@ -84,8 +87,8 @@ private:
 
     void setPropertyNested(const QString& path, const QVariant& value);
 
-    QObject* m_target = nullptr;
-    bool m_connected = false;
+    QObject* m_target = nullptr;  ///< Target QObject for proxy mode, nullptr in self-hosted mode.
+    bool m_connected = false;     ///< Whether NOTIFY signal connections have been set up.
 };
 
 } // namespace BroadItem

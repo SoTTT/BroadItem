@@ -14,6 +14,9 @@
 
 namespace BroadItem {
 
+/// @brief 读取并将 XML 布局文件解析为元素树。
+/// @param filePath Absolute or relative path to the XML file.
+/// @return The root element, or nullptr on failure.
 ElementPtr XmlLayoutParser::parseFile(const QString& filePath)
 {
     QFile file(filePath);
@@ -25,6 +28,9 @@ ElementPtr XmlLayoutParser::parseFile(const QString& filePath)
     return parseString(content);
 }
 
+/// @brief 将 XML 字符串解析为元素树。
+/// @param xmlContent The XML markup to parse.
+/// @return The root element, or nullptr on parse failure.
 ElementPtr XmlLayoutParser::parseString(const QString& xmlContent)
 {
     QDomDocument doc;
@@ -61,6 +67,9 @@ ElementPtr XmlLayoutParser::parseString(const QString& xmlContent)
     return parseNode(firstChild);
 }
 
+/// @brief 工厂方法：根据标签名创建元素实例。
+/// @param tagName The XML tag name (e.g. "text", "column", "row").
+/// @return A new element of the corresponding type, or nullptr for unknown tags.
 ElementPtr XmlLayoutParser::createElement(const QString& tagName)
 {
     if (tagName == "text")
@@ -85,6 +94,9 @@ ElementPtr XmlLayoutParser::createElement(const QString& tagName)
     return nullptr;
 }
 
+/// @brief 递归地将 DOM 元素及其子元素解析为 BroadItem 元素树。
+/// @param xml The DOM element to parse.
+/// @return The parsed element, or nullptr on error.
 ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
 {
     QString tag = xml.tagName();

@@ -14,64 +14,69 @@ namespace BroadItem {
 class Element;
 using ElementPtr = std::shared_ptr<Element>;
 
+/// @brief 所有布局元素的基类，用于三阶段流水线（测量、布局、渲染）。
 class Element {
 public:
     virtual ~Element() = default;
 
-    // Parse attributes from XML
+    /// @brief 从 XML 元素解析属性。
     virtual void parse(const QDomElement& xml);
 
-    // Measure phase: compute intrinsic size
+    /// @brief 测量阶段：计算元素的固有尺寸。
     virtual MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints) = 0;
 
-    // Layout phase: assign final position and size
+    /// @brief 布局阶段：分配最终位置和尺寸。
     virtual void layout(const LayoutContext& ctx, const QRectF& rect) = 0;
 
-    // Render
+    /// @brief 使用给定 painter 渲染该元素。
     virtual void render(QPainter* painter, const LayoutContext& ctx) const = 0;
 
-    // Data binding: return true if this element uses the given property
+    /// @brief 数据绑定：如果该元素使用了指定属性名，返回 true。
     virtual bool bindsProperty(const QString& name) const { Q_UNUSED(name) return false; }
 
-    // Check if name matches bindPath (exact, or as prefix of a dotted/bracket path)
+    /// @brief 检查名称是否与 bindPath 匹配（精确匹配或作为点号/括号路径的前缀）。
     static bool matchesProperty(const QString& bindPath, const QString& propName);
 
-    // Clone this element (deep copy). Must be implemented by all concrete element types.
+    /// @brief 克隆该元素（深拷贝）。所有具体元素类型必须实现。
     virtual ElementPtr clone() const = 0;
 
-    // Interpolate placeholder values (e.g. `{}`) into this element and its children.
-    // Default implementation does nothing.
+    /// @brief 将占位值（如 `{}`）插值到该元素及其子元素中。
     virtual void interpolateValues(const QStringList& values);
 
+    /// @brief 返回该元素的包围矩形。
     const QRectF& rect() const { return m_rect; }
+    /// @brief 设置该元素的包围矩形。
     void setRect(const QRectF& r) { m_rect = r; }
 
-    // Return the set of attribute names this element supports (including binding attributes like ":content").
+    /// @brief 返回该元素支持的属性名集合（包括绑定属性如 ":content"）。
     virtual const QSet<QString>& supportedAttributes() const {
         static const QSet<QString> empty;
         return empty;
     }
 
-    // Return true if this element type may have child elements.
+    /// @brief 如果该元素类型可以有子元素，返回 true。
     virtual bool canHaveChildren() const { return false; }
 
-    // Validate attributes in the XML element against supportedAttributes.
-    // Unknown attributes trigger qWarning and are skipped.
+    /// @brief 根据 supportedAttributes 验证 XML 元素中的属性。
     void validateAttributes(const QDomElement& xml) const;
 
-    // Validate attribute value type. Returns true if valid.
-    // Invalid values trigger qCritical, use default, and return false.
+    /// @brief 验证属性值是否为 double，有效返回 true。
     static bool validateDouble(const QString& value, const QString& attrName, double& out);
+    /// @brief 验证属性值是否为 int，有效返回 true。
     static bool validateInt(const QString& value, const QString& attrName, int& out);
+    /// @brief 验证属性值是否为 bool，有效返回 true。
     static bool validateBool(const QString& value, const QString& attrName, bool& out);
 
 protected:
-    QRectF m_rect;
+    QRectF m_rect;  ///< The bounding rectangle of this element.
 
-    // Helpers
+    /// @brief 从字符串解析 double，失败时返回默认值。
     static double parseDouble(const QString& value, double defaultVal = 0);
+    /// @brief 从字符串解析 QColor（名称或十六进制）。
     static QColor parseColor(const QString& value);
+    /// @brief 从字符串解析布尔值。
     static bool parseBool(const QString& value);
+    /// @brief 用给定值替换文本中的占位符标记。
     static QString interpolate(const QString& text, const QStringList& values);
 };
 

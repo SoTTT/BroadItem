@@ -113,6 +113,7 @@ private slots:
 
     // ==================== MapPropertyContext ====================
     // NOLINTBEGIN(readability-convert-member-functions-to-static)
+    /// @brief 测试 MapPropertyContext 的基本设置与读取
     void testMapSetGet()
     {
         BroadItem::MapPropertyContext ctx;
@@ -120,6 +121,7 @@ private slots:
         QCOMPARE(ctx.property("cpu").toString(), QString("45%"));
     }
 
+    /// @brief 测试 MapPropertyContext 的 hasProperty 判断
     void testMapHasProperty()
     {
         BroadItem::MapPropertyContext ctx;
@@ -128,6 +130,7 @@ private slots:
         QVERIFY(ctx.hasProperty("cpu"));
     }
 
+    /// @brief 测试设为 null 时移除属性
     void testMapNullRemoves()
     {
         BroadItem::MapPropertyContext ctx;
@@ -139,6 +142,7 @@ private slots:
         QVERIFY(!ctx.property("cpu").isValid());
     }
 
+    /// @brief 测试 null 值使属性失效
     void testMapNullRemovesInvalid()
     {
         BroadItem::MapPropertyContext ctx;
@@ -147,6 +151,7 @@ private slots:
         QVERIFY(!ctx.hasProperty("cpu"));
     }
 
+    /// @brief 测试相同值不触发通知
     void testMapNoNotifyOnSame()
     {
         BroadItem::MapPropertyContext ctx;
@@ -162,6 +167,7 @@ private slots:
 
     // ---------- 路径：扁平键 ----------
 
+    /// @brief 测试扁平键的路径读取
     void testMapPathFlat()
     {
         BroadItem::MapPropertyContext ctx;
@@ -170,6 +176,7 @@ private slots:
         QVERIFY(ctx.hasProperty("cpu"));
     }
 
+    /// @brief 测试含点的键名不会误匹配路径，路径遍历不会找到顶层不存在的段
     void testMapPathFlatWithDotInName()
     {
         // 含 . 的 key 触发路径遍历，不会匹配顶层 map 中的这个键（因为段 0 不存在）
@@ -181,6 +188,7 @@ private slots:
 
     // ---------- 路径：点号 ----------
 
+    /// @brief 测试点号路径读取嵌套 Map
     void testMapPathDot()
     {
         BroadItem::MapPropertyContext ctx;
@@ -193,6 +201,7 @@ private slots:
         QCOMPARE(ctx.property("device.mem").toString(), QString("60%"));
     }
 
+    /// @brief 测试深层点号路径（三层以上嵌套）
     void testMapPathDotDeep()
     {
         BroadItem::MapPropertyContext ctx;
@@ -207,6 +216,7 @@ private slots:
 
     // ---------- 路径：下标 ----------
 
+    /// @brief 测试下标路径读取列表元素
     void testMapPathBracket()
     {
         BroadItem::MapPropertyContext ctx;
@@ -220,6 +230,7 @@ private slots:
         QCOMPARE(ctx.property("items[2]").toString(), QString("third"));
     }
 
+    /// @brief 测试下标+点号的混合嵌套路径（列表中的对象）
     void testMapPathBracketNested()
     {
         BroadItem::MapPropertyContext ctx;
@@ -234,6 +245,7 @@ private slots:
         QCOMPARE(ctx.property("processes[0].pid").toString(), QString("1234"));
     }
 
+    /// @brief 测试多维下标路径（二维列表）
     void testMapPathMultiBracket()
     {
         BroadItem::MapPropertyContext ctx;
@@ -254,6 +266,7 @@ private slots:
 
     // ---------- 类型错误 ----------
 
+    /// @brief 测试访问不存在的嵌套键返回无效
     void testMapPathKeyNotFound()
     {
         BroadItem::MapPropertyContext ctx;
@@ -261,6 +274,7 @@ private slots:
         QVERIFY(!ctx.property("device.unknown").isValid());
     }
 
+    /// @brief 测试对非 Map 值使用点号路径返回无效
     void testMapPathNotObject()
     {
         BroadItem::MapPropertyContext ctx;
@@ -269,6 +283,7 @@ private slots:
         QVERIFY(!ctx.property("val.anything").isValid());
     }
 
+    /// @brief 测试对非数组值使用下标路径返回无效
     void testMapPathNotArray()
     {
         BroadItem::MapPropertyContext ctx;
@@ -277,6 +292,7 @@ private slots:
         QVERIFY(!ctx.property("val[0]").isValid());
     }
 
+    /// @brief 测试下标越界返回无效
     void testMapPathIndexOutOfBounds()
     {
         BroadItem::MapPropertyContext ctx;
@@ -289,6 +305,7 @@ private slots:
 
     // ---------- 语法错误 ----------
 
+    /// @brief 测试空字符串路径返回无效
     void testMapPathSyntaxEmpty()
     {
         BroadItem::MapPropertyContext ctx;
@@ -296,6 +313,7 @@ private slots:
         QVERIFY(!ctx.hasProperty(""));
     }
 
+    /// @brief 测试空键段路径（连续点号）返回无效
     void testMapPathSyntaxEmptyKey()
     {
         BroadItem::MapPropertyContext ctx;
@@ -305,6 +323,7 @@ private slots:
         QVERIFY(!ctx.property("root..a").isValid());
     }
 
+    /// @brief 测试未闭合括号的语法错误返回无效
     void testMapPathSyntaxUnmatched()
     {
         BroadItem::MapPropertyContext ctx;
@@ -314,6 +333,7 @@ private slots:
         QVERIFY(!ctx.property("items[0").isValid());
     }
 
+    /// @brief 测试非法下标（非数字）语法错误返回无效
     void testMapPathSyntaxBadIndex()
     {
         BroadItem::MapPropertyContext ctx;
@@ -323,6 +343,7 @@ private slots:
         QVERIFY(!ctx.property("items[abc]").isValid());
     }
 
+    /// @brief 测试负下标被拒绝返回无效
     void testMapPathSyntaxNegative()
     {
         BroadItem::MapPropertyContext ctx;
@@ -332,6 +353,7 @@ private slots:
         QVERIFY(!ctx.property("items[-1]").isValid());
     }
 
+    /// @brief 测试下标后缺少点号直接接键名的语法错误返回无效
     void testMapPathSyntaxMissingDot()
     {
         BroadItem::MapPropertyContext ctx;
@@ -345,6 +367,7 @@ private slots:
 
     // ---------- hasProperty with paths ----------
 
+    /// @brief 测试 hasProperty 对路径的正确判断
     void testMapHasPathTrue()
     {
         BroadItem::MapPropertyContext ctx;
@@ -357,6 +380,7 @@ private slots:
         QVERIFY(!ctx.hasProperty("device.ram"));
     }
 
+    /// @brief 测试顶层缺失时路径 hasProperty 返回 false
     void testMapHasPathTopLevelMissing()
     {
         BroadItem::MapPropertyContext ctx;
@@ -365,6 +389,7 @@ private slots:
 
     // ---------- 回调通知 ----------
 
+    /// @brief 测试设置属性触发回调，验证名称和值正确
     void testMapNotifyOnSet()
     {
         BroadItem::MapPropertyContext ctx;
@@ -380,6 +405,7 @@ private slots:
         QCOMPARE(lastValue.toString(), QString("45%"));
     }
 
+    /// @brief 测试设 null 触发回调
     void testMapNotifyOnNull()
     {
         BroadItem::MapPropertyContext ctx;
@@ -400,6 +426,7 @@ private slots:
         QVERIFY(!lastValue.isValid());
     }
 
+    /// @brief 测试多次设置触发多次回调
     void testMapNotifyCount()
     {
         BroadItem::MapPropertyContext ctx;
@@ -412,6 +439,7 @@ private slots:
         QCOMPARE(count, 3);
     }
 
+    /// @brief 测试删除不存在的 key 不触发通知
     void testMapRemoveNonexistentNoNotify()
     {
         BroadItem::MapPropertyContext ctx;
@@ -425,6 +453,7 @@ private slots:
 
     // ==================== MapPropertyContext 嵌套写入 ====================
     // NOLINTBEGIN(readability-convert-member-functions-to-static)
+    /// @brief 测试通过点号路径写入嵌套 Map
     void testMapSetNestedDot()
     {
         BroadItem::MapPropertyContext ctx;
@@ -438,6 +467,7 @@ private slots:
         QCOMPARE(ctx.property("device.mem").toString(), QString("60%"));
     }
 
+    /// @brief 测试通过下标路径写入列表元素
     void testMapSetNestedBracket()
     {
         BroadItem::MapPropertyContext ctx;
@@ -451,6 +481,7 @@ private slots:
         QCOMPARE(ctx.property("items[2]").toString(), QString("c"));
     }
 
+    /// @brief 测试通过下标+点号写入嵌套结构
     void testMapSetNestedBracketDot()
     {
         BroadItem::MapPropertyContext ctx;
@@ -466,6 +497,7 @@ private slots:
         QCOMPARE(ctx.property("processes[0].pid").toString(), QString("1234"));
     }
 
+    /// @brief 测试深层嵌套路径写入
     void testMapSetNestedDeep()
     {
         BroadItem::MapPropertyContext ctx;
@@ -479,6 +511,7 @@ private slots:
         QCOMPARE(ctx.property("outer.inner.value").toString(), QString("new"));
     }
 
+    /// @brief 测试多维下标写入
     void testMapSetNestedMultiBracket()
     {
         BroadItem::MapPropertyContext ctx;
@@ -495,6 +528,7 @@ private slots:
         QCOMPARE(ctx.property("grid[0][0]").toString(), QString("a0"));
     }
 
+    /// @brief 测试嵌套写入触发父属性通知
     void testMapSetNestedNotify()
     {
         BroadItem::MapPropertyContext ctx;
@@ -516,6 +550,7 @@ private slots:
 
     // ---------- 嵌套写入：类型/存在性错误 ----------
 
+    /// @brief 测试写入不存在的顶层路径不崩溃也不写入
     void testMapSetNestedMissingTopLevel()
     {
         BroadItem::MapPropertyContext ctx;
@@ -524,6 +559,7 @@ private slots:
         QVERIFY(true);
     }
 
+    /// @brief 测试对字面量值使用点号写入不生效
     void testMapSetNestedNotMap()
     {
         BroadItem::MapPropertyContext ctx;
@@ -533,6 +569,7 @@ private slots:
         QCOMPARE(ctx.property("str").toString(), QString("hello"));
     }
 
+    /// @brief 测试对非列表使用下标写入不生效
     void testMapSetNestedNotList()
     {
         BroadItem::MapPropertyContext ctx;
@@ -542,6 +579,7 @@ private slots:
         QCOMPARE(ctx.property("str").toString(), QString("hello"));
     }
 
+    /// @brief 测试下标越界写入不生效
     void testMapSetNestedIndexOOB()
     {
         BroadItem::MapPropertyContext ctx;
@@ -554,6 +592,7 @@ private slots:
 
     // ---------- 嵌套写入：语法错误 ----------
 
+    /// @brief 测试连续点号语法错误时不写入
     void testMapSetNestedSyntaxDoubleDot()
     {
         BroadItem::MapPropertyContext ctx;
@@ -564,6 +603,7 @@ private slots:
         QCOMPARE(ctx.property("root.a").toString(), QString("val"));
     }
 
+    /// @brief 测试末尾点号语法错误时不写入
     void testMapSetNestedSyntaxTrailingDot()
     {
         BroadItem::MapPropertyContext ctx;
@@ -574,6 +614,7 @@ private slots:
         QCOMPARE(ctx.property("root.a").toString(), QString("val"));
     }
 
+    /// @brief 测试未闭合括号语法错误时不写入
     void testMapSetNestedSyntaxUnmatched()
     {
         BroadItem::MapPropertyContext ctx;
@@ -584,6 +625,7 @@ private slots:
         QCOMPARE(ctx.property("items[0]").toString(), QString("x"));
     }
 
+    /// @brief 测试非法下标语法错误时不写入
     void testMapSetNestedSyntaxBadIndex()
     {
         BroadItem::MapPropertyContext ctx;
@@ -594,6 +636,7 @@ private slots:
         QCOMPARE(ctx.property("items[0]").toString(), QString("x"));
     }
 
+    /// @brief 测试负下标语法错误时不写入
     void testMapSetNestedSyntaxNegative()
     {
         BroadItem::MapPropertyContext ctx;
@@ -604,6 +647,7 @@ private slots:
         QCOMPARE(ctx.property("items[0]").toString(), QString("x"));
     }
 
+    /// @brief 测试下标后缺点的语法错误时不写入
     void testMapSetNestedSyntaxNoDot()
     {
         BroadItem::MapPropertyContext ctx;
@@ -618,6 +662,7 @@ private slots:
 
     // ---------- MapPropertyContext PropertyProxy 语法糖 ----------
 
+    /// @brief 测试 operator[] 读取属性
     void testMapProxyRead()
     {
         BroadItem::MapPropertyContext ctx;
@@ -626,6 +671,7 @@ private slots:
         QCOMPARE(v.toString(), QString("45%"));
     }
 
+    /// @brief 测试 operator[] 写入属性
     void testMapProxyWrite()
     {
         BroadItem::MapPropertyContext ctx;
@@ -633,6 +679,7 @@ private slots:
         QCOMPARE(ctx.property("cpu").toString(), QString("45%"));
     }
 
+    /// @brief 测试 operator[] 链式读取嵌套属性
     void testMapProxyReadNested()
     {
         BroadItem::MapPropertyContext ctx;
@@ -644,6 +691,7 @@ private slots:
         QCOMPARE(v.toString(), QString("45%"));
     }
 
+    /// @brief 测试 operator[] 链式写入嵌套属性
     void testMapProxyWriteNested()
     {
         BroadItem::MapPropertyContext ctx;
@@ -655,6 +703,7 @@ private slots:
         QCOMPARE(ctx.property("device.cpu").toString(), QString("100%"));
     }
 
+    /// @brief 测试 operator[] 多重链式读写（列表→对象→键）
     void testMapProxyChain()
     {
         BroadItem::MapPropertyContext ctx;
@@ -671,6 +720,7 @@ private slots:
         QCOMPARE(ctx.property("items[0].name").toString(), QString("b"));
     }
 
+    /// @brief 测试 operator[] 写入触发通知
     void testMapProxyFlatWriteNotify()
     {
         BroadItem::MapPropertyContext ctx;
@@ -681,6 +731,7 @@ private slots:
         QCOMPARE(count, 1);
     }
 
+    /// @brief 测试 operator[] 嵌套写入触发父属性通知
     void testMapProxyNestedWriteNotify()
     {
         BroadItem::MapPropertyContext ctx;
@@ -700,6 +751,7 @@ private slots:
         QCOMPARE(lastName, QString("device"));
     }
 
+    /// @brief 测试 operator[] 语法错误路径返回无效 QVariant
     void testMapProxyReadSyntaxError()
     {
         BroadItem::MapPropertyContext ctx;
@@ -710,6 +762,7 @@ private slots:
     }
     // NOLINTEND(readability-convert-member-functions-to-static)
     // NOLINTBEGIN(readability-convert-member-functions-to-static)
+    /// @brief 测试 QPropertyContext 的基本设置与读取
     void testQPropSetGet()
     {
         TestQProps ctx;
@@ -718,6 +771,7 @@ private slots:
         QCOMPARE(ctx.name(), QString("test"));
     }
 
+    /// @brief 测试 Q_PROPERTY 的 hasProperty 能正确识别声明的属性
     void testQPropHasProperty()
     {
         TestQProps ctx;
@@ -726,6 +780,7 @@ private slots:
         QVERIFY(!ctx.hasProperty("nonexistent"));
     }
 
+    /// @brief 测试相同值不触发通知
     void testQPropNoNotifyOnSame()
     {
         TestQProps ctx;
@@ -739,6 +794,7 @@ private slots:
         QCOMPARE(count, 1);
     }
 
+    /// @brief 测试 Q_PROPERTY 设 null 后 hasProperty 仍返回 true（属性始终存在）
     void testQPropNullDoesNotRemove()
     {
         TestQProps ctx;
@@ -749,6 +805,7 @@ private slots:
         QVERIFY(ctx.hasProperty("name"));
     }
 
+    /// @brief 测试多属性同时读写
     void testQPropMultiProperty()
     {
         TestQProps ctx;
@@ -762,6 +819,7 @@ private slots:
         QCOMPARE(tags.at(1), QString("b"));
     }
 
+    /// @brief 测试 QStringList 属性的读写
     void testQPropStringList()
     {
         TestQProps ctx;
@@ -774,6 +832,7 @@ private slots:
         QCOMPARE(result.at(0), QString("tag1"));
     }
 
+    /// @brief 测试设置属性触发回调，验证名称和值
     void testQPropNotify()
     {
         TestQProps ctx;
@@ -789,6 +848,7 @@ private slots:
         QCOMPARE(lastValue.toString(), QString("notify-test"));
     }
 
+    /// @brief 测试 Q_PROPERTY 返回值中通过点号路径访问嵌套 Map
     void testQPropPathDot()
     {
         TestQProps ctx;
@@ -801,6 +861,7 @@ private slots:
         QVERIFY(ctx.hasProperty("device.cpu"));
     }
 
+    /// @brief 测试 Q_PROPERTY 返回值中通过下标路径访问列表
     void testQPropPathBracket()
     {
         TestQProps ctx;
@@ -812,6 +873,7 @@ private slots:
         QCOMPARE(ctx.property("items[1]").toString(), QString("second"));
     }
 
+    /// @brief 测试 Q_PROPERTY 返回值中混合嵌套路径（下标+点号）
     void testQPropPathNested()
     {
         TestQProps ctx;
@@ -824,6 +886,7 @@ private slots:
         QCOMPARE(ctx.property("items[0].name").toString(), QString("nginx"));
     }
 
+    /// @brief 测试 Q_PROPERTY 路径不存在时返回无效
     void testQPropPathError()
     {
         TestQProps ctx;
@@ -835,6 +898,7 @@ private slots:
         QVERIFY(!ctx.property("device.cpu.extra").isValid());
     }
 
+    /// @brief 测试动态属性通过 setProperty 触发回调
     void testQPropDynamicProperty()
     {
         // 动态属性（未声明 Q_PROPERTY）→ event() 拦截 QDynamicPropertyChangeEvent
@@ -851,6 +915,7 @@ private slots:
         QCOMPARE(lastValue.toString(), QString("dynamic-value"));
     }
 
+    /// @brief 测试直接调用 Q_PROPERTY setter 通过 NOTIFY 信号触发回调
     void testQPropDirectSetterNotify()
     {
         // 直接调 Q_PROPERTY setter → emit NOTIFY → onNotify() → 回调
@@ -870,6 +935,7 @@ private slots:
         QCOMPARE(lastValue.toString(), QString("direct-value"));
     }
 
+    /// @brief 测试 Q_PROPERTY 路径的 hasProperty 判断
     void testQPropHasPath()
     {
         TestQProps ctx;
@@ -885,6 +951,7 @@ private slots:
     // ==================== QPropertyContext 嵌套写入 ====================
     // NOLINTBEGIN(readability-convert-member-functions-to-static)
 
+    /// @brief 测试通过点号路径写入嵌套 Map
     void testQPropSetNestedDot()
     {
         TestQProps ctx;
@@ -898,6 +965,7 @@ private slots:
         QCOMPARE(ctx.device()["cpu"].toString(), QString("100%"));
     }
 
+    /// @brief 测试通过下标路径写入列表
     void testQPropSetNestedBracket()
     {
         TestQProps ctx;
@@ -909,6 +977,7 @@ private slots:
         QCOMPARE(ctx.property("items[1]").toString(), QString("X"));
     }
 
+    /// @brief 测试混合下标+点号写入
     void testQPropSetNestedBracketDot()
     {
         TestQProps ctx;
@@ -922,6 +991,7 @@ private slots:
         QCOMPARE(ctx.property("items[0].name").toString(), QString("httpd"));
     }
 
+    /// @brief 测试写入不存在的顶层路径不崩溃
     void testQPropSetNestedMissingTopLevel()
     {
         TestQProps ctx;
@@ -929,6 +999,7 @@ private slots:
         QVERIFY(true); // should not crash
     }
 
+    /// @brief 测试语法错误路径写入不生效也不崩溃
     void testQPropSetNestedSyntax()
     {
         TestQProps ctx;
@@ -941,6 +1012,7 @@ private slots:
     }
     // NOLINTEND(readability-convert-member-functions-to-static)
 
+    /// @brief 测试 BroadItem 属性上下文的基本设置与读取
     void testItemSetGet()
     {
         TestPropItem item(m_tempXmlPath);
@@ -951,6 +1023,7 @@ private slots:
         QCOMPARE(item.status(), QString("running"));
     }
 
+    /// @brief 测试 BroadItem 上 Q_PROPERTY 的 hasProperty 识别
     void testItemHasProperty()
     {
         TestPropItem item(m_tempXmlPath);
@@ -961,6 +1034,7 @@ private slots:
         QVERIFY(!ctx.hasProperty("nonexistent"));
     }
 
+    /// @brief 测试相同值不触发通知
     void testItemNoNotifyOnSame()
     {
         // NOTIFY 信号仅在 setter 确认值变更时才 emit，同值不通知
@@ -976,6 +1050,7 @@ private slots:
         QCOMPARE(count, 1);
     }
 
+    /// @brief 测试 Q_PROPERTY 设 null 后 hasProperty 仍返回 true
     void testItemNullDoesNotRemove()
     {
         TestPropItem item(m_tempXmlPath);
@@ -988,6 +1063,7 @@ private slots:
         QVERIFY(ctx.hasProperty("status"));
     }
 
+    /// @brief 测试设置属性触发回调
     void testItemNotify()
     {
         TestPropItem item(m_tempXmlPath);
@@ -1004,6 +1080,7 @@ private slots:
         QCOMPARE(lastValue.toString(), QString("notify-me"));
     }
 
+    /// @brief 测试多属性同时读写
     void testItemMultiProperty()
     {
         TestPropItem item(m_tempXmlPath);
@@ -1018,6 +1095,7 @@ private slots:
         QCOMPARE(item.level(), QString("warn"));
     }
 
+    /// @brief 测试嵌套 Map 的点号路径读取
     void testItemPathDot()
     {
         TestPropItem item(m_tempXmlPath);
@@ -1032,6 +1110,7 @@ private slots:
         QVERIFY(ctx.hasProperty("config.host"));
     }
 
+    /// @brief 测试列表下标路径读取
     void testItemPathBracket()
     {
         TestPropItem item(m_tempXmlPath);
@@ -1044,6 +1123,7 @@ private slots:
         QCOMPARE(ctx.property("nodes[0]").toString(), QString("node-a"));
     }
 
+    /// @brief 测试混合嵌套路径（下标+点号）
     void testItemPathNested()
     {
         TestPropItem item(m_tempXmlPath);
@@ -1057,6 +1137,7 @@ private slots:
         QCOMPARE(ctx.property("nodes[0].name").toString(), QString("worker"));
     }
 
+    /// @brief 测试路径不存在返回无效
     void testItemPathError()
     {
         TestPropItem item(m_tempXmlPath);
@@ -1068,6 +1149,7 @@ private slots:
         QVERIFY(!ctx.property("config.port").isValid());
     }
 
+    /// @brief 测试动态属性通过 eventFilter 触发回调
     void testItemDynamicProperty()
     {
         // 动态属性（item 上未声明 Q_PROPERTY）→ eventFilter 拦截
@@ -1085,6 +1167,7 @@ private slots:
         QCOMPARE(lastValue.toString(), QString("from-item"));
     }
 
+    /// @brief 测试直接调 item 的 Q_PROPERTY setter 通过 SignalBridge 触发回调
     void testItemDirectSetterNotify()
     {
         // 直接调 item 的 Q_PROPERTY setter → emit NOTIFY → SignalBridge → 回调
@@ -1105,6 +1188,7 @@ private slots:
         QCOMPARE(lastValue.toString(), QString("direct-from-item"));
     }
 
+    /// @brief 测试 hasProperty 路径判断
     void testItemHasPath()
     {
         TestPropItem item(m_tempXmlPath);
@@ -1118,6 +1202,7 @@ private slots:
     }
 
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    /// @brief 测试传入 nullptr 的 QPropertyContext 不崩溃
     void testItemNullItem()
     {
         BroadItem::QPropertyContext ctx(nullptr);
@@ -1129,6 +1214,7 @@ private slots:
     }
 
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    /// @brief 测试 null 目标退回自宿主模式，动态属性仍可触发通知
     void testItemNullItemNotify()
     {
         // null target → 退回自宿主模式，动态属性仍会触发 event() 通知
@@ -1140,6 +1226,7 @@ private slots:
         QCOMPARE(count, 1);
     }
 
+    /// @brief 测试 SignalBridge 析构后 removeEventFilter + disconnect，不再触发通知
     void testSignalBridgeDtorCleanup()
     {
         // SignalBridge 析构时应 removeEventFilter + disconnect，
@@ -1162,6 +1249,7 @@ private slots:
     // ==================== BroadItem operator[] ====================
     // NOLINTBEGIN(readability-convert-member-functions-to-static)
 
+    /// @brief 测试 operator[] 读取属性
     void testItemProxyRead()
     {
         TestPropItem item(m_tempXmlPath);
@@ -1172,6 +1260,7 @@ private slots:
         QCOMPARE(v.toString(), QString("running"));
     }
 
+    /// @brief 测试 operator[] 写入属性
     void testItemProxyWrite()
     {
         TestPropItem item(m_tempXmlPath);
@@ -1182,6 +1271,7 @@ private slots:
         QCOMPARE(item.status(), QString("from-proxy"));
     }
 
+    /// @brief 测试 operator[] 链式读取嵌套属性
     void testItemProxyReadNested()
     {
         TestPropItem item(m_tempXmlPath);
@@ -1194,6 +1284,7 @@ private slots:
         QCOMPARE(v.toString(), QString("localhost"));
     }
 
+    /// @brief 测试 operator[] 链式写入嵌套属性
     void testItemProxyWriteNested()
     {
         TestPropItem item(m_tempXmlPath);
