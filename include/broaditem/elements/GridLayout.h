@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../ContainerElement.h"
+#include <optional>
 
 namespace BroadItem {
 
@@ -23,9 +24,9 @@ public:
     /// @brief 返回行数。
     int rows() const { return m_rows; }
     /// @brief 返回列间距。
-    double columnSpace() const { return m_columnSpace; }
+    double columnSpace() const { return m_columnSpace.value_or(m_space); }
     /// @brief 返回行间距。
-    double rowSpace() const { return m_rowSpace; }
+    double rowSpace() const { return m_rowSpace.value_or(m_space); }
 
     const QSet<QString>& supportedAttributes() const override;
     bool canHaveChildren() const override { return true; }
@@ -38,8 +39,8 @@ private:
     int m_columns = 1;                    ///< Number of columns in the grid.
     int m_rows = 1;                       ///< Number of rows in the grid.
     double m_space = 0;                   ///< Default spacing between all cells.
-    double m_rowSpace = 0;                ///< Spacing between rows (overrides m_space if set).
-    double m_columnSpace = 0;             ///< Spacing between columns (overrides m_space if set).
+    std::optional<double> m_rowSpace;     ///< Spacing between rows (overrides m_space if set).
+    std::optional<double> m_columnSpace;  ///< Spacing between columns (overrides m_space if set).
 
     struct CellMeasure {
         double width = 0;

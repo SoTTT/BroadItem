@@ -97,7 +97,7 @@ QSizeF TextElement::computeTextSize(const QString& text, const LayoutConstraints
 {
     QFont font = m_font;
     if (m_fontSize > 0)
-        font.setPointSizeF(m_fontSize);
+        font.setPixelSize(static_cast<int>(m_fontSize));
     if (!m_fontFamily.isEmpty())
         font.setFamily(m_fontFamily);
     font.setBold(m_bold);
@@ -178,7 +178,7 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
 
     QFont font = m_font;
     if (m_fontSize > 0)
-        font.setPointSizeF(m_fontSize);
+        font.setPixelSize(static_cast<int>(m_fontSize));
     if (!m_fontFamily.isEmpty())
         font.setFamily(m_fontFamily);
     font.setBold(m_bold);

@@ -134,25 +134,19 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
         }
         if (grid) {
             int cellCount = 0;
-            bool hasControlChildren = false;
             for (const auto& child : grid->children()) {
                 if (std::dynamic_pointer_cast<CellElement>(child)) {
                     cellCount++;
-                } else if (std::dynamic_pointer_cast<ForElement>(child) ||
-                           std::dynamic_pointer_cast<IfHasElement>(child)) {
-                    hasControlChildren = true;
                 } else {
-                    qCritical() << "GridLayout: child must be <cell>, <for>, or <if-has>";
+                    qCritical() << "GridLayout: child must be <cell>";
                     return nullptr;
                 }
             }
-            if (!hasControlChildren) {
-                int expected = grid->columns() * grid->rows();
-                if (cellCount != expected) {
-                    qCritical() << "GridLayout: expected" << expected << "cells ("
-                                << grid->columns() << "x" << grid->rows() << "), got" << cellCount;
-                    return nullptr;
-                }
+            int expected = grid->columns() * grid->rows();
+            if (cellCount != expected) {
+                qCritical() << "GridLayout: expected" << expected << "cells ("
+                            << grid->columns() << "x" << grid->rows() << "), got" << cellCount;
+                return nullptr;
             }
         }
     } else if (cell) {

@@ -41,13 +41,16 @@ void GridLayout::parse(const QDomElement& xml)
     }
     if (xml.hasAttribute("space"))
         validateDouble(xml.attribute("space"), "space", m_space);
-    if (xml.hasAttribute("space-row"))
-        validateDouble(xml.attribute("space-row"), "space-row", m_rowSpace);
-    if (xml.hasAttribute("space-column"))
-        validateDouble(xml.attribute("space-column"), "space-column", m_columnSpace);
-
-    if (m_rowSpace == 0) m_rowSpace = m_space;
-    if (m_columnSpace == 0) m_columnSpace = m_space;
+    if (xml.hasAttribute("space-row")) {
+        double val = 0;
+        if (validateDouble(xml.attribute("space-row"), "space-row", val))
+            m_rowSpace = val;
+    }
+    if (xml.hasAttribute("space-column")) {
+        double val = 0;
+        if (validateDouble(xml.attribute("space-column"), "space-column", val))
+            m_columnSpace = val;
+    }
 }
 
 /// @brief 向此网格添加子元素（通常是 CellElement）。
@@ -145,12 +148,12 @@ MeasureResult GridLayout::measure(const LayoutContext& ctx, const LayoutConstrai
     double totalWidth = 0;
     for (double w : m_colWidths)
         totalWidth += w;
-    totalWidth += (m_columns - 1) * m_columnSpace;
+    totalWidth += (m_columns - 1) * m_columnSpace.value_or(m_space);
 
     double totalHeight = 0;
     for (double h : m_rowHeights)
         totalHeight += h;
-    totalHeight += (m_rows - 1) * m_rowSpace;
+    totalHeight += (m_rows - 1) * m_rowSpace.value_or(m_space);
 
     QSizeF sz(totalWidth + decoW, totalHeight + decoH);
     return MeasureResult{sz};
@@ -168,12 +171,12 @@ void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect)
     double measuredWidth = 0;
     for (double w : m_colWidths)
         measuredWidth += w;
-    measuredWidth += (m_columns - 1) * m_columnSpace;
+    measuredWidth += (m_columns - 1) * m_columnSpace.value_or(m_space);
 
     double measuredHeight = 0;
     for (double h : m_rowHeights)
         measuredHeight += h;
-    measuredHeight += (m_rows - 1) * m_rowSpace;
+    measuredHeight += (m_rows - 1) * m_rowSpace.value_or(m_space);
 
     double extraW = cr.width() - measuredWidth;
     double extraH = cr.height() - measuredHeight;
@@ -199,9 +202,9 @@ void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect)
 
             QRectF cellRect(x, y, m_colWidths[col], m_rowHeights[row]);
             m_flattened[idx]->layout(ctx, cellRect);
-            x += m_colWidths[col] + m_columnSpace;
+            x += m_colWidths[col] + m_columnSpace.value_or(m_space);
         }
-        y += m_rowHeights[row] + m_rowSpace;
+        y += m_rowHeights[row] + m_rowSpace.value_or(m_space);
     }
 }
 
