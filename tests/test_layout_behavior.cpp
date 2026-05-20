@@ -7,6 +7,7 @@
 #include "broaditem/SizedElement.h"
 #include "broaditem/elements/RowLayout.h"
 #include "broaditem/elements/ColumnLayout.h"
+#include "broaditem/elements/GridLayout.h"
 #include "broaditem/elements/TextElement.h"
 #include <QPainter>
 #include <QImage>
@@ -31,6 +32,19 @@ private slots:
     // background-opacity
     void testBackgroundOpacityParses();
     void testBackgroundOpacityRendersTransparent();
+
+    // font-size px
+    void testFontSizeIsPixels();
+
+    // space-row/space-column fallback
+    void testGridSpaceRowFallsBackToSpace();
+    void testGridSpaceRowExplicitZero();
+    void testGridSpaceColumnExplicitValue();
+
+    // strict grid validation
+    void testGridRejectsForChild();
+    void testGridRejectsIfHasChild();
+    void testGridRejectsNonCellChild();
 };
 
 // Helper: parse, measure, layout in one step
@@ -280,6 +294,150 @@ void TestLayoutBehavior::testBackgroundOpacityRendersTransparent()
     QVERIFY2(transparentColor.red() < opaqueColor.red() || transparentColor.green() > 0,
              QString("Transparent bg should show white bleed-through, got r=%1 g=%2 b=%3")
                  .arg(transparentColor.red()).arg(transparentColor.green()).arg(transparentColor.blue()).toUtf8());
+}
+
+// ── font-size px ──
+
+void TestLayoutBehavior::testFontSizeIsPixels()
+{
+    // Parse two texts with font-size 10 and 20, verify both measure >0
+    // and the 20px text is taller than the 10px text
+    QString xmlSmall = R"(
+        <root>
+            <text font-size="10">X</text>
+        </root>
+    )";
+    QString xmlLarge = R"(
+        <root>
+            <text font-size="20">X</text>
+        </root>
+    )";
+
+    BroadItem::LayoutContext lctx;
+    BroadItem::LayoutConstraints constraints;
+
+    auto smallRoot = BroadItem::XmlLayoutParser::parseString(xmlSmall);
+    QVERIFY(smallRoot != nullptr);
+    auto smallResult = smallRoot->measure(lctx, constraints);
+    QVERIFY(smallResult.intrinsicSize.height() > 0);
+
+    auto largeRoot = BroadItem::XmlLayoutParser::parseString(xmlLarge);
+    QVERIFY(largeRoot != nullptr);
+    auto largeResult = largeRoot->measure(lctx, constraints);
+    QVERIFY(largeResult.intrinsicSize.height() > 0);
+
+    // Larger font-size should produce taller text
+    QVERIFY2(largeResult.intrinsicSize.height() > smallResult.intrinsicSize.height(),
+             "font-size=20 text should be taller than font-size=10 text");
+}
+
+// ── space-row/space-column fallback ──
+
+void TestLayoutBehavior::testGridSpaceRowFallsBackToSpace()
+{
+    QString xml = R"(
+        <root>
+            <grid columns="2" rows="2" space="10">
+                <cell><text>A</text></cell>
+                <cell><text>B</text></cell>
+                <cell><text>C</text></cell>
+                <cell><text>D</text></cell>
+            </grid>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root != nullptr);
+    auto grid = std::dynamic_pointer_cast<BroadItem::GridLayout>(root);
+    QVERIFY(grid != nullptr);
+    // space-row not set -> should fall back to space=10
+    QCOMPARE(grid->rowSpace(), 10.0);
+    // space-column not set -> should fall back to space=10
+    QCOMPARE(grid->columnSpace(), 10.0);
+}
+
+void TestLayoutBehavior::testGridSpaceRowExplicitZero()
+{
+    QString xml = R"(
+        <root>
+            <grid columns="2" rows="2" space="10" space-row="0">
+                <cell><text>A</text></cell>
+                <cell><text>B</text></cell>
+                <cell><text>C</text></cell>
+                <cell><text>D</text></cell>
+            </grid>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root != nullptr);
+    auto grid = std::dynamic_pointer_cast<BroadItem::GridLayout>(root);
+    QVERIFY(grid != nullptr);
+    // space-row explicitly set to 0 -> should be 0, NOT fall back to space=10
+    QCOMPARE(grid->rowSpace(), 0.0);
+}
+
+void TestLayoutBehavior::testGridSpaceColumnExplicitValue()
+{
+    QString xml = R"(
+        <root>
+            <grid columns="2" rows="2" space="10" space-column="5">
+                <cell><text>A</text></cell>
+                <cell><text>B</text></cell>
+                <cell><text>C</text></cell>
+                <cell><text>D</text></cell>
+            </grid>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root != nullptr);
+    auto grid = std::dynamic_pointer_cast<BroadItem::GridLayout>(root);
+    QVERIFY(grid != nullptr);
+    // space-column explicitly set to 5 -> should be 5, NOT fall back to space=10
+    QCOMPARE(grid->columnSpace(), 5.0);
+}
+
+// ── strict grid validation ──
+
+void TestLayoutBehavior::testGridRejectsForChild()
+{
+    QString xml = R"(
+        <root>
+            <grid columns="2" rows="2">
+                <for :of="list">
+                    <cell><text>X</text></cell>
+                </for>
+            </grid>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root == nullptr);
+}
+
+void TestLayoutBehavior::testGridRejectsIfHasChild()
+{
+    QString xml = R"(
+        <root>
+            <grid columns="2" rows="2">
+                <if-has :prop="show">
+                    <cell><text>X</text></cell>
+                </if-has>
+            </grid>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root == nullptr);
+}
+
+void TestLayoutBehavior::testGridRejectsNonCellChild()
+{
+    QString xml = R"(
+        <root>
+            <grid columns="1" rows="1">
+                <text>Should not be allowed</text>
+            </grid>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root == nullptr);
 }
 
 QTEST_MAIN(TestLayoutBehavior)
