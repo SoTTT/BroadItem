@@ -300,35 +300,54 @@ void TestLayoutBehavior::testBackgroundOpacityRendersTransparent()
 
 void TestLayoutBehavior::testFontSizeIsPixels()
 {
-    // Parse two texts with font-size 10 and 20, verify both measure >0
-    // and the 20px text is taller than the 10px text
-    QString xmlSmall = R"(
+    // Visual verification: render text at font-size=40 to a QImage,
+    // scan pixel rows to measure actual rendered glyph height.
+    // With setPixelSize(40), the visual height should be ~40px (not ~53px like pt).
+    QString xml = R"(
         <root>
-            <text font-size="10">X</text>
-        </root>
-    )";
-    QString xmlLarge = R"(
-        <root>
-            <text font-size="20">X</text>
+            <text font-size="40">Xg</text>
         </root>
     )";
 
-    BroadItem::LayoutContext lctx;
-    BroadItem::LayoutConstraints constraints;
+    auto root = parseAndLayout(xml);
+    QVERIFY(root != nullptr);
 
-    auto smallRoot = BroadItem::XmlLayoutParser::parseString(xmlSmall);
-    QVERIFY(smallRoot != nullptr);
-    auto smallResult = smallRoot->measure(lctx, constraints);
-    QVERIFY(smallResult.intrinsicSize.height() > 0);
+    // Render to a tall image so nothing clips
+    QImage img(200, 80, QImage::Format_ARGB32);
+    img.fill(Qt::white);
+    {
+        QPainter painter(&img);
+        BroadItem::LayoutContext lctx;
+        BroadItem::LayoutEngine::render(root, &painter, lctx);
+    }
 
-    auto largeRoot = BroadItem::XmlLayoutParser::parseString(xmlLarge);
-    QVERIFY(largeRoot != nullptr);
-    auto largeResult = largeRoot->measure(lctx, constraints);
-    QVERIFY(largeResult.intrinsicSize.height() > 0);
+    // Scan a column near the left edge (x=15) vertically for non-white pixels.
+    // The text is positioned at (0,0), and "Xg" at font-size=40 is ~30px wide.
+    // Scan every column in a 30px band to handle glyph positioning variance.
+    int firstRow = -1;
+    int lastRow = -1;
+    for (int x = 5; x < 35; ++x) {
+        for (int y = 0; y < img.height(); ++y) {
+            QColor c = img.pixelColor(x, y);
+            bool isWhite = (c.red() > 250 && c.green() > 250 && c.blue() > 250);
+            if (!isWhite) {
+                if (firstRow < 0 || y < firstRow) firstRow = y;
+                if (lastRow < 0 || y > lastRow) lastRow = y;
+            }
+        }
+    }
 
-    // Larger font-size should produce taller text
-    QVERIFY2(largeResult.intrinsicSize.height() > smallResult.intrinsicSize.height(),
-             "font-size=20 text should be taller than font-size=10 text");
+    QVERIFY2(firstRow >= 0, "No non-white pixels found — text not rendered");
+    int visualHeight = lastRow - firstRow + 1;
+
+    // With setPixelSize(40), the rendered glyph height should be
+    // roughly 40px (typically 30-50px for a 40px font, with descenders).
+    // With setPointSizeF(40), the height would be ~53px+.
+    // We assert it's well under 60px to catch pt-vs-px discrepancy.
+    QVERIFY2(visualHeight < 55,
+             QString("font-size=40 should render at ~40px (pixel-sized), "
+                     "got visual height %1px — too tall for px mode")
+                 .arg(visualHeight).toUtf8());
 }
 
 // ── space-row/space-column fallback ──
