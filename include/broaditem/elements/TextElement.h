@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../SizedElement.h"
+#include "broaditem/Binding.h"
 
 namespace BroadItem {
 
@@ -24,7 +25,7 @@ private:
     QString m_contentLiteral;    ///< Literal content from XML (before binding interpolation).
     bool m_hasContentLiteral = false; ///< Whether literal content was provided.
     bool m_bindingsResolved = false; ///< Set after resolveBindings() to skip live lookup.
-    QString m_propertyName;      ///< Bound property name for dynamic text content.
+    Binding m_binding{":content", QString{}}; ///< Binding for the :content attribute.
     QFont m_font;                ///< Font used for rendering.
     QString m_vAlign = "baseline"; ///< Vertical alignment ("baseline", "top", "center", "bottom").
     QString m_hAlign = "left";   ///< Horizontal alignment ("left", "center", "right").

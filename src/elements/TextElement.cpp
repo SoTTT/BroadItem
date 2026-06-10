@@ -41,7 +41,7 @@ void TextElement::parse(const QDomElement& xml)
         m_hasContentLiteral = true;
     }
     if (xml.hasAttribute(":content"))
-        m_propertyName = xml.attribute(":content");
+        m_binding = Binding(":content", xml.attribute(":content"));
     if (xml.hasAttribute("v-align"))
         m_vAlign = xml.attribute("v-align");
     if (xml.hasAttribute("h-align"))
@@ -77,15 +77,11 @@ QString TextElement::resolvedText(const LayoutContext& ctx) const
         return m_contentLiteral;
     if (m_bindingsResolved)
         return m_text;
-    if (!m_propertyName.isEmpty() && ctx.hasProperty(m_propertyName)) {
-        QVariant v = ctx.property(m_propertyName);
-        // Type check: :content binding requires QString.
-        //   Pass — v.userType() == QMetaType::QString; returns the bound text.
-        //   Fail — v has a different type; qCritical logs the property
-        //          name and actual type; falls through to default text.
+    if (m_binding.isValid() && ctx.hasProperty(m_binding.path())) {
+        QVariant v = ctx.property(m_binding.path());
         if (v.userType() == QMetaType::QString)
             return v.toString();
-        qCritical() << "TextElement: property" << m_propertyName
+        qCritical() << "TextElement: property" << m_binding.path()
                      << "expected QString, got" << v.typeName();
     }
     return m_text;
@@ -269,7 +265,7 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
 /// @return True if the property matches the :content binding.
 bool TextElement::bindsProperty(const QString& name) const
 {
-    return matchesProperty(m_propertyName, name);
+    return m_binding.bindsProperty(name);
 }
 
 /// @brief 创建此文本元素的深拷贝，包含所有属性。
@@ -281,7 +277,7 @@ ElementPtr TextElement::clone() const
     copy->m_contentLiteral = m_contentLiteral;
     copy->m_hasContentLiteral = m_hasContentLiteral;
     copy->m_bindingsResolved = false;  // Clones must resolve bindings fresh
-    copy->m_propertyName = m_propertyName;
+    copy->m_binding = m_binding;
     copy->m_font = m_font;
     copy->m_vAlign = m_vAlign;
     copy->m_hAlign = m_hAlign;
@@ -305,8 +301,8 @@ ElementPtr TextElement::clone() const
 
 void TextElement::resolveBindings(const LayoutContext& ctx)
 {
-    if (!m_propertyName.isEmpty()) {
-        QVariant v = ctx.property(m_propertyName);
+    if (m_binding.isValid()) {
+        QVariant v = ctx.property(m_binding.path());
         if (v.isValid())
             m_text = v.toString();
         else
