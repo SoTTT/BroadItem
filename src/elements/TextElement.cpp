@@ -75,6 +75,8 @@ QString TextElement::resolvedText(const LayoutContext& ctx) const
 {
     if (m_hasContentLiteral)
         return m_contentLiteral;
+    if (m_bindingsResolved)
+        return m_text;
     if (!m_propertyName.isEmpty() && ctx.hasProperty(m_propertyName)) {
         QVariant v = ctx.property(m_propertyName);
         // Type check: :content binding requires QString.
@@ -278,6 +280,7 @@ ElementPtr TextElement::clone() const
     copy->m_text = m_text;
     copy->m_contentLiteral = m_contentLiteral;
     copy->m_hasContentLiteral = m_hasContentLiteral;
+    copy->m_bindingsResolved = m_bindingsResolved;
     copy->m_propertyName = m_propertyName;
     copy->m_font = m_font;
     copy->m_vAlign = m_vAlign;
@@ -300,14 +303,16 @@ ElementPtr TextElement::clone() const
     return copy;
 }
 
-/// @brief 用给定值插值文本内容中的 "{}" 占位符。
-/// @param values The string values to substitute.
-void TextElement::interpolateValues(const QStringList& values)
+void TextElement::resolveBindings(const LayoutContext& ctx)
 {
-    if (m_hasContentLiteral)
-        m_contentLiteral = interpolate(m_contentLiteral, values);
-    else
-        m_text = interpolate(m_text, values);
+    if (!m_propertyName.isEmpty()) {
+        QVariant v = ctx.property(m_propertyName);
+        if (v.isValid())
+            m_text = v.toString();
+        else
+            m_text.clear();
+        m_bindingsResolved = true;
+    }
 }
 
 } // namespace BroadItem

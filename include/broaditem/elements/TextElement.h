@@ -14,7 +14,7 @@ public:
     bool bindsProperty(const QString& name) const override;
 
     ElementPtr clone() const override;
-    void interpolateValues(const QStringList& values) override;
+    void resolveBindings(const LayoutContext& ctx) override;
 
     const QSet<QString>& supportedAttributes() const override;
     bool canHaveChildren() const override { return false; }
@@ -23,6 +23,7 @@ private:
     QString m_text;              ///< Static text content.
     QString m_contentLiteral;    ///< Literal content from XML (before binding interpolation).
     bool m_hasContentLiteral = false; ///< Whether literal content was provided.
+    bool m_bindingsResolved = false; ///< Set after resolveBindings() to skip live lookup.
     QString m_propertyName;      ///< Bound property name for dynamic text content.
     QFont m_font;                ///< Font used for rendering.
     QString m_vAlign = "baseline"; ///< Vertical alignment ("baseline", "top", "center", "bottom").

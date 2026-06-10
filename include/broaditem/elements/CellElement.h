@@ -17,7 +17,6 @@ public:
     bool canHaveChildren() const override { return true; }
 
     ElementPtr clone() const override;
-    void interpolateValues(const QStringList& values) override;
 
 private:
     QString m_vAlign = "center";  ///< Vertical alignment of content ("top", "center", "bottom").

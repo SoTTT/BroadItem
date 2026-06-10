@@ -82,16 +82,6 @@ ElementPtr GridLayout::clone() const
     return copy;
 }
 
-/// @brief 将插值值传播给所有子元素。
-/// @param values The string values to interpolate.
-void GridLayout::interpolateValues(const QStringList& values)
-{
-    for (const auto& child : m_children) {
-        if (child)
-            child->interpolateValues(values);
-    }
-}
-
 /// @brief 通过将控制元素（for、if-has）展开为具体元素来扁平化子元素。
 /// @param ctx The layout context used for control element expansion.
 /// @return A flattened vector of concrete child elements.

@@ -92,12 +92,4 @@ ElementPtr ContainerElement::clone() const
     return copy;
 }
 
-/// @brief 将插值值传播给内容元素。
-/// @param values The string values to interpolate.
-void ContainerElement::interpolateValues(const QStringList& values)
-{
-    if (m_content)
-        m_content->interpolateValues(values);
-}
-
 } // namespace BroadItem

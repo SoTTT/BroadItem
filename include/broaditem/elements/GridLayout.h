@@ -32,7 +32,6 @@ public:
     bool canHaveChildren() const override { return true; }
 
     ElementPtr clone() const override;
-    void interpolateValues(const QStringList& values) override;
 
 private:
     std::vector<ElementPtr> m_children;  ///< Direct child elements.

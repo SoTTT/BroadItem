@@ -41,14 +41,6 @@ ElementPtr CellElement::clone() const
     return copy;
 }
 
-/// @brief 将插值值传播给内容元素。
-/// @param values The string values to interpolate.
-void CellElement::interpolateValues(const QStringList& values)
-{
-    if (content())
-        content()->interpolateValues(values);
-}
-
 /// @brief 通过委托 ContainerElement::measure() 测量单元格。
 /// @param ctx The layout context.
 /// @param constraints Available width/height constraints.

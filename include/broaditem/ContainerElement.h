@@ -21,7 +21,6 @@ public:
     ElementPtr content() const { return m_content; }
 
     ElementPtr clone() const override;
-    void interpolateValues(const QStringList& values) override;
 
 private:
     ElementPtr m_content;  ///< The child content element wrapped by this container.
