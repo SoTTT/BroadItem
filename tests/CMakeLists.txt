@@ -1,5 +1,7 @@
 find_package(Qt5 REQUIRED COMPONENTS Core Widgets Xml Test)
 
+configure_file(${CMAKE_SOURCE_DIR}/example/basic/test_layout.xml ${CMAKE_BINARY_DIR}/test_layout.xml COPYONLY)
+
 add_executable(test_parser test_parser.cpp)
 target_link_libraries(test_parser PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml Qt5::Test)
 

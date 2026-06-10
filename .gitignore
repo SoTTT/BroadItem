@@ -14,3 +14,8 @@ moc_*.cpp
 ui_*.h
 qrc_*.cpp
 *.moc
+
+# Tools
+.cache/
+.omo/
+.zed/
