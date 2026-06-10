@@ -22,6 +22,8 @@ public:
 
     ElementPtr clone() const override;
 
+    void resolveBindings(const LayoutContext& ctx) override;
+
 private:
     ElementPtr m_content;  ///< The child content element wrapped by this container.
 };

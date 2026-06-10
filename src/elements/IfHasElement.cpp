@@ -75,7 +75,9 @@ std::vector<ElementPtr> IfHasElement::expand(const LayoutContext& ctx) const
 {
     if (!shouldShow(ctx) || !m_child)
         return {};
-    return { m_child->clone() };
+    auto instance = m_child->clone();
+    instance->resolveBindings(ctx);
+    return { std::move(instance) };
 }
 
 /// @brief 条件满足时测量子元素，否则返回零尺寸。

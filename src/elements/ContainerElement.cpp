@@ -77,6 +77,14 @@ void ContainerElement::setContent(ElementPtr content)
     m_content = std::move(content);
 }
 
+/// @brief 将绑定解析传播到内容子元素。
+/// @param ctx The layout context with property values.
+void ContainerElement::resolveBindings(const LayoutContext& ctx)
+{
+    if (m_content)
+        m_content->resolveBindings(ctx);
+}
+
 /// @brief 创建此容器的深拷贝，包括其内容。
 /// @return A new ContainerElement with cloned properties and content.
 ElementPtr ContainerElement::clone() const

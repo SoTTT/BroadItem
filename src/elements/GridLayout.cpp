@@ -82,6 +82,15 @@ ElementPtr GridLayout::clone() const
     return copy;
 }
 
+void GridLayout::resolveBindings(const LayoutContext& ctx)
+{
+    ContainerElement::resolveBindings(ctx);
+    for (const auto& child : m_children) {
+        if (child)
+            child->resolveBindings(ctx);
+    }
+}
+
 /// @brief 通过将控制元素（for、if-has）展开为具体元素来扁平化子元素。
 /// @param ctx The layout context used for control element expansion.
 /// @return A flattened vector of concrete child elements.

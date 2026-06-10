@@ -25,6 +25,8 @@ public:
 
     ElementPtr clone() const override;
 
+    void resolveBindings(const LayoutContext& ctx) override;
+
 private:
     std::vector<ElementPtr> m_children;  ///< Direct child elements.
     QString m_mainAlign = "start";       ///< Main-axis alignment ("start", "center", "end").

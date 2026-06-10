@@ -33,6 +33,8 @@ public:
 
     ElementPtr clone() const override;
 
+    void resolveBindings(const LayoutContext& ctx) override;
+
 private:
     std::vector<ElementPtr> m_children;  ///< Direct child elements.
     int m_columns = 1;                    ///< Number of columns in the grid.

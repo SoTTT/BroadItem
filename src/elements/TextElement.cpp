@@ -280,7 +280,7 @@ ElementPtr TextElement::clone() const
     copy->m_text = m_text;
     copy->m_contentLiteral = m_contentLiteral;
     copy->m_hasContentLiteral = m_hasContentLiteral;
-    copy->m_bindingsResolved = m_bindingsResolved;
+    copy->m_bindingsResolved = false;  // Clones must resolve bindings fresh
     copy->m_propertyName = m_propertyName;
     copy->m_font = m_font;
     copy->m_vAlign = m_vAlign;
