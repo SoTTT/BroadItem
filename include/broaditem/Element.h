@@ -40,8 +40,8 @@ public:
     /// @brief 克隆该元素（深拷贝）。所有具体元素类型必须实现。
     virtual ElementPtr clone() const = 0;
 
-    /// @brief 将占位值（如 `{}`）插值到该元素及其子元素中。
-    virtual void interpolateValues(const QStringList& values);
+    /// @brief 根据给定 context 解析并绑定属性值。expand() 对每个克隆调用此方法。
+    virtual void resolveBindings(const LayoutContext& ctx);
 
     /// @brief 返回该元素的包围矩形。
     const QRectF& rect() const { return m_rect; }
@@ -76,8 +76,6 @@ protected:
     static QColor parseColor(const QString& value);
     /// @brief 从字符串解析布尔值。
     static bool parseBool(const QString& value);
-    /// @brief 用给定值替换文本中的占位符标记。
-    static QString interpolate(const QString& text, const QStringList& values);
 };
 
 } // namespace BroadItem

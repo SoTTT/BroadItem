@@ -37,28 +37,10 @@ bool Element::parseBool(const QString& value)
     return value.compare("true", Qt::CaseInsensitive) == 0 || value == "1";
 }
 
-/// @brief 按顺序用列表中的值替换文本中的 "{}" 占位符。
-/// @param text Template string containing "{}" markers.
-/// @param values Values to substitute into placeholders.
-/// @return The interpolated string.
-QString Element::interpolate(const QString& text, const QStringList& values)
+/// @brief 默认实现：空操作。TextElement 等子类覆盖以从 context 解析绑定。
+void Element::resolveBindings(const LayoutContext& ctx)
 {
-    QString result = text;
-    int index = 0;
-    int pos = 0;
-    while ((pos = result.indexOf("{}", pos)) != -1 && index < values.size()) {
-        result.replace(pos, 2, values[index]);
-        pos += values[index].length();
-        ++index;
-    }
-    return result;
-}
-
-/// @brief 基础插值钩子；子类覆盖以将值应用到其内容。
-/// @param values The string values to interpolate.
-void Element::interpolateValues(const QStringList& values)
-{
-    Q_UNUSED(values)
+    Q_UNUSED(ctx)
 }
 
 /// @brief 检查属性名是否匹配绑定路径（支持点和括号子路径）。

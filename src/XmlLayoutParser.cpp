@@ -163,6 +163,8 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
             if (templ)
                 forEl->setTemplate(templ);
         }
+        if (xml.hasAttribute(":as"))
+            forEl->setAsVariable(xml.attribute(":as"));
     } else if (ifEl) {
         QDomElement child = xml.firstChildElement();
         if (!child.isNull()) {
@@ -177,6 +179,8 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
     if (wrapFor) {
         auto wrapper = std::make_shared<ForElement>();
         wrapper->setBindProperty(xml.attribute(":of"));
+        if (xml.hasAttribute(":as"))
+            wrapper->setAsVariable(xml.attribute(":as"));
         wrapper->setTemplate(element);
         return wrapper;
     }
@@ -188,6 +192,9 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
         wrapper->setChild(element);
         return wrapper;
     }
+
+    if (tag != "for" && xml.hasAttribute(":as") && !xml.hasAttribute(":of"))
+        qWarning() << "<" << tag << "> has :as but no :of; :as only works with iteration";
 
     return element;
 }

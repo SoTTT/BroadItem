@@ -25,7 +25,10 @@ public:
             return QVariant();
         if (!name.contains('.') && !name.contains('['))
             return m_map.value(name);
-        return resolveFirstThenWalk(name);
+        QVariant v = resolveFirstThenWalk(name);
+        if (!v.isValid())
+            qCritical() << "MapPropertyContext:" << name << "not found";
+        return v;
     }
 
     /** @copydoc PropertyContext::hasProperty */
@@ -123,10 +126,8 @@ private:
             segEnd = bracketPos;
 
         QString firstKey = path.left(segEnd);
-        if (!m_map.contains(firstKey)) {
-            qCritical() << "MapPropertyContext:" << firstKey << "not found (path:" << path << ")";
+        if (!m_map.contains(firstKey))
             return QVariant();
-        }
 
         QVariant current = m_map.value(firstKey);
         int pos = advanceBrackets(current, path, segEnd);

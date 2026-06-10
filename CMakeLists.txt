@@ -13,6 +13,7 @@ find_package(Qt5 REQUIRED COMPONENTS Core Widgets Xml)
 add_library(BroadItem STATIC
     src/BroadItem.cpp
     src/QPropertyContext.cpp
+    src/ItemPropertyContext.cpp
     src/XmlLayoutParser.cpp
     src/LayoutRegistry.cpp
     src/LayoutEngine.cpp
@@ -31,6 +32,7 @@ add_library(BroadItem STATIC
     include/broaditem/BroadItem.h
     include/broaditem/PropertyContext.h
     include/broaditem/MapPropertyContext.h
+    include/broaditem/ItemPropertyContext.h
     include/broaditem/QPropertyContext.h
     include/broaditem/RenderableElement.h
     include/broaditem/ControlElement.h
