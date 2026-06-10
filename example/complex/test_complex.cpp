@@ -51,17 +51,31 @@ static QString randomTemp()
 }
 
 /// @brief 构建模拟运行进程列表（名称、PID、CPU 百分比）。
-static QStringList makeProcesses()
+static QVariantList makeProcesses()
 {
-    QStringList names = {"nginx", "mysql", "redis", "docker", "chrome", "node", "ssh", "postgres"};
-    QStringList procs;
-    int count = 3 + rnd(4); // 3~6 个进程
-    for (int i = 0; i < count; ++i) {
-        procs.append(names[rnd(names.size())]);
-        procs.append(QString::number(1000 + rnd(9000)));
-        procs.append(QString::number(rnd(150) / 10.0, 'f', 1) + "%");
+    QVariantList list;
+    {
+        QVariantMap p;
+        p["name"] = "com.apple.WebKit.WebContent";
+        p["pid"] = "87471";
+        p["cpu"] = "12.3";
+        list.append(p);
     }
-    return procs;
+    {
+        QVariantMap p;
+        p["name"] = "kernel_task";
+        p["pid"] = "0";
+        p["cpu"] = "4.5";
+        list.append(p);
+    }
+    {
+        QVariantMap p;
+        p["name"] = "WindowServer";
+        p["pid"] = "199";
+        p["cpu"] = "3.1";
+        list.append(p);
+    }
+    return list;
 }
 
 /// @brief 入口点。加载复杂的服务器监控布局并通过定时器动画显示实时指标。
