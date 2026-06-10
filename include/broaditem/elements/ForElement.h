@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../ControlElement.h"
+#include "broaditem/Binding.h"
 
 namespace BroadItem {
 
@@ -35,7 +36,7 @@ public:
     void render(QPainter* painter, const LayoutContext& ctx) const override;
 
 private:
-    QString m_ofProperty;   ///< The property name to iterate over for data.
+    Binding m_binding{":of", QString{}}; ///< Binding for the :of attribute (data source).
     QString m_asVariable;   ///< The alias variable name bound to each iteration value.
     ElementPtr m_template;  ///< The template element to clone for each iteration.
 };

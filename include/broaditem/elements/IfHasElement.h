@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../ControlElement.h"
+#include "broaditem/Binding.h"
 
 namespace BroadItem {
 
@@ -33,7 +34,7 @@ public:
     void render(QPainter* painter, const LayoutContext& ctx) const override;
 
 private:
-    QString m_propertyName;  ///< The property name to check for existence.
+    Binding m_binding{":prop", QString{}};  ///< Binding for the :prop attribute.
     bool m_not = false;       ///< If true, invert the condition (render when property does NOT exist).
     ElementPtr m_child;      ///< The child element to conditionally render.
 

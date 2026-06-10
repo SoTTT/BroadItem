@@ -18,7 +18,7 @@ void IfHasElement::parse(const QDomElement& xml)
     Element::parse(xml);
     validateAttributes(xml);
     if (xml.hasAttribute(":prop"))
-        m_propertyName = xml.attribute(":prop");
+        m_binding = Binding(":prop", xml.attribute(":prop"));
     m_not = xml.hasAttribute("not");
 }
 
@@ -26,7 +26,7 @@ void IfHasElement::parse(const QDomElement& xml)
 /// @param bind The property name.
 void IfHasElement::setBindProperty(const QString& bind)
 {
-    m_propertyName = bind;
+    m_binding = Binding(":prop", bind);
 }
 
 /// @brief 设置条件是否取反。
@@ -48,7 +48,7 @@ void IfHasElement::setChild(ElementPtr child)
 ElementPtr IfHasElement::clone() const
 {
     auto copy = std::make_shared<IfHasElement>();
-    copy->m_propertyName = m_propertyName;
+    copy->m_binding = m_binding;
     copy->m_not = m_not;
     if (m_child)
         copy->m_child = m_child->clone();
@@ -60,9 +60,9 @@ ElementPtr IfHasElement::clone() const
 /// @return True if the condition is met (respecting the "not" flag).
 bool IfHasElement::shouldShow(const LayoutContext& ctx) const
 {
-    bool has = ctx.hasProperty(m_propertyName);
+    bool has = ctx.hasProperty(m_binding.path());
     if (has) {
-        QVariant v = ctx.property(m_propertyName);
+        QVariant v = ctx.property(m_binding.path());
         has = !v.isNull();
     }
     return m_not ? !has : has;
@@ -117,7 +117,7 @@ void IfHasElement::render(QPainter* painter, const LayoutContext& ctx) const
 /// @return True if the property is bound.
 bool IfHasElement::bindsProperty(const QString& name) const
 {
-    return matchesProperty(m_propertyName, name) || (m_child && m_child->bindsProperty(name));
+    return m_binding.bindsProperty(name) || (m_child && m_child->bindsProperty(name));
 }
 
 } // namespace BroadItem

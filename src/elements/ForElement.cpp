@@ -21,7 +21,7 @@ void ForElement::parse(const QDomElement& xml)
     Element::parse(xml);
     validateAttributes(xml);
     if (xml.hasAttribute(":of"))
-        m_ofProperty = xml.attribute(":of");
+        m_binding = Binding(":of", xml.attribute(":of"));
     QString asVal = xml.attribute(":as");
     if (!asVal.isEmpty())
         m_asVariable = asVal;
@@ -31,7 +31,7 @@ void ForElement::parse(const QDomElement& xml)
 /// @param bind The property name for the data source (QStringList).
 void ForElement::setBindProperty(const QString& bind)
 {
-    m_ofProperty = bind;
+    m_binding = Binding(":of", bind);
 }
 
 /// @brief 设置要每次迭代克隆的模板元素。
@@ -46,7 +46,7 @@ void ForElement::setTemplate(ElementPtr templ)
 ElementPtr ForElement::clone() const
 {
     auto copy = std::make_shared<ForElement>();
-    copy->m_ofProperty = m_ofProperty;
+    copy->m_binding = m_binding;
     copy->m_asVariable = m_asVariable;
     if (m_template)
         copy->m_template = m_template->clone();
@@ -64,7 +64,7 @@ ElementPtr ForElement::clone() const
 std::vector<ElementPtr> ForElement::expand(const LayoutContext& ctx) const
 {
     std::vector<ElementPtr> result;
-    if (!m_template || m_ofProperty.isEmpty())
+    if (!m_template || m_binding.path().isEmpty())
         return result;
 
     if (m_asVariable.isEmpty()) {
@@ -72,7 +72,7 @@ std::vector<ElementPtr> ForElement::expand(const LayoutContext& ctx) const
         return result;
     }
 
-    QVariant v = ctx.property(m_ofProperty);
+    QVariant v = ctx.property(m_binding.path());
     if (!v.isValid())
         return result;
 
@@ -110,7 +110,7 @@ std::vector<ElementPtr> ForElement::expand(const LayoutContext& ctx) const
             result.push_back(instance);
         }
     } else {
-        qCritical() << "ForElement: property" << m_ofProperty
+        qCritical() << "ForElement: property" << m_binding.path()
                      << "expected QStringList or QVariantList, got" << v.typeName();
     }
 
@@ -158,7 +158,7 @@ void ForElement::render(QPainter* painter, const LayoutContext& ctx) const
 bool ForElement::bindsProperty(const QString& name) const
 {
     // 1. Check if the :of data source property changed → always triggers relayout
-    if (matchesProperty(m_ofProperty, name))
+    if (m_binding.bindsProperty(name))
         return true;
 
     // 2. Check template bindings, but strip :as prefix — per-item variables
