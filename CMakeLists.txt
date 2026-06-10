@@ -15,6 +15,7 @@ add_library(BroadItem STATIC
     src/QPropertyContext.cpp
     src/ItemPropertyContext.cpp
     src/Expression.cpp
+    src/Binding.cpp
     src/XmlLayoutParser.cpp
     src/LayoutRegistry.cpp
     src/LayoutEngine.cpp
@@ -34,6 +35,7 @@ add_library(BroadItem STATIC
     include/broaditem/BroadItem.h
     include/broaditem/PropertyContext.h
     include/broaditem/Expression.h
+    include/broaditem/Binding.h
     include/broaditem/MapPropertyContext.h
     include/broaditem/ItemPropertyContext.h
     include/broaditem/QPropertyContext.h
