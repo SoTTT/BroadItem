@@ -25,7 +25,7 @@ public:
     bool canHaveChildren() const override { return true; }
 
     /// @brief 将此 for 元素展开为克隆元素实例列表，每个绑定值一个。
-    std::vector<ElementPtr> expand(const LayoutContext& ctx) const;
+    std::vector<ElementPtr> expand(const LayoutContext& ctx) const override;
 
     /// @brief 测量委托给展开后的子元素（当此元素为根元素时使用）。
     MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints) override;

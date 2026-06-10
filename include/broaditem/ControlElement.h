@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Element.h"
+#include <vector>
 
 namespace BroadItem {
 
@@ -27,6 +28,11 @@ public:
         Q_UNUSED(painter)
         Q_UNUSED(ctx)
     }
+
+    /// @brief 展开控制元素为具体元素实例（默认返回空）。
+    /// ForElement 返回每个迭代值的克隆实例；
+    /// IfHasElement 返回条件渲染的克隆实例或空。
+    virtual std::vector<ElementPtr> expand(const LayoutContext& ctx) const { return {}; }
 };
 
 } // namespace BroadItem

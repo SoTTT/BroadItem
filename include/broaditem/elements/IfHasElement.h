@@ -23,7 +23,7 @@ public:
     ElementPtr clone() const override;
 
     /// @brief 根据条件展开为 {克隆的子元素} 或 {}。
-    std::vector<ElementPtr> expand(const LayoutContext& ctx) const;
+    std::vector<ElementPtr> expand(const LayoutContext& ctx) const override;
 
     /// @brief 测量委托给子元素（当此元素为根元素时使用）。
     MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints) override;

@@ -1,4 +1,5 @@
 #include "broaditem/elements/ColumnLayout.h"
+#include "broaditem/ControlElement.h"
 #include "broaditem/elements/ForElement.h"
 #include "broaditem/elements/IfHasElement.h"
 #include "broaditem/SizedElement.h"
@@ -75,11 +76,8 @@ std::vector<ElementPtr> ColumnLayout::flattenChildren(const LayoutContext& ctx) 
     for (const auto& child : m_children) {
         if (!child)
             continue;
-        if (auto forEl = std::dynamic_pointer_cast<ForElement>(child)) {
-            auto expanded = forEl->expand(ctx);
-            flat.insert(flat.end(), expanded.begin(), expanded.end());
-        } else if (auto ifEl = std::dynamic_pointer_cast<IfHasElement>(child)) {
-            auto expanded = ifEl->expand(ctx);
+        if (auto ctrlEl = std::dynamic_pointer_cast<ControlElement>(child)) {
+            auto expanded = ctrlEl->expand(ctx);
             flat.insert(flat.end(), expanded.begin(), expanded.end());
         } else {
             flat.push_back(child);

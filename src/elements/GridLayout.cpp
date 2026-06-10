@@ -1,5 +1,6 @@
 #include "broaditem/elements/GridLayout.h"
 #include "broaditem/elements/CellElement.h"
+#include "broaditem/ControlElement.h"
 #include "broaditem/elements/ForElement.h"
 #include <algorithm>
 #include "broaditem/elements/IfHasElement.h"
@@ -100,11 +101,8 @@ std::vector<ElementPtr> GridLayout::flattenChildren(const LayoutContext& ctx) co
     for (const auto& child : m_children) {
         if (!child)
             continue;
-        if (auto forEl = std::dynamic_pointer_cast<ForElement>(child)) {
-            auto expanded = forEl->expand(ctx);
-            flat.insert(flat.end(), expanded.begin(), expanded.end());
-        } else if (auto ifEl = std::dynamic_pointer_cast<IfHasElement>(child)) {
-            auto expanded = ifEl->expand(ctx);
+        if (auto ctrlEl = std::dynamic_pointer_cast<ControlElement>(child)) {
+            auto expanded = ctrlEl->expand(ctx);
             flat.insert(flat.end(), expanded.begin(), expanded.end());
         } else {
             flat.push_back(child);

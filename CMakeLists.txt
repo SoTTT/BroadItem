@@ -26,6 +26,7 @@ add_library(BroadItem STATIC
     src/elements/ColumnLayout.cpp
     src/elements/RowLayout.cpp
     src/elements/GridLayout.cpp
+    src/elements/MultiChildContainer.cpp
     src/elements/CellElement.cpp
     src/elements/ForElement.cpp
     src/elements/IfHasElement.cpp
