@@ -1,10 +1,27 @@
 #include <QtTest/QtTest>
 #include "broaditem/elements/ForElement.h"
+#include "broaditem/elements/IfHasElement.h"
+#include "broaditem/elements/TextElement.h"
+#include "broaditem/elements/RowLayout.h"
+#include "broaditem/elements/ColumnLayout.h"
+#include "broaditem/elements/GridLayout.h"
 #include "broaditem/LayoutContext.h"
 #include "broaditem/MapPropertyContext.h"
 #include <QDomDocument>
 #include <QDomElement>
 #include <QDebug>
+
+// Helper to create TextElement with :content binding programmatically
+static std::shared_ptr<BroadItem::TextElement> makeBoundText(const QString& binding, const QString& fontSize = QStringLiteral("11"))
+{
+    QDomDocument doc;
+    QDomElement el = doc.createElement("text");
+    el.setAttribute(":content", binding);
+    el.setAttribute("font-size", fontSize);
+    auto te = std::make_shared<BroadItem::TextElement>();
+    te->parse(el);
+    return te;
+}
 
 // ============================================================
 // 测试用 Mock 元素 — 用作 ForElement 的模板
@@ -441,6 +458,178 @@ private slots:
         auto* clone2 = dynamic_cast<ForTestElement*>(result[2].get());
         QVERIFY(clone2 != nullptr);
         QCOMPARE(clone2->m_resolvedValues["x"].toString(), QString("world"));
+    }
+
+    /// @brief testRowLayoutResolvesBindingsInFor: ForElement+RowLayout → TextElements resolve per-item data
+    void testRowLayoutResolvesBindingsInFor()
+    {
+        BroadItem::MapPropertyContext mapCtx;
+        QVariantList processes;
+        QVariantMap p1; p1["name"] = QString("nginx"); p1["pid"] = QString("1234"); p1["cpu"] = QString("2.1%");
+        QVariantMap p2; p2["name"] = QString("redis"); p2["pid"] = QString("5678"); p2["cpu"] = QString("1.3%");
+        QVariantMap p3; p3["name"] = QString("mysql"); p3["pid"] = QString("9012"); p3["cpu"] = QString("5.7%");
+        processes.append(p1); processes.append(p2); processes.append(p3);
+        mapCtx.setProperty("processes", processes);
+        BroadItem::LayoutContext ctx{&mapCtx};
+
+        auto forEl = std::make_shared<BroadItem::ForElement>();
+        forEl->setBindProperty("processes");
+        forEl->setAsVariable("p");
+
+        auto row = std::make_shared<BroadItem::RowLayout>();
+        row->addChild(makeBoundText("p.name", "11"));
+        row->addChild(makeBoundText("p.pid", "10"));
+        row->addChild(makeBoundText("p.cpu", "11"));
+        forEl->setTemplate(row);
+
+        auto result = forEl->expand(ctx);
+        QCOMPARE(result.size(), 3);
+
+        QStringList expectedNames{"nginx", "redis", "mysql"};
+        QStringList expectedPids{"1234", "5678", "9012"};
+        QStringList expectedCpus{"2.1%", "1.3%", "5.7%"};
+        for (int i = 0; i < 3; ++i) {
+            auto* cloneRow = dynamic_cast<BroadItem::RowLayout*>(result[i].get());
+            QVERIFY(cloneRow != nullptr);
+            // Trigger flatten + measure to verify text resolution cascaded
+            auto mr = cloneRow->measure(ctx, {500, 500});
+            QVERIFY(mr.intrinsicSize.width() > 10);
+            // Access flattened children to verify individual TextElement measurements
+            const auto& children = cloneRow->flattenedChildren();
+            QCOMPARE(children.size(), 3);
+            for (size_t j = 0; j < 3; ++j) {
+                auto childMr = children[j]->measure(ctx, {500, 500});
+                QVERIFY(childMr.intrinsicSize.width() > 1);
+            }
+        }
+    }
+
+    /// @brief testColumnLayoutResolvesBindingsInFor: ForElement+ColumnLayout → TextElements resolve per-item data
+    void testColumnLayoutResolvesBindingsInFor()
+    {
+        BroadItem::MapPropertyContext mapCtx;
+        QVariantList items;
+        QVariantMap m1; m1["label"] = QString("CPU"); m1["value"] = QString("45%");
+        QVariantMap m2; m2["label"] = QString("MEM"); m2["value"] = QString("8.2G");
+        items.append(m1); items.append(m2);
+        mapCtx.setProperty("items", items);
+        BroadItem::LayoutContext ctx{&mapCtx};
+
+        auto forEl = std::make_shared<BroadItem::ForElement>();
+        forEl->setBindProperty("items");
+        forEl->setAsVariable("p");
+
+        auto col = std::make_shared<BroadItem::ColumnLayout>();
+        col->addChild(makeBoundText("p.label", "11"));
+        col->addChild(makeBoundText("p.value", "11"));
+        forEl->setTemplate(col);
+
+        auto result = forEl->expand(ctx);
+        QCOMPARE(result.size(), 2);
+
+        for (int i = 0; i < 2; ++i) {
+            auto* cloneCol = dynamic_cast<BroadItem::ColumnLayout*>(result[i].get());
+            QVERIFY(cloneCol != nullptr);
+            auto mr = cloneCol->measure(ctx, {500, 500});
+            QVERIFY(mr.intrinsicSize.width() > 10);
+            const auto& children = cloneCol->flattenedChildren();
+            QCOMPARE(children.size(), 2);
+            QVERIFY(children[0]->measure(ctx, {500, 500}).intrinsicSize.width() > 1);
+            QVERIFY(children[1]->measure(ctx, {500, 500}).intrinsicSize.width() > 1);
+        }
+    }
+
+    /// @brief testIfHasResolvesBindingsInClonedChild: positive + negative cases for IfHasElement with TextElement
+    void testIfHasResolvesBindingsInClonedChild()
+    {
+        // Positive: warning property exists → TextElement resolves "System alert"
+        {
+            BroadItem::MapPropertyContext mapCtx;
+            mapCtx.setProperty("warning", QString("System alert"));
+            BroadItem::LayoutContext ctx{&mapCtx};
+
+            auto ifEl = std::make_shared<BroadItem::IfHasElement>();
+            ifEl->setBindProperty("warning");
+            ifEl->setChild(makeBoundText("warning", "11"));
+
+            auto result = ifEl->expand(ctx);
+            QCOMPARE(result.size(), 1);
+            auto mr = result[0]->measure(ctx, {500, 500});
+            QVERIFY(mr.intrinsicSize.width() > 10);
+        }
+
+        // Negative: no warning property → expand returns empty
+        {
+            BroadItem::MapPropertyContext mapCtx;
+            BroadItem::LayoutContext ctx{&mapCtx};
+
+            auto ifEl = std::make_shared<BroadItem::IfHasElement>();
+            ifEl->setBindProperty("warning");
+            ifEl->setChild(makeBoundText("warning", "11"));
+
+            auto result = ifEl->expand(ctx);
+            QCOMPARE(result.size(), 0);
+        }
+    }
+
+    /// @brief testNestedContainerResolvesBindings: GridLayout→ColumnLayout→TextElement in ForElement (covers GridLayout)
+    void testNestedContainerResolvesBindings()
+    {
+        BroadItem::MapPropertyContext mapCtx;
+        QVariantList items;
+        QVariantMap p1; p1["name"] = QString("Alice");
+        QVariantMap p2; p2["name"] = QString("Bob");
+        items.append(p1); items.append(p2);
+        mapCtx.setProperty("items", items);
+        BroadItem::LayoutContext ctx{&mapCtx};
+
+        auto forEl = std::make_shared<BroadItem::ForElement>();
+        forEl->setBindProperty("items");
+        forEl->setAsVariable("p");
+
+        // GridLayout → ColumnLayout → TextElement "p.name"
+        auto grid = std::make_shared<BroadItem::GridLayout>();
+        auto innerCol = std::make_shared<BroadItem::ColumnLayout>();
+        innerCol->addChild(makeBoundText("p.name", "11"));
+        grid->addChild(innerCol);
+        forEl->setTemplate(grid);
+
+        auto result = forEl->expand(ctx);
+        QCOMPARE(result.size(), 2);
+
+        for (int i = 0; i < 2; ++i) {
+            auto* cloneGrid = dynamic_cast<BroadItem::GridLayout*>(result[i].get());
+            QVERIFY(cloneGrid != nullptr);
+            auto mr = cloneGrid->measure(ctx, {500, 500});
+            QVERIFY(mr.intrinsicSize.width() > 10);
+            // GridLayout exposes children() publicly; verify depth=2 resolved
+            const auto& gridChildren = cloneGrid->children();
+            QCOMPARE(gridChildren.size(), 1);
+            auto* nestedCol = dynamic_cast<BroadItem::ColumnLayout*>(gridChildren[0].get());
+            QVERIFY(nestedCol != nullptr);
+            auto colMr = nestedCol->measure(ctx, {500, 500});
+            QVERIFY(colMr.intrinsicSize.width() > 1);
+        }
+    }
+
+    /// @brief testGlobalBindingsStillWorkInContainers: plain RowLayout without ForElement resolves global properties
+    void testGlobalBindingsStillWorkInContainers()
+    {
+        BroadItem::MapPropertyContext mapCtx;
+        mapCtx.setProperty("cpu", QString("45%"));
+        BroadItem::LayoutContext ctx{&mapCtx};
+
+        auto row = std::make_shared<BroadItem::RowLayout>();
+        row->addChild(makeBoundText("cpu", "11"));
+
+        // Call ContainerElement::resolveBindings directly on the RowLayout
+        row->resolveBindings(ctx);
+
+        // Verify text resolved: measure must return non-zero width
+        auto mr = row->measure(ctx, {500, 500});
+        QVERIFY2(mr.intrinsicSize.width() > 10,
+                 qPrintable(QString("Expected non-zero width for resolved '45%', got %1")
+                            .arg(mr.intrinsicSize.width())));
     }
 
     // NOLINTEND(readability-convert-member-functions-to-static)
