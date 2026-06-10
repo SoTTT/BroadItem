@@ -1,9 +1,5 @@
 #include "broaditem/elements/GridLayout.h"
-#include "broaditem/elements/CellElement.h"
-#include "broaditem/ControlElement.h"
-#include "broaditem/elements/ForElement.h"
 #include <algorithm>
-#include "broaditem/elements/IfHasElement.h"
 #include <QPainter>
 #include <QDomElement>
 #include <QDebug>
@@ -54,11 +50,14 @@ void GridLayout::parse(const QDomElement& xml)
     }
 }
 
-/// @brief 向此网格添加子元素（通常是 CellElement）。
+/// @brief 向此网格添加子元素（通常是 CellElement），并验证单元格数量。
 /// @param child The element to add.
 void GridLayout::addChild(ElementPtr child)
 {
-    m_children.push_back(std::move(child));
+    MultiChildContainer::addChild(std::move(child));
+    if (static_cast<int>(m_children.size()) > m_columns * m_rows) {
+        qWarning() << "GridLayout: too many children — maximum is" << (m_columns * m_rows);
+    }
 }
 
 /// @brief 创建此网格布局的深拷贝，包括所有子元素。
@@ -81,34 +80,6 @@ ElementPtr GridLayout::clone() const
             copy->m_children.push_back(child->clone());
     }
     return copy;
-}
-
-void GridLayout::resolveBindings(const LayoutContext& ctx)
-{
-    ContainerElement::resolveBindings(ctx);
-    for (const auto& child : m_children) {
-        if (child)
-            child->resolveBindings(ctx);
-    }
-}
-
-/// @brief 通过将控制元素（for、if-has）展开为具体元素来扁平化子元素。
-/// @param ctx The layout context used for control element expansion.
-/// @return A flattened vector of concrete child elements.
-std::vector<ElementPtr> GridLayout::flattenChildren(const LayoutContext& ctx) const
-{
-    std::vector<ElementPtr> flat;
-    for (const auto& child : m_children) {
-        if (!child)
-            continue;
-        if (auto ctrlEl = std::dynamic_pointer_cast<ControlElement>(child)) {
-            auto expanded = ctrlEl->expand(ctx);
-            flat.insert(flat.end(), expanded.begin(), expanded.end());
-        } else {
-            flat.push_back(child);
-        }
-    }
-    return flat;
 }
 
 /// @brief 测量网格：从子元素尺寸计算列宽和行高。
@@ -203,28 +174,6 @@ void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect)
         }
         y += m_rowHeights[row] + m_rowSpace.value_or(m_space);
     }
-}
-
-/// @brief 渲染网格背景/边框，然后委托给每个子元素。
-/// @param painter The QPainter to render onto.
-/// @param ctx The layout context.
-void GridLayout::render(QPainter* painter, const LayoutContext& ctx) const
-{
-    ContainerElement::render(painter, ctx);
-    for (const auto& child : m_flattened) {
-        child->render(painter, ctx);
-    }
-}
-
-/// @brief 检查此网格或其任何子元素是否绑定指定属性。
-/// @param name The property name to check.
-/// @return True if the property is bound anywhere in this subtree.
-bool GridLayout::bindsProperty(const QString& name) const
-{
-    if (ContainerElement::bindsProperty(name))
-        return true;
-    return std::any_of(m_children.begin(), m_children.end(),
-        [&](const auto& child) { return child && child->bindsProperty(name); });
 }
 
 } // namespace BroadItem

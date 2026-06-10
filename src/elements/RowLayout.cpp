@@ -1,7 +1,4 @@
 #include "broaditem/elements/RowLayout.h"
-#include "broaditem/ControlElement.h"
-#include "broaditem/elements/ForElement.h"
-#include "broaditem/elements/IfHasElement.h"
 #include "broaditem/SizedElement.h"
 #include <algorithm>
 #include <QPainter>
@@ -31,13 +28,6 @@ void RowLayout::parse(const QDomElement& xml)
         validateDouble(xml.attribute("space"), "space", m_space);
 }
 
-/// @brief 向此行添加子元素。
-/// @param child The element to add.
-void RowLayout::addChild(ElementPtr child)
-{
-    m_children.push_back(std::move(child));
-}
-
 /// @brief 创建此行布局的深拷贝，包括所有子元素。
 /// @return A new RowLayout with cloned properties and children.
 ElementPtr RowLayout::clone() const
@@ -56,34 +46,6 @@ ElementPtr RowLayout::clone() const
             copy->m_children.push_back(child->clone());
     }
     return copy;
-}
-
-void RowLayout::resolveBindings(const LayoutContext& ctx)
-{
-    ContainerElement::resolveBindings(ctx);
-    for (const auto& child : m_children) {
-        if (child)
-            child->resolveBindings(ctx);
-    }
-}
-
-/// @brief 通过将控制元素（for、if-has）展开为具体元素来扁平化子元素。
-/// @param ctx The layout context used for control element expansion.
-/// @return A flattened vector of concrete child elements.
-std::vector<ElementPtr> RowLayout::flattenChildren(const LayoutContext& ctx) const
-{
-    std::vector<ElementPtr> flat;
-    for (const auto& child : m_children) {
-        if (!child)
-            continue;
-        if (auto ctrlEl = std::dynamic_pointer_cast<ControlElement>(child)) {
-            auto expanded = ctrlEl->expand(ctx);
-            flat.insert(flat.end(), expanded.begin(), expanded.end());
-        } else {
-            flat.push_back(child);
-        }
-    }
-    return flat;
 }
 
 /// @brief 测量行：累加子元素宽度，跟踪最大子元素高度。
@@ -193,28 +155,6 @@ void RowLayout::layoutChildren(const LayoutContext& ctx, const QRectF& contentRe
         m_flattened[i]->layout(ctx, childRect);
         offsetX += childWidth + spacing;
     }
-}
-
-/// @brief 渲染行背景/边框，然后委托给每个子元素。
-/// @param painter The QPainter to render onto.
-/// @param ctx The layout context.
-void RowLayout::render(QPainter* painter, const LayoutContext& ctx) const
-{
-    ContainerElement::render(painter, ctx);
-    for (const auto& child : m_flattened) {
-        child->render(painter, ctx);
-    }
-}
-
-/// @brief 检查此行或其任何子元素是否绑定指定属性。
-/// @param name The property name to check.
-/// @return True if the property is bound anywhere in this subtree.
-bool RowLayout::bindsProperty(const QString& name) const
-{
-    if (ContainerElement::bindsProperty(name))
-        return true;
-    return std::any_of(m_children.begin(), m_children.end(),
-        [&](const auto& child) { return child && child->bindsProperty(name); });
 }
 
 } // namespace BroadItem
