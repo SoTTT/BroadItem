@@ -1,14 +1,14 @@
 find_package(Qt5 REQUIRED COMPONENTS Core Widgets Xml)
 
-configure_file(basic/test_layout.xml ${CMAKE_CURRENT_BINARY_DIR}/test_layout.xml COPYONLY)
-configure_file(complex/test_complex.xml ${CMAKE_CURRENT_BINARY_DIR}/test_complex.xml COPYONLY)
+configure_file(basic/layout.xml ${CMAKE_CURRENT_BINARY_DIR}/basic.xml COPYONLY)
+configure_file(complex/layout.xml ${CMAKE_CURRENT_BINARY_DIR}/complex.xml COPYONLY)
 configure_file(playground/layout.xml ${CMAKE_CURRENT_BINARY_DIR}/layout.xml COPYONLY)
 
-add_executable(test_basic basic/test_basic.cpp)
-target_link_libraries(test_basic PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)
+add_executable(basic basic/main.cpp)
+target_link_libraries(basic PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)
 
-add_executable(test_complex complex/test_complex.cpp)
-target_link_libraries(test_complex PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)
+add_executable(complex complex/main.cpp)
+target_link_libraries(complex PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)
 
 # Playground target for GUI experiments
 add_executable(playground playground/main.cpp)

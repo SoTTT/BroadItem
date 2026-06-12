@@ -1,10 +1,10 @@
 #include <QtTest/QtTest>
-#include "broaditem/elements/MultiChildContainer.h"
-#include "broaditem/elements/ForElement.h"
-#include "broaditem/elements/IfHasElement.h"
-#include "broaditem/elements/CellElement.h"
-#include "broaditem/LayoutContext.h"
-#include "broaditem/MapPropertyContext.h"
+#include <broaditem/layout/MultiChildContainer.h>
+#include <broaditem/control/ForElement.h>
+#include <broaditem/control/IfHasElement.h>
+#include <broaditem/layout/CellElement.h>
+#include <broaditem/context/LayoutContext.h>
+#include <broaditem/context/MapPropertyContext.h>
 
 namespace {
 

@@ -1,12 +1,12 @@
 #include <QtTest/QtTest>
-#include "broaditem/XmlLayoutParser.h"
-#include "broaditem/LayoutContext.h"
-#include "broaditem/MapPropertyContext.h"
-#include "broaditem/LayoutEngine.h"
-#include "broaditem/Element.h"
-#include "broaditem/SizedElement.h"
-#include "broaditem/elements/TextElement.h"
-#include "broaditem/elements/RowLayout.h"
+#include <broaditem/parser/XmlLayoutParser.h>
+#include <broaditem/context/LayoutContext.h>
+#include <broaditem/context/MapPropertyContext.h>
+#include <broaditem/core/LayoutEngine.h>
+#include <broaditem/element/Element.h>
+#include <broaditem/element/SizedElement.h>
+#include <broaditem/text/TextElement.h>
+#include <broaditem/layout/RowLayout.h>
 #include <QDebug>
 
 class TestSizedElement : public QObject {

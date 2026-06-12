@@ -1,3 +1,5 @@
+> **写 git commit 和注释必须使用中文。**
+
 # AGENTS.md — BroadItem
 
 Qt5 C++ library that renders XML-defined layouts as `QGraphicsItem`. Data binding, conditionals, loops.
@@ -19,8 +21,8 @@ ctest --test-dir build                    # test_parser + test_property_context 
 ./build/tests/test_parser                 # run single test suite
 ./build/tests/test_property_context       # run single test suite
 ./build/tests/test_sized_element          # run single test suite
-./build/example/test_basic
-./build/example/test_complex
+./build/example/basic
+./build/example/complex
 ./build/example/playground                # GUI playground for manual experiments
 ```
 

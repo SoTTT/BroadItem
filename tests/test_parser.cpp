@@ -1,12 +1,12 @@
 #include <QtTest/QtTest>
-#include "broaditem/XmlLayoutParser.h"
-#include "broaditem/LayoutContext.h"
-#include "broaditem/MapPropertyContext.h"
-#include "broaditem/QPropertyContext.h"
-#include "broaditem/LayoutEngine.h"
-#include "broaditem/LayoutRegistry.h"
-#include "broaditem/Element.h"
-#include "broaditem/elements/IfHasElement.h"
+#include <broaditem/parser/XmlLayoutParser.h>
+#include <broaditem/context/LayoutContext.h>
+#include <broaditem/context/MapPropertyContext.h>
+#include <broaditem/context/QPropertyContext.h>
+#include <broaditem/core/LayoutEngine.h>
+#include <broaditem/parser/LayoutRegistry.h>
+#include <broaditem/element/Element.h>
+#include <broaditem/control/IfHasElement.h>
 #include <QDebug>
 
 // Minimal element for IfHasElement null value test

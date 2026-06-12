@@ -1,8 +1,8 @@
 #include <QtTest/QtTest>
-#include "broaditem/PropertyContext.h"
-#include "broaditem/MapPropertyContext.h"
-#include "broaditem/QPropertyContext.h"
-#include "broaditem/BroadItem.h"
+#include <broaditem/context/PropertyContext.h>
+#include <broaditem/context/MapPropertyContext.h>
+#include <broaditem/context/QPropertyContext.h>
+#include <broaditem/core/BroadItem.h>
 #include <QFile>
 #include <QDebug>
 

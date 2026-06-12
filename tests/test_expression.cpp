@@ -1,5 +1,5 @@
 #include <QtTest/QtTest>
-#include "broaditem/Expression.h"
+#include <broaditem/expression/Expression.h>
 
 class TestExpression : public QObject {
     Q_OBJECT

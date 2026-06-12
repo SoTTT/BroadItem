@@ -1,5 +1,5 @@
 #include <QtTest/QtTest>
-#include "broaditem/Binding.h"
+#include <broaditem/expression/Binding.h>
 
 using namespace BroadItem;
 

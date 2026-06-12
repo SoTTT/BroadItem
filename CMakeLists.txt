@@ -11,37 +11,67 @@ set(CMAKE_AUTOUIC ON)
 find_package(Qt5 REQUIRED COMPONENTS Core Widgets Xml)
 
 add_library(BroadItem STATIC
-    src/BroadItem.cpp
-    src/QPropertyContext.cpp
-    src/ItemPropertyContext.cpp
-    src/Expression.cpp
-    src/Binding.cpp
-    src/XmlLayoutParser.cpp
-    src/LayoutRegistry.cpp
-    src/LayoutEngine.cpp
-    src/elements/Element.cpp
-    src/elements/RenderableElement.cpp
-    src/elements/ControlElement.cpp
-    src/elements/SizedElement.cpp
-    src/elements/ContainerElement.cpp
-    src/elements/TextElement.cpp
-    src/elements/ColumnLayout.cpp
-    src/elements/RowLayout.cpp
-    src/elements/GridLayout.cpp
-    src/elements/MultiChildContainer.cpp
-    src/elements/CellElement.cpp
-    src/elements/ForElement.cpp
-    src/elements/IfHasElement.cpp
-    include/broaditem/BroadItem.h
-    include/broaditem/PropertyContext.h
-    include/broaditem/Expression.h
-    include/broaditem/Binding.h
-    include/broaditem/MapPropertyContext.h
-    include/broaditem/ItemPropertyContext.h
-    include/broaditem/QPropertyContext.h
-    include/broaditem/RenderableElement.h
-    include/broaditem/ControlElement.h
-    include/broaditem/SizedElement.h
+    # core — top-level orchestration
+    src/core/BroadItem.cpp
+    src/core/LayoutEngine.cpp
+    include/broaditem/core/BroadItem.h
+    include/broaditem/core/LayoutEngine.h
+
+    # context — property context hierarchy
+    src/context/QPropertyContext.cpp
+    src/context/ItemPropertyContext.cpp
+    include/broaditem/context/PropertyContext.h
+    include/broaditem/context/MapPropertyContext.h
+    include/broaditem/context/ItemPropertyContext.h
+    include/broaditem/context/QPropertyContext.h
+    include/broaditem/context/LayoutContext.h
+
+    # expression — path-string parser and binding
+    src/expression/Expression.cpp
+    src/expression/Binding.cpp
+    include/broaditem/expression/Expression.h
+    include/broaditem/expression/Binding.h
+
+    # element — base element class hierarchy
+    src/element/Element.cpp
+    src/element/RenderableElement.cpp
+    src/element/ControlElement.cpp
+    src/element/SizedElement.cpp
+    src/element/ContainerElement.cpp
+    include/broaditem/element/Element.h
+    include/broaditem/element/ControlElement.h
+    include/broaditem/element/RenderableElement.h
+    include/broaditem/element/SizedElement.h
+    include/broaditem/element/BoxModel.h
+    include/broaditem/element/ContainerElement.h
+
+    # layout — multi-child layout containers
+    src/layout/MultiChildContainer.cpp
+    src/layout/ColumnLayout.cpp
+    src/layout/RowLayout.cpp
+    src/layout/GridLayout.cpp
+    src/layout/CellElement.cpp
+    include/broaditem/layout/MultiChildContainer.h
+    include/broaditem/layout/ColumnLayout.h
+    include/broaditem/layout/RowLayout.h
+    include/broaditem/layout/GridLayout.h
+    include/broaditem/layout/CellElement.h
+
+    # control — control-flow elements
+    src/control/ForElement.cpp
+    src/control/IfHasElement.cpp
+    include/broaditem/control/ForElement.h
+    include/broaditem/control/IfHasElement.h
+
+    # text — text rendering leaf element
+    src/text/TextElement.cpp
+    include/broaditem/text/TextElement.h
+
+    # parser — XML layout parsing and registry
+    src/parser/XmlLayoutParser.cpp
+    src/parser/LayoutRegistry.cpp
+    include/broaditem/parser/XmlLayoutParser.h
+    include/broaditem/parser/LayoutRegistry.h
 )
 
 target_include_directories(BroadItem PUBLIC

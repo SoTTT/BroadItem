@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BroadItem XML Layout Schema
+  ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+  Provides autocomplete and validation for BroadItem layout XMLs.
+
+  USAGE / VS Code:
+    Install "XML" extension (redhat.vscode-xml), then add to settings.json:
+      "xml.fileAssociations": [
+        { "pattern": "**/*layout*.xml", "systemId": "broaditem.xsd" }
+      ]
+
+  USAGE (JetBrains / IntelliJ):
+    Add to root element:
+      <root xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:noNamespaceSchemaLocation="broaditem.xsd">
+
+  LIMITATION:
+    xmllint CLI validation does NOT work with colon-prefixed attributes
+    (:content, :of, :prop, :as). These are technically invalid XML 1.0
+    with Namespaces, but Qt QDomDocument handles them fine.
+    Editor-based validation (VS Code, IntelliJ) works correctly.
+
+    The parser auto-wraps any non-control element with :of/:as into <for>,
+    and any with :prop into <if-has>.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified">
+
+  <!-- ================================================================ -->
+  <!--  Common simple types                                             -->
+  <!-- ================================================================ -->
+  <xs:simpleType name="colorType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="#[0-9a-fA-F]{3,8}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="vAlignType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="top"/>
+      <xs:enumeration value="center"/>
+      <xs:enumeration value="bottom"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="hAlignType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="left"/>
+      <xs:enumeration value="center"/>
+      <xs:enumeration value="right"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="mainAlignType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="start"/>
+      <xs:enumeration value="center"/>
+      <xs:enumeration value="end"/>
+      <xs:enumeration value="space-between"/>
+      <xs:enumeration value="space-around"/>
+      <xs:enumeration value="space-evenly"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="crossAlignType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="start"/>
+      <xs:enumeration value="center"/>
+      <xs:enumeration value="end"/>
+      <xs:enumeration value="stretch"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="borderStyleType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="none"/>
+      <xs:enumeration value="solid"/>
+      <xs:enumeration value="dashed"/>
+      <xs:enumeration value="dotted"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="boolType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="true"/>
+      <xs:enumeration value="false"/>
+      <xs:enumeration value="1"/>
+      <xs:enumeration value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="nonNegativeDouble">
+    <xs:restriction base="xs:double">
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="opacityType">
+    <xs:restriction base="xs:double">
+      <xs:minInclusive value="0"/>
+      <xs:maxInclusive value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="positiveInt">
+    <xs:restriction base="xs:positiveInteger"/>
+  </xs:simpleType>
+
+  <!-- ================================================================ -->
+  <!--  Box model attribute group (shared by all renderable elements)   -->
+  <!-- ================================================================ -->
+  <xs:attributeGroup name="boxModelAttrs">
+    <xs:attribute name="margin"            type="nonNegativeDouble"/>
+    <xs:attribute name="margin-left"       type="nonNegativeDouble"/>
+    <xs:attribute name="margin-right"      type="nonNegativeDouble"/>
+    <xs:attribute name="margin-top"        type="nonNegativeDouble"/>
+    <xs:attribute name="margin-bottom"     type="nonNegativeDouble"/>
+    <xs:attribute name="padding"           type="nonNegativeDouble"/>
+    <xs:attribute name="padding-left"      type="nonNegativeDouble"/>
+    <xs:attribute name="padding-right"     type="nonNegativeDouble"/>
+    <xs:attribute name="padding-top"       type="nonNegativeDouble"/>
+    <xs:attribute name="padding-bottom"    type="nonNegativeDouble"/>
+    <xs:attribute name="border-radius"     type="nonNegativeDouble"/>
+    <xs:attribute name="border-style"      type="borderStyleType"/>
+    <xs:attribute name="border-width"      type="nonNegativeDouble"/>
+    <xs:attribute name="border-color"      type="colorType"/>
+    <xs:attribute name="background-color"  type="colorType"/>
+    <xs:attribute name="background-radius" type="nonNegativeDouble"/>
+    <xs:attribute name="background-opacity" type="opacityType"/>
+  </xs:attributeGroup>
+
+  <!-- ================================================================ -->
+  <!--  Data binding attributes (:content, :of, :as, :prop)              -->
+  <!--  Cannot use typed xs:attribute (colon violates NCName in XSD 1.0) -->
+  <!--  xs:anyAttribute allows them; editors can still autocomplete      -->
+  <!--  via the annotation/documentation below.                          -->
+  <!-- ================================================================ -->
+  <xs:attributeGroup name="bindingAttrs">
+    <xs:anyAttribute namespace="##local" processContents="lax">
+      <xs:annotation>
+        <xs:documentation>
+Binding attributes (colon-prefixed):
+  :content = property path for TextElement content binding
+  :of      = property path for ForElement data source
+  :as      = per-item variable name for ForElement
+  :prop    = property path for IfHasElement condition check
+
+These appear as literal attribute names with a colon prefix
+(e.g. :content="device_name", :of="items", :as="item").
+The colon is NOT a namespace separator — it is part of the
+attribute name in BroadItem's XML dialect.
+        </xs:documentation>
+      </xs:annotation>
+    </xs:anyAttribute>
+  </xs:attributeGroup>
+
+  <!-- ================================================================ -->
+  <!--  Combined: typed box model + loose binding attrs                  -->
+  <!-- ================================================================ -->
+  <xs:attributeGroup name="renderableAttrs">
+    <xs:attributeGroup ref="boxModelAttrs"/>
+    <xs:attributeGroup ref="bindingAttrs"/>
+  </xs:attributeGroup>
+
+  <!-- ================================================================ -->
+  <!--  Group: any layout child (column/row/for/if-has/cell child)      -->
+  <!-- ================================================================ -->
+  <xs:group name="layoutChildren">
+    <xs:choice>
+      <xs:element ref="text"/>
+      <xs:element ref="column"/>
+      <xs:element ref="row"/>
+      <xs:element ref="grid"/>
+      <xs:element ref="for"/>
+      <xs:element ref="if-has"/>
+    </xs:choice>
+  </xs:group>
+
+  <!-- ================================================================ -->
+  <!--  <root> — top-level; exactly one child                           -->
+  <!-- ================================================================ -->
+  <xs:element name="root">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:choice>
+          <xs:element ref="column"/>
+          <xs:element ref="row"/>
+          <xs:element ref="grid"/>
+          <xs:element ref="text"/>
+        </xs:choice>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ================================================================ -->
+  <!--  <text>                                                          -->
+  <!--  Mixed content: text between tags = default display text          -->
+  <!--  content / :content are MUTUALLY EXCLUSIVE                       -->
+  <!-- ================================================================ -->
+  <xs:element name="text">
+    <xs:annotation>
+      <xs:documentation>
+text — renders text with optional data binding.
+
+Static:  content="Hello"  OR  text between tags
+Binding: :content="propName"  (e.g. "device.cpu")
+         content and :content are mutually exclusive.
+
+Size:    width / height (pixels, optional, -1 = auto)
+
+Font:    font-family (string), font-size (px, default 12)
+         bold, under-line (true/false)
+
+Layout:  v-align (top|center|bottom), h-align (left|center|right)
+
+Color:   color (e.g. #333, #f0f0f0ff)
+
+Wrap:    wrap (true/false), max-width (px — triggers word wrap)
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType mixed="true">
+      <xs:attributeGroup ref="renderableAttrs"/>
+      <xs:attribute name="content"         type="xs:string"/>
+      <xs:attribute name="v-align"         type="vAlignType"      default="top"/>
+      <xs:attribute name="h-align"         type="hAlignType"      default="left"/>
+      <xs:attribute name="font-family"     type="xs:string"/>
+      <xs:attribute name="font-size"       type="nonNegativeDouble" default="12"/>
+      <xs:attribute name="bold"            type="boolType"/>
+      <xs:attribute name="under-line"      type="boolType"/>
+      <xs:attribute name="wrap"            type="boolType"/>
+      <xs:attribute name="max-width"       type="nonNegativeDouble"/>
+      <xs:attribute name="color"           type="colorType"/>
+      <xs:attribute name="width"           type="nonNegativeDouble"/>
+      <xs:attribute name="height"          type="nonNegativeDouble"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ================================================================ -->
+  <!--  <column> — vertical stack                                       -->
+  <!-- ================================================================ -->
+  <xs:element name="column">
+    <xs:annotation>
+      <xs:documentation>
+column — stacks children vertically.
+
+main-align:  start | center | end   (default: start)
+cross-align: start | center | end | stretch  (default: stretch)
+space:       gap between children in pixels (default: 0)
+
+Box model attributes (margin, padding, border, background) apply.
+Control pseudo-attributes (:of, :as, :prop) auto-wrap if present.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:group ref="layoutChildren" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="renderableAttrs"/>
+      <xs:attribute name="main-align"  type="mainAlignType"  default="start"/>
+      <xs:attribute name="cross-align" type="crossAlignType" default="stretch"/>
+      <xs:attribute name="space"       type="nonNegativeDouble" default="0"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ================================================================ -->
+  <!--  <row> — horizontal stack                                        -->
+  <!-- ================================================================ -->
+  <xs:element name="row">
+    <xs:annotation>
+      <xs:documentation>
+row — stacks children horizontally. Attributes identical to column.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:group ref="layoutChildren" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="renderableAttrs"/>
+      <xs:attribute name="main-align"  type="mainAlignType"  default="start"/>
+      <xs:attribute name="cross-align" type="crossAlignType" default="stretch"/>
+      <xs:attribute name="space"       type="nonNegativeDouble" default="0"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ================================================================ -->
+  <!--  <cell> — grid cell (only valid child of grid)                   -->
+  <!-- ================================================================ -->
+  <xs:element name="cell">
+    <xs:annotation>
+      <xs:documentation>
+cell — grid cell. Must be inside grid.
+Contains exactly one child layout element.
+
+v-align: top | center | bottom  (default: top)
+h-align: left | center | right  (default: left)
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:group ref="layoutChildren" minOccurs="0" maxOccurs="1"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="renderableAttrs"/>
+      <xs:attribute name="v-align" type="vAlignType" default="top"/>
+      <xs:attribute name="h-align" type="hAlignType" default="left"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ================================================================ -->
+  <!--  <grid> — fixed grid layout                                      -->
+  <!-- ================================================================ -->
+  <xs:element name="grid">
+    <xs:annotation>
+      <xs:documentation>
+grid — fixed rows × columns grid. Children MUST be cell elements.
+Child count MUST equal columns × rows.
+
+columns:      number of columns (required, positive integer)
+rows:         number of rows (required, positive integer)
+space:        default cell spacing in pixels (default: 0)
+space-row:    override vertical spacing
+space-column: override horizontal spacing
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="cell" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="renderableAttrs"/>
+      <xs:attribute name="columns"       type="positiveInt" use="required"/>
+      <xs:attribute name="rows"          type="positiveInt" use="required"/>
+      <xs:attribute name="space"         type="nonNegativeDouble" default="0"/>
+      <xs:attribute name="space-row"     type="nonNegativeDouble"/>
+      <xs:attribute name="space-column"  type="nonNegativeDouble"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ================================================================ -->
+  <!--  <for> — iteration control element                               -->
+  <!-- ================================================================ -->
+  <xs:element name="for">
+    <xs:annotation>
+      <xs:documentation>
+for — iterates over a list. One child (the template) cloned per item.
+Control elements do NOT have box model decorators.
+
+:of   required — data binding path to QStringList or QVariantList
+:as   required — per-item variable name for template bindings
+
+Example:
+  &lt;for :of="processes" :as="p"&gt;
+      &lt;text :content="p.name" /&gt;
+  &lt;/for&gt;
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:group ref="layoutChildren" minOccurs="0" maxOccurs="1"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="bindingAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ================================================================ -->
+  <!--  <if-has> — conditional render control element                   -->
+  <!-- ================================================================ -->
+  <xs:element name="if-has">
+    <xs:annotation>
+      <xs:documentation>
+if-has — conditionally renders its child.
+Control elements do NOT have box model decorators.
+
+:prop  property to check — renders child if exists AND not null
+not    if present (any value), inverts: show when absent/null
+
+Example:
+  &lt;if-has :prop="warning"&gt;
+      &lt;text :content="warning" /&gt;
+  &lt;/if-has&gt;
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:group ref="layoutChildren" minOccurs="0" maxOccurs="1"/>
+      </xs:sequence>
+      <xs:attribute name="not" type="boolType"/>
+      <xs:attributeGroup ref="bindingAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>
