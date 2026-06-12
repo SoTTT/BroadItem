@@ -1,4 +1,6 @@
 > **写 git commit 和注释必须使用中文。**
+> **注释统一使用 Doxygen 风格。**
+> **#include 统一使用 <broaditem/module/Header.h> 风格。**
 
 # AGENTS.md — BroadItem
 

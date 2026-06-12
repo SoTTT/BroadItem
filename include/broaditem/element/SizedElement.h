@@ -22,6 +22,7 @@ public:
     /// @brief 如果显式指定了高度则返回 true。
     bool hasHeight() const { return m_height >= 0; }
 
+    /// @brief 返回支持的 XML 属性名集合（"width"、"height"）。
     const QSet<QString>& supportedAttributes() const override {
         static const QSet<QString> attrs = {"width", "height"};
         return attrs;

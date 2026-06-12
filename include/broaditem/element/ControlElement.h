@@ -10,6 +10,7 @@ namespace BroadItem {
 /// 根据设计文档，控制元素没有装饰器。
 class ControlElement : public Element {
 public:
+    /// @brief 虚析构函数。
     virtual ~ControlElement() = default;
 
     /// @brief 控制元素的默认空操作测量实现。

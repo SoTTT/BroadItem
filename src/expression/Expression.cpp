@@ -2,12 +2,16 @@
 
 namespace BroadItem {
 
+/// @brief 用原始路径字符串构造表达式并解析分段。
+/// @param path 原始路径字符串（如 "device.cpu"）。
 Expression::Expression(const QString& path)
     : m_path(path)
 {
     parse();
 }
 
+/// @brief 将路径字符串解析为分段向量。
+/// 按 '.' 分割为键名分段，按 '[' 和 ']' 分割为数组索引分段。
 void Expression::parse()
 {
     m_valid = true;
