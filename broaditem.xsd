@@ -90,6 +90,13 @@
     </xs:restriction>
   </xs:simpleType>
 
+  <xs:simpleType name="mainStretchBoolType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="true"/>
+      <xs:enumeration value="false"/>
+    </xs:restriction>
+  </xs:simpleType>
+
   <xs:simpleType name="nonNegativeDouble">
     <xs:restriction base="xs:double">
       <xs:minInclusive value="0"/>
@@ -247,6 +254,7 @@ column — stacks children vertically.
 main-align:  start | center | end   (default: start)
 cross-align: start | center | end | stretch  (default: stretch)
 space:       gap between children in pixels (default: 0)
+main-stretch: true | false  (default: false) — stretch all children to max main-axis size
 
 Box model attributes (margin, padding, border, background) apply.
 Control pseudo-attributes (:of, :as, :prop) auto-wrap if present.
@@ -257,9 +265,10 @@ Control pseudo-attributes (:of, :as, :prop) auto-wrap if present.
         <xs:group ref="layoutChildren" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
       <xs:attributeGroup ref="renderableAttrs"/>
-      <xs:attribute name="main-align"  type="mainAlignType"  default="start"/>
-      <xs:attribute name="cross-align" type="crossAlignType" default="stretch"/>
-      <xs:attribute name="space"       type="nonNegativeDouble" default="0"/>
+      <xs:attribute name="main-align"   type="mainAlignType"  default="start"/>
+      <xs:attribute name="cross-align"  type="crossAlignType" default="stretch"/>
+      <xs:attribute name="space"        type="nonNegativeDouble" default="0"/>
+      <xs:attribute name="main-stretch" type="mainStretchBoolType" default="false"/>
     </xs:complexType>
   </xs:element>
 
@@ -277,9 +286,10 @@ row — stacks children horizontally. Attributes identical to column.
         <xs:group ref="layoutChildren" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
       <xs:attributeGroup ref="renderableAttrs"/>
-      <xs:attribute name="main-align"  type="mainAlignType"  default="start"/>
-      <xs:attribute name="cross-align" type="crossAlignType" default="stretch"/>
-      <xs:attribute name="space"       type="nonNegativeDouble" default="0"/>
+      <xs:attribute name="main-align"   type="mainAlignType"  default="start"/>
+      <xs:attribute name="cross-align"  type="crossAlignType" default="stretch"/>
+      <xs:attribute name="space"        type="nonNegativeDouble" default="0"/>
+      <xs:attribute name="main-stretch" type="mainStretchBoolType" default="false"/>
     </xs:complexType>
   </xs:element>
 

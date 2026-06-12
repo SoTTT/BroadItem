@@ -25,6 +25,18 @@ private slots:
     void testColumnDoesNotStretchSpecifiedWidth();
     void testColumnStretchesUnspecifiedWidth();
 
+    // Main-stretch: RowLayout
+    void testRowMainStretchEqualWidths();
+    void testRowMainStretchRespectsExplicitWidth();
+
+    // Main-stretch: ColumnLayout
+    void testColumnMainStretchEqualHeights();
+    void testColumnMainStretchRespectsExplicitHeight();
+
+    // Main-stretch: default/disabled
+    void testRowWithoutMainStretchKeepsOriginalBehavior();
+    void testColumnWithoutMainStretchKeepsOriginalBehavior();
+
     // Grid cell count validation
     void testGridValidCellCount();
     void testGridInvalidCellCountFails();
@@ -457,6 +469,198 @@ void TestLayoutBehavior::testGridRejectsNonCellChild()
     )";
     auto root = BroadItem::XmlLayoutParser::parseString(xml);
     QVERIFY(root == nullptr);
+}
+
+// ── Main-stretch: RowLayout ──
+
+void TestLayoutBehavior::testRowMainStretchEqualWidths()
+{
+    QString xml = R"(
+        <root>
+            <row main-stretch="true">
+                <text>A</text>
+                <text>BBBB</text>
+                <text>CC</text>
+            </row>
+        </root>
+    )";
+
+    auto root = parseAndLayout(xml);
+    QVERIFY(root != nullptr);
+
+    auto row = std::dynamic_pointer_cast<BroadItem::RowLayout>(root);
+    QVERIFY(row != nullptr);
+
+    const auto& flat = row->flattenedChildren();
+    QCOMPARE(flat.size(), size_t(3));
+
+    // All three children should have the same width (max among them = "BBBB")
+    double w0 = flat[0]->rect().width();
+    double w1 = flat[1]->rect().width();
+    double w2 = flat[2]->rect().width();
+
+    QVERIFY2(qFuzzyCompare(w0, w1) && qFuzzyCompare(w1, w2),
+             QString("Main-stretch row children should have equal widths, got %1, %2, %3")
+                 .arg(w0).arg(w1).arg(w2).toUtf8());
+
+    // The width should be > 0 (text was rendered)
+    QVERIFY(w0 > 0);
+}
+
+void TestLayoutBehavior::testRowMainStretchRespectsExplicitWidth()
+{
+    QString xml = R"(
+        <root>
+            <row main-stretch="true">
+                <text width="50">A</text>
+                <text>BBB</text>
+            </row>
+        </root>
+    )";
+
+    auto root = parseAndLayout(xml);
+    QVERIFY(root != nullptr);
+
+    auto row = std::dynamic_pointer_cast<BroadItem::RowLayout>(root);
+    QVERIFY(row != nullptr);
+
+    const auto& flat = row->flattenedChildren();
+    QCOMPARE(flat.size(), size_t(2));
+
+    double w0 = flat[0]->rect().width();
+    double w1 = flat[1]->rect().width();
+
+    // First child has explicit width=50; it should keep its width
+    QVERIFY2(w0 > 0 && w0 < 60,
+             QString("Explicit width=50 child should keep ~50px, got %1").arg(w0).toUtf8());
+
+    // Second child should be stretched (or at least laid out)
+    QVERIFY(w1 > 0);
+}
+
+// ── Main-stretch: ColumnLayout ──
+
+void TestLayoutBehavior::testColumnMainStretchEqualHeights()
+{
+    QString xml = R"(
+        <root>
+            <column main-stretch="true">
+                <text font-size="12">A</text>
+                <text font-size="24">Tall</text>
+                <text font-size="16">Mid</text>
+            </column>
+        </root>
+    )";
+
+    auto root = parseAndLayout(xml);
+    QVERIFY(root != nullptr);
+
+    auto col = std::dynamic_pointer_cast<BroadItem::ColumnLayout>(root);
+    QVERIFY(col != nullptr);
+
+    const auto& flat = col->flattenedChildren();
+    QCOMPARE(flat.size(), size_t(3));
+
+    // All three children should have the same height (max among them = font-size 24)
+    double h0 = flat[0]->rect().height();
+    double h1 = flat[1]->rect().height();
+    double h2 = flat[2]->rect().height();
+
+    QVERIFY2(qFuzzyCompare(h0, h1) && qFuzzyCompare(h1, h2),
+             QString("Main-stretch column children should have equal heights, got %1, %2, %3")
+                 .arg(h0).arg(h1).arg(h2).toUtf8());
+
+    QVERIFY(h0 > 0);
+}
+
+void TestLayoutBehavior::testColumnMainStretchRespectsExplicitHeight()
+{
+    QString xml = R"(
+        <root>
+            <column main-stretch="true">
+                <text height="30">A</text>
+                <text font-size="24">Tall</text>
+            </column>
+        </root>
+    )";
+
+    auto root = parseAndLayout(xml);
+    QVERIFY(root != nullptr);
+
+    auto col = std::dynamic_pointer_cast<BroadItem::ColumnLayout>(root);
+    QVERIFY(col != nullptr);
+
+    const auto& flat = col->flattenedChildren();
+    QCOMPARE(flat.size(), size_t(2));
+
+    double h0 = flat[0]->rect().height();
+    double h1 = flat[1]->rect().height();
+
+    // First child has explicit height=30; it should keep roughly that height
+    QVERIFY2(h0 > 0 && h0 < 40,
+             QString("Explicit height=30 child should keep ~30px, got %1").arg(h0).toUtf8());
+
+    QVERIFY(h1 > 0);
+}
+
+// ── Main-stretch: default/disabled ──
+
+void TestLayoutBehavior::testRowWithoutMainStretchKeepsOriginalBehavior()
+{
+    QString xml = R"(
+        <root>
+            <row>
+                <text>A</text>
+                <text>BBBB</text>
+            </row>
+        </root>
+    )";
+
+    auto root = parseAndLayout(xml);
+    QVERIFY(root != nullptr);
+
+    auto row = std::dynamic_pointer_cast<BroadItem::RowLayout>(root);
+    QVERIFY(row != nullptr);
+
+    const auto& flat = row->flattenedChildren();
+    QCOMPARE(flat.size(), size_t(2));
+
+    double w0 = flat[0]->rect().width();
+    double w1 = flat[1]->rect().width();
+
+    // Without main-stretch, children should NOT have equal widths (different text)
+    QVERIFY2(!qFuzzyCompare(w0, w1),
+             QString("Without main-stretch, row children should have different widths, got %1 and %2")
+                 .arg(w0).arg(w1).toUtf8());
+}
+
+void TestLayoutBehavior::testColumnWithoutMainStretchKeepsOriginalBehavior()
+{
+    QString xml = R"(
+        <root>
+            <column>
+                <text font-size="12">A</text>
+                <text font-size="24">Tall</text>
+            </column>
+        </root>
+    )";
+
+    auto root = parseAndLayout(xml);
+    QVERIFY(root != nullptr);
+
+    auto col = std::dynamic_pointer_cast<BroadItem::ColumnLayout>(root);
+    QVERIFY(col != nullptr);
+
+    const auto& flat = col->flattenedChildren();
+    QCOMPARE(flat.size(), size_t(2));
+
+    double h0 = flat[0]->rect().height();
+    double h1 = flat[1]->rect().height();
+
+    // Without main-stretch, children should NOT have equal heights (different font sizes)
+    QVERIFY2(!qFuzzyCompare(h0, h1),
+             QString("Without main-stretch, column children should have different heights, got %1 and %2")
+                 .arg(h0).arg(h1).toUtf8());
 }
 
 QTEST_MAIN(TestLayoutBehavior)

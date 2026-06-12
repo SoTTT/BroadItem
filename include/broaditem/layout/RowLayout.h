@@ -22,6 +22,7 @@ private:
     QString m_mainAlign = "start";       ///< Main-axis alignment ("start", "center", "end").
     QString m_crossAlign = "stretch";    ///< Cross-axis alignment ("start", "center", "end", "stretch").
     double m_space = 0;                  ///< Spacing between children in pixels.
+    bool m_mainStretch = false;          ///< Whether to stretch all children to the same main-axis size.
 
     /// @brief 在计算出的内容矩形内布局子元素。
     void layoutChildren(const LayoutContext& ctx, const QRectF& contentRect);

@@ -10,7 +10,7 @@ namespace BroadItem {
 /// @return Reference to a static set of attribute names.
 const QSet<QString>& RowLayout::supportedAttributes() const
 {
-    static const QSet<QString> attrs = QSet<QString>{"main-align", "cross-align", "space"} + boxModelAttributeNames();
+    static const QSet<QString> attrs = QSet<QString>{"main-align", "cross-align", "space", "main-stretch"} + boxModelAttributeNames();
     return attrs;
 }
 
@@ -26,6 +26,15 @@ void RowLayout::parse(const QDomElement& xml)
         m_crossAlign = xml.attribute("cross-align");
     if (xml.hasAttribute("space"))
         validateDouble(xml.attribute("space"), "space", m_space);
+    if (xml.hasAttribute("main-stretch")) {
+        const QString value = xml.attribute("main-stretch").toLower();
+        if (value == "true" || value == "false") {
+            m_mainStretch = (value == "true");
+        } else {
+            qWarning() << "RowLayout: 'main-stretch' must be 'true' or 'false', got" << xml.attribute("main-stretch") << "- defaulting to false";
+            m_mainStretch = false;
+        }
+    }
 }
 
 /// @brief 创建此行布局的深拷贝，包括所有子元素。
@@ -41,6 +50,7 @@ ElementPtr RowLayout::clone() const
     copy->m_mainAlign = m_mainAlign;
     copy->m_crossAlign = m_crossAlign;
     copy->m_space = m_space;
+    copy->m_mainStretch = m_mainStretch;
     for (const auto& child : m_children) {
         if (child)
             copy->m_children.push_back(child->clone());
@@ -67,12 +77,25 @@ MeasureResult RowLayout::measure(const LayoutContext& ctx, const LayoutConstrain
         childConstraints.availableHeight = std::max(0.0, constraints.availableHeight - decoH);
 
     m_flattened = flattenChildren(ctx);
-    for (size_t i = 0; i < m_flattened.size(); ++i) {
-        auto result = m_flattened[i]->measure(ctx, childConstraints);
-        totalWidth += result.intrinsicSize.width();
-        maxHeight = std::max(maxHeight, result.intrinsicSize.height());
-        if (i + 1 < m_flattened.size())
-            totalWidth += m_space;
+
+    if (m_mainStretch && !m_flattened.empty()) {
+        // 主轴等距拉伸模式：先测量每个子元素的主轴固有尺寸，取最大值。
+        double maxChildWidth = 0;
+        for (size_t i = 0; i < m_flattened.size(); ++i) {
+            auto result = m_flattened[i]->measure(ctx, childConstraints);
+            maxChildWidth = std::max(maxChildWidth, result.intrinsicSize.width());
+            maxHeight = std::max(maxHeight, result.intrinsicSize.height());
+        }
+        totalWidth = maxChildWidth * static_cast<double>(m_flattened.size())
+                     + m_space * static_cast<double>(m_flattened.size() - 1);
+    } else {
+        for (size_t i = 0; i < m_flattened.size(); ++i) {
+            auto result = m_flattened[i]->measure(ctx, childConstraints);
+            totalWidth += result.intrinsicSize.width();
+            maxHeight = std::max(maxHeight, result.intrinsicSize.height());
+            if (i + 1 < m_flattened.size())
+                totalWidth += m_space;
+        }
     }
 
     QSizeF sz(totalWidth + decoW, maxHeight + decoH);
@@ -106,12 +129,40 @@ void RowLayout::layoutChildren(const LayoutContext& ctx, const QRectF& contentRe
     childConstraints.availableWidth = -1;
     childConstraints.availableHeight = contentRect.height();
 
-    for (size_t i = 0; i < m_flattened.size(); ++i) {
-        auto result = m_flattened[i]->measure(ctx, childConstraints);
-        childSizes.push_back(result.intrinsicSize);
-        totalIntrinsicWidth += result.intrinsicSize.width();
-        if (i + 1 < m_flattened.size())
-            totalIntrinsicWidth += m_space;
+    if (m_mainStretch) {
+        double maxChildWidth = 0;
+        std::vector<bool> hasExplicitWidth;
+        for (size_t i = 0; i < m_flattened.size(); ++i) {
+            auto result = m_flattened[i]->measure(ctx, childConstraints);
+            childSizes.push_back(result.intrinsicSize);
+            maxChildWidth = std::max(maxChildWidth, result.intrinsicSize.width());
+            auto* sized = dynamic_cast<SizedElement*>(m_flattened[i].get());
+            hasExplicitWidth.push_back(sized && sized->hasWidth());
+        }
+        // 用 maxChildWidth 作为约束重新测量（使换行文本重新计算高度）
+        childConstraints.availableWidth = maxChildWidth;
+        childSizes.clear();
+        for (size_t i = 0; i < m_flattened.size(); ++i) {
+            if (!hasExplicitWidth[i]) {
+                LayoutConstraints stretchedConstraints = childConstraints;
+                stretchedConstraints.availableWidth = maxChildWidth;
+                auto result = m_flattened[i]->measure(ctx, stretchedConstraints);
+                childSizes.push_back(QSizeF(maxChildWidth, result.intrinsicSize.height()));
+            } else {
+                auto result = m_flattened[i]->measure(ctx, childConstraints);
+                childSizes.push_back(result.intrinsicSize);
+            }
+        }
+        totalIntrinsicWidth = maxChildWidth * static_cast<double>(m_flattened.size())
+                              + m_space * static_cast<double>(m_flattened.size() - 1);
+    } else {
+        for (size_t i = 0; i < m_flattened.size(); ++i) {
+            auto result = m_flattened[i]->measure(ctx, childConstraints);
+            childSizes.push_back(result.intrinsicSize);
+            totalIntrinsicWidth += result.intrinsicSize.width();
+            if (i + 1 < m_flattened.size())
+                totalIntrinsicWidth += m_space;
+        }
     }
 
     double extraSpace = contentRect.width() - totalIntrinsicWidth;
