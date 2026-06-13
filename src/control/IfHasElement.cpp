@@ -17,8 +17,12 @@ void IfHasElement::parse(const QDomElement& xml)
 {
     Element::parse(xml);
     validateAttributes(xml);
-    if (xml.hasAttribute(":prop"))
-        m_binding = Binding(":prop", xml.attribute(":prop"));
+    if (xml.hasAttributeNS(BINDING_NS, "prop")) {
+        /// 获取实际的 XML 限定属性名（如 b:prop 或用户自定义前缀）
+        QDomNode attrNode = xml.attributes().namedItemNS(BINDING_NS, "prop");
+        QString attrName = attrNode.isNull() ? "b:prop" : attrNode.nodeName();
+        m_binding = Binding(attrName, xml.attributeNS(BINDING_NS, "prop", QString()));
+    }
     m_not = xml.hasAttribute("not");
 }
 
@@ -26,7 +30,7 @@ void IfHasElement::parse(const QDomElement& xml)
 /// @param bind The property name.
 void IfHasElement::setBindProperty(const QString& bind)
 {
-    m_binding = Binding(":prop", bind);
+    m_binding = Binding("b:prop", bind);
 }
 
 /// @brief 设置条件是否取反。

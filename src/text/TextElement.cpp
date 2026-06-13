@@ -30,18 +30,20 @@ void TextElement::parse(const QDomElement& xml)
     m_text = xml.text().trimmed();
 
     bool hasContentLiteral = xml.hasAttribute("content");
-    bool hasContentBinding = xml.hasAttribute(":content");
+    bool hasContentBinding = xml.hasAttributeNS(BINDING_NS, "content");
 
     if (hasContentLiteral && hasContentBinding) {
-        qCritical() << "TextElement: 'content' and ':content' are mutually exclusive";
+        qCritical() << "TextElement: 'content' and 'b:content' are mutually exclusive";
     }
 
     if (xml.hasAttribute("content")) {
         m_contentLiteral = xml.attribute("content");
         m_hasContentLiteral = true;
     }
-    if (xml.hasAttribute(":content"))
-        m_binding = Binding(":content", xml.attribute(":content"));
+    if (xml.hasAttributeNS(BINDING_NS, "content")) {
+        auto attr = xml.attributes().namedItemNS(BINDING_NS, "content");
+        m_binding = Binding(attr.nodeName(), xml.attributeNS(BINDING_NS, "content", QString()));
+    }
     if (xml.hasAttribute("v-align"))
         m_vAlign = xml.attribute("v-align");
     if (xml.hasAttribute("h-align"))
@@ -262,7 +264,7 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
 
 /// @brief 检查此文本元素是否通过 b:content 绑定指定属性。
 /// @param name The property name to check.
-/// @return True if the property matches the :content binding.
+/// @return True if the property matches the b:content binding.
 bool TextElement::bindsProperty(const QString& name) const
 {
     return m_binding.bindsProperty(name);

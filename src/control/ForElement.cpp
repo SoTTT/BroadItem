@@ -20,9 +20,12 @@ void ForElement::parse(const QDomElement& xml)
 {
     Element::parse(xml);
     validateAttributes(xml);
-    if (xml.hasAttribute(":of"))
-        m_binding = Binding(":of", xml.attribute(":of"));
-    QString asVal = xml.attribute(":as");
+    if (xml.hasAttributeNS(BINDING_NS, QStringLiteral("of"))) {
+        QDomNode ofNode = xml.attributes().namedItemNS(BINDING_NS, QStringLiteral("of"));
+        QString ofQName = ofNode.isNull() ? QStringLiteral("b:of") : ofNode.nodeName();
+        m_binding = Binding(ofQName, xml.attributeNS(BINDING_NS, QStringLiteral("of"), QString()));
+    }
+    QString asVal = xml.attributeNS(BINDING_NS, QStringLiteral("as"), QString());
     if (!asVal.isEmpty())
         m_asVariable = asVal;
 }
@@ -31,7 +34,7 @@ void ForElement::parse(const QDomElement& xml)
 /// @param bind The property name for the data source (QStringList).
 void ForElement::setBindProperty(const QString& bind)
 {
-    m_binding = Binding(":of", bind);
+        m_binding = Binding("b:of", bind);
 }
 
 /// @brief 设置要每次迭代克隆的模板元素。
@@ -68,7 +71,7 @@ std::vector<ElementPtr> ForElement::expand(const LayoutContext& ctx) const
         return result;
 
     if (m_asVariable.isEmpty()) {
-        qCritical() << "ForElement: :as attribute is required, but not set";
+        qCritical() << "ForElement: b:as attribute is required, but not set";
         return result;
     }
 
@@ -161,11 +164,11 @@ bool ForElement::bindsProperty(const QString& name) const
     if (m_binding.bindsProperty(name))
         return true;
 
-    // 2. Check template bindings, but strip :as prefix — per-item variables
+    // 2. Check template bindings, but strip b:as prefix — per-item variables
     //    are not global properties and should not trigger relayout.
     if (m_template) {
         if (!m_asVariable.isEmpty()) {
-            // The :as variable itself (e.g. "item") and per-item paths
+            // The b:as variable itself (e.g. "item") and per-item paths
             // (e.g. "item.name") are NOT global — do not trigger relayout
             QString prefix = m_asVariable + ".";
             if (name == m_asVariable || name.startsWith(prefix))

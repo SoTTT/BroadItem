@@ -36,7 +36,9 @@ ElementPtr XmlLayoutParser::parseString(const QString& xmlContent)
     QDomDocument doc;
     QString errorMsg;
     int errorLine, errorColumn;
-    if (!doc.setContent(xmlContent, &errorMsg, &errorLine, &errorColumn)) {
+    /// Qt 命名空间处理会剥离纯空白文本节点（如用于对齐的缩进），
+    /// 这是预期行为，BroadItem 布局引擎不依赖这些空白。
+    if (!doc.setContent(xmlContent, true, &errorMsg, &errorLine, &errorColumn)) {
         qWarning() << "XML parse error at line" << errorLine << "column" << errorColumn << ":" << errorMsg;
         return nullptr;
     }
@@ -95,14 +97,15 @@ ElementPtr XmlLayoutParser::createElement(const QString& tagName)
 }
 
 /// @brief 递归地将 DOM 元素及其子元素解析为 BroadItem 元素树。
+/// 使用 hasAttributeNS/attributeNS 检测 b:of/b:prop/b:as 等绑定属性。
 /// @param xml The DOM element to parse.
 /// @return The parsed element, or nullptr on error.
 ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
 {
     QString tag = xml.tagName();
 
-    bool wrapFor = xml.hasAttribute(":of") && tag != "for" && tag != "if-has";
-    bool wrapIfHas = xml.hasAttribute(":prop") && tag != "for" && tag != "if-has";
+    bool wrapFor = xml.hasAttributeNS(BINDING_NS, "of") && tag != "for" && tag != "if-has";
+    bool wrapIfHas = xml.hasAttributeNS(BINDING_NS, "prop") && tag != "for" && tag != "if-has";
 
     ElementPtr element = createElement(tag);
     if (!element)
@@ -163,8 +166,8 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
             if (templ)
                 forEl->setTemplate(templ);
         }
-        if (xml.hasAttribute(":as"))
-            forEl->setAsVariable(xml.attribute(":as"));
+        if (xml.hasAttributeNS(BINDING_NS, "as"))
+            forEl->setAsVariable(xml.attributeNS(BINDING_NS, "as", QString()));
     } else if (ifEl) {
         QDomElement child = xml.firstChildElement();
         if (!child.isNull()) {
@@ -178,23 +181,23 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
 
     if (wrapFor) {
         auto wrapper = std::make_shared<ForElement>();
-        wrapper->setBindProperty(xml.attribute(":of"));
-        if (xml.hasAttribute(":as"))
-            wrapper->setAsVariable(xml.attribute(":as"));
+        wrapper->setBindProperty(xml.attributeNS(BINDING_NS, "of", QString()));
+        if (xml.hasAttributeNS(BINDING_NS, "as"))
+            wrapper->setAsVariable(xml.attributeNS(BINDING_NS, "as", QString()));
         wrapper->setTemplate(element);
         return wrapper;
     }
 
     if (wrapIfHas) {
         auto wrapper = std::make_shared<IfHasElement>();
-        wrapper->setBindProperty(xml.attribute(":prop"));
+        wrapper->setBindProperty(xml.attributeNS(BINDING_NS, "prop", QString()));
         wrapper->setNot(false);
         wrapper->setChild(element);
         return wrapper;
     }
 
-    if (tag != "for" && xml.hasAttribute(":as") && !xml.hasAttribute(":of"))
-        qWarning() << "<" << tag << "> has :as but no :of; :as only works with iteration";
+    if (tag != "for" && xml.hasAttributeNS(BINDING_NS, "as") && !xml.hasAttributeNS(BINDING_NS, "of"))
+        qWarning() << "<" << tag << "> has b:as but no b:of; b:as only works with iteration";
 
     return element;
 }
