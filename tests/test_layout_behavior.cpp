@@ -431,9 +431,9 @@ void TestLayoutBehavior::testGridSpaceColumnExplicitValue()
 void TestLayoutBehavior::testGridRejectsForChild()
 {
     QString xml = R"(
-        <root>
+        <root xmlns:b="urn:broaditem:binding">
             <grid columns="2" rows="2">
-                <for :of="list">
+                <for b:of="list">
                     <cell><text>X</text></cell>
                 </for>
             </grid>
@@ -446,9 +446,9 @@ void TestLayoutBehavior::testGridRejectsForChild()
 void TestLayoutBehavior::testGridRejectsIfHasChild()
 {
     QString xml = R"(
-        <root>
+        <root xmlns:b="urn:broaditem:binding">
             <grid columns="2" rows="2">
-                <if-has :prop="show">
+                <if-has b:prop="show">
                     <cell><text>X</text></cell>
                 </if-has>
             </grid>

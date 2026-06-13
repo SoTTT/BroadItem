@@ -141,8 +141,8 @@ void TestParser::testColumnMeasure()
 void TestParser::testBindProperty()
 {
     QString xml = R"(
-        <root>
-            <text :content="title">Default</text>
+        <root xmlns:b="urn:broaditem:binding">
+            <text b:content="title">Default</text>
         </root>
     )";
     auto root = BroadItem::XmlLayoutParser::parseString(xml);
@@ -155,8 +155,8 @@ void TestParser::testBindProperty()
 void TestParser::testIfHas()
 {
     QString xml = R"(
-        <root>
-            <if-has :prop="show">
+        <root xmlns:b="urn:broaditem:binding">
+            <if-has b:prop="show">
                 <text>Visible</text>
             </if-has>
         </root>

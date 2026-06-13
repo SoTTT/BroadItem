@@ -11,12 +11,12 @@
 #include <QDomElement>
 #include <QDebug>
 
-// Helper to create TextElement with :content binding programmatically
+// Helper to create TextElement with b:content binding programmatically
 static std::shared_ptr<BroadItem::TextElement> makeBoundText(const QString& binding, const QString& fontSize = QStringLiteral("11"))
 {
     QDomDocument doc;
     QDomElement el = doc.createElement("text");
-    el.setAttribute(":content", binding);
+    el.setAttributeNS(BroadItem::BINDING_NS, "b:content", binding);
     el.setAttribute("font-size", fontSize);
     auto te = std::make_shared<BroadItem::TextElement>();
     te->parse(el);
@@ -83,7 +83,7 @@ private slots:
 
         BroadItem::LayoutContext ctx{&mapCtx};
 
-        // 构造 ForElement: :of="names" :as="n", 模板绑定 :content="n"
+        // 构造 ForElement: b:of="names" b:as="n", 模板绑定 b:content="n"
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("names");
         forEl->setAsVariable("n");
@@ -123,7 +123,7 @@ private slots:
 
         BroadItem::LayoutContext ctx{&mapCtx};
 
-        // 构造 ForElement: :of="people" :as="p", 模板绑定 :content="p.name"
+        // 构造 ForElement: b:of="people" b:as="p", 模板绑定 b:content="p.name"
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("people");
         forEl->setAsVariable("p");
@@ -163,7 +163,7 @@ private slots:
 
         BroadItem::LayoutContext ctx{&mapCtx};
 
-        // 构造 ForElement: :of="users" :as="u", 模板 :content="u.address.city"
+        // 构造 ForElement: b:of="users" b:as="u", 模板 b:content="u.address.city"
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("users");
         forEl->setAsVariable("u");
@@ -190,7 +190,7 @@ private slots:
         QVERIFY(!clone1->m_resolvedValues["u.address.city"].isValid());
     }
 
-    /// @brief testGlobalFallback: 非 :as 前缀属性回退到全局 context
+    /// @brief testGlobalFallback: 非 b:as 前缀属性回退到全局 context
     void testGlobalFallback()
     {
         // 准备数据: 全局有 "title" = "Hello"; 每项有 {name: ...}
@@ -208,7 +208,7 @@ private slots:
 
         BroadItem::LayoutContext ctx{&mapCtx};
 
-        // 构造 ForElement: :of="items" :as="item"
+        // 构造 ForElement: b:of="items" b:as="item"
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("items");
         forEl->setAsVariable("item");
@@ -230,10 +230,10 @@ private slots:
         }
     }
 
-    /// @brief testBindsPropertyStripsAs: bindsProperty 应剥离 :as 前缀
+    /// @brief testBindsPropertyStripsAs: bindsProperty 应剥离 b:as 前缀
     void testBindsPropertyStripsAs()
     {
-        // 构造 ForElement: :of="users" :as="u"
+        // 构造 ForElement: b:of="users" b:as="u"
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("users");
         forEl->setAsVariable("u");
@@ -243,10 +243,10 @@ private slots:
         tmpl->m_boundNames.insert("name");
         forEl->setTemplate(tmpl);
 
-        // :as="u" 剥离逻辑：per-item 变量和路径不触发全局 relayout
+        // b:as="u" 剥离逻辑：per-item 变量和路径不触发全局 relayout
         QVERIFY(forEl->bindsProperty("users"));      // m_ofProperty 匹配
         QVERIFY(forEl->bindsProperty("name"));       // 模板绑定 "name"（无 as 前缀）
-        QVERIFY(!forEl->bindsProperty("u"));         // :as 变量本身不是全局属性
+        QVERIFY(!forEl->bindsProperty("u"));         // b:as 变量本身不是全局属性
         QVERIFY(!forEl->bindsProperty("u.name"));    // per-item 路径，不是全局属性
     }
 
@@ -259,7 +259,7 @@ private slots:
 
         BroadItem::LayoutContext ctx{&mapCtx};
 
-        // 构造 ForElement: :of="empty" :as="e"
+        // 构造 ForElement: b:of="empty" b:as="e"
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("empty");
         forEl->setAsVariable("e");
@@ -275,7 +275,7 @@ private slots:
         QCOMPARE(result.size(), 0);
     }
 
-    /// @brief testMissingAsError: 缺少 :as 属性时 qCritical + 返回空
+    /// @brief testMissingAsError: 缺少 b:as 属性时 qCritical + 返回空
     void testMissingAsError()
     {
         // 准备数据 context
@@ -284,20 +284,20 @@ private slots:
 
         BroadItem::LayoutContext ctx{&mapCtx};
 
-        // 构造 ForElement: :of="items" 但 **没有** :as
+        // 构造 ForElement: b:of="items" 但 **没有** b:as
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("items");
 
         auto tmpl = std::make_shared<ForTestElement>();
         forEl->setTemplate(tmpl);
 
-        // 期望：缺少 :as 时 qCritical 并返回空
-        QTest::ignoreMessage(QtCriticalMsg, QRegularExpression(".*:as.*required.*"));
+        // 期望：缺少 b:as 时 qCritical 并返回空
+        QTest::ignoreMessage(QtCriticalMsg, QRegularExpression(".*b:as.*required.*"));
 
         // 执行 expand()
         auto result = forEl->expand(ctx);
 
-        // 验证：缺少 :as → 返回空 vector
+        // 验证：缺少 b:as → 返回空 vector
         QCOMPARE(result.size(), 0);
     }
 
@@ -313,8 +313,8 @@ private slots:
         // 通过 XML 解析构造 ForElement，含 step 属性
         QDomDocument doc;
         QDomElement el = doc.createElement("for");
-        el.setAttribute(":of", "items");
-        el.setAttribute(":as", "x");
+        el.setAttributeNS(BroadItem::BINDING_NS, "b:of", "items");
+        el.setAttributeNS(BroadItem::BINDING_NS, "b:as", "x");
         el.setAttribute("step", "2");
 
         auto forEl = std::make_shared<BroadItem::ForElement>();
@@ -352,7 +352,7 @@ private slots:
 
         BroadItem::LayoutContext ctx{&mapCtx};
 
-        // 构造 ForElement: :of="items" :as="item"
+        // 构造 ForElement: b:of="items" b:as="item"
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("items");
         forEl->setAsVariable("item");
@@ -395,7 +395,7 @@ private slots:
 
         BroadItem::LayoutContext ctx{&mapCtx};
 
-        // 构造 ForElement: :of="people" :as="item"
+        // 构造 ForElement: b:of="people" b:as="item"
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("people");
         forEl->setAsVariable("item");
@@ -432,7 +432,7 @@ private slots:
 
         BroadItem::LayoutContext ctx{&mapCtx};
 
-        // 构造 ForElement: :of="data" :as="x"
+        // 构造 ForElement: b:of="data" b:as="x"
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("data");
         forEl->setAsVariable("x");
