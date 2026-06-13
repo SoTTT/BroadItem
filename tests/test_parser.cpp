@@ -71,6 +71,9 @@ private slots:
     void testAutoWrapBothForAndIfHas();
     void testNamespaceDeclarationSkipped();
     void testBindingAttributeSkipped();
+    void testOldSyntaxRejected();
+    void testNamespaceMissingRejected();
+    void testWrongNamespaceUri();
 };
 
 /// @brief 解析最简单的文本元素并验证根节点不为空
@@ -377,6 +380,75 @@ void TestParser::testBindingAttributeSkipped()
         QVERIFY2(!w.contains("unknown attribute", Qt::CaseInsensitive),
                  qPrintable(QString("Unexpected 'unknown attribute' warning: %1").arg(w)));
     }
+}
+
+/// @brief 验证旧 @c :xxx 语法不被识别为绑定属性。
+/// @details namespace processing 下 @c :content 没有命名空间前缀声明，
+/// Qt 将其视为普通属性名 @c ":content"，@c hasAttributeNS(BINDING_NS, "content") 返回 false，
+/// 因此 TextElement 不会设置绑定。
+void TestParser::testOldSyntaxRejected()
+{
+    QString xml = R"(
+        <root>
+            <text :content="title">Hello</text>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root != nullptr);
+
+    /// 旧 :content 语法在 namespace processing 下不被识别为绑定属性，
+    /// TextElement 不应绑定 title
+    QVERIFY2(!root->bindsProperty("title"),
+             "Old :content syntax should not be recognized as binding attribute");
+    QVERIFY2(!root->bindsProperty("other"),
+             "Old :content syntax should not be recognized as binding attribute");
+}
+
+/// @brief 验证缺少命名空间声明时 @c b:content 不被识别为绑定属性。
+/// @details 不声明 @c xmlns:b 时，@c b: 前缀未绑定到 BINDING_NS，
+/// @c hasAttributeNS(BINDING_NS, "content") 返回 false，TextElement 不会设置绑定。
+void TestParser::testNamespaceMissingRejected()
+{
+    QString xml = R"(
+        <root>
+            <text b:content="title">Hello</text>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root != nullptr);
+
+    /// 未声明 xmlns:b 时，b:content 的 b: 前缀未绑定到 BINDING_NS 命名空间 URI，
+    /// hasAttributeNS(BINDING_NS, "content") 返回 false，TextElement 无绑定
+    QVERIFY2(!root->bindsProperty("title"),
+             "b:content without xmlns:b declaration should not be recognized as binding");
+    QVERIFY2(!root->bindsProperty("other"),
+             "b:content without xmlns:b declaration should not be recognized as binding");
+}
+
+/// @brief 验证错误命名空间 URI 时绑定属性不被识别。
+/// @details 声明 @c xmlns:b="urn:wrong:uri" 时，@c hasAttributeNS(BINDING_NS, "content")
+/// 返回 false（BINDING_NS 是 "urn:broaditem:binding"），因此 TextElement 不会设置绑定。
+void TestParser::testWrongNamespaceUri()
+{
+    QString xml = R"(
+        <root xmlns:b="urn:wrong:uri">
+            <text b:content="title">Hello</text>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root != nullptr);
+
+    /// 根元素不应被 auto-wrap 为 ForElement 或 IfHasElement
+    QVERIFY2(std::dynamic_pointer_cast<BroadItem::ForElement>(root) == nullptr,
+             "Should not auto-wrap to ForElement with wrong namespace URI");
+    QVERIFY2(std::dynamic_pointer_cast<BroadItem::IfHasElement>(root) == nullptr,
+             "Should not auto-wrap to IfHasElement with wrong namespace URI");
+
+    /// hasAttributeNS(BINDING_NS, ...) 不匹配，因此不应绑定任何属性
+    QVERIFY2(!root->bindsProperty("title"),
+             "b:content with wrong namespace URI should not be recognized as binding");
+    QVERIFY2(!root->bindsProperty("other"),
+             "b:content with wrong namespace URI should not be recognized as binding");
 }
 
 // NOLINTEND(readability-convert-member-functions-to-static)
