@@ -7,6 +7,7 @@
 #include <broaditem/parser/LayoutRegistry.h>
 #include <broaditem/element/Element.h>
 #include <broaditem/control/IfHasElement.h>
+#include <broaditem/control/ForElement.h>
 #include <QDebug>
 
 // Minimal element for IfHasElement null value test
@@ -56,6 +57,9 @@ private slots:
     void testUnknownAttributeWarning();
     void testInvalidChildError();
     void testInvalidAttributeTypeError();
+    void testAutoWrapFor();
+    void testAutoWrapIfHas();
+    void testAutoWrapBothForAndIfHas();
 };
 
 /// @brief 解析最简单的文本元素并验证根节点不为空
@@ -248,6 +252,77 @@ void TestParser::testInvalidAttributeTypeError()
     )";
     auto root = BroadItem::XmlLayoutParser::parseString(xml);
     QVERIFY(root != nullptr);
+}
+/// @brief 验证 @c b:of 和 @c b:as 的自动包装：非控制元素带绑定属性时自动创建 ForElement 包装器
+void TestParser::testAutoWrapFor()
+{
+    QString xml = R"(
+        <root xmlns:b="urn:broaditem:binding">
+            <row b:of="list" b:as="item" space="4">
+                <text b:content="item.name"/>
+            </row>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root != nullptr);
+
+    auto forEl = std::dynamic_pointer_cast<BroadItem::ForElement>(root);
+    QVERIFY(forEl != nullptr);
+    QVERIFY(forEl->bindsProperty("list"));
+
+    BroadItem::MapPropertyContext mapCtx;
+    mapCtx.setProperty("list", QStringList{"a", "b"});
+
+    BroadItem::LayoutContext ctx;
+    ctx.ctx = &mapCtx;
+
+    auto expanded = forEl->expand(ctx);
+    QCOMPARE(expanded.size(), size_t(2));
+}
+
+/// @brief 验证 @c b:prop 的自动包装：非控制元素带 @c b:prop 属性时自动创建 IfHasElement 包装器
+void TestParser::testAutoWrapIfHas()
+{
+    QString xml = R"(
+        <root xmlns:b="urn:broaditem:binding">
+            <text b:prop="show">Hello</text>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root != nullptr);
+
+    auto ifEl = std::dynamic_pointer_cast<BroadItem::IfHasElement>(root);
+    QVERIFY(ifEl != nullptr);
+    QVERIFY(ifEl->bindsProperty("show"));
+
+    BroadItem::MapPropertyContext mapCtx;
+    BroadItem::LayoutContext ctx;
+    ctx.ctx = &mapCtx;
+
+    // 属性不存在 → expand 返回 0 个子元素
+    auto result = ifEl->expand(ctx);
+    QCOMPARE(result.size(), size_t(0));
+
+    // 属性存在 → expand 返回 1 个克隆子元素
+    mapCtx.setProperty("show", "yes");
+    result = ifEl->expand(ctx);
+    QCOMPARE(result.size(), size_t(1));
+}
+
+/// @brief 验证 @c b:of 和 @c b:prop 同时存在时，wrapFor 优先于 wrapIfHas
+void TestParser::testAutoWrapBothForAndIfHas()
+{
+    QString xml = R"(
+        <root xmlns:b="urn:broaditem:binding">
+            <text b:of="list" b:as="x" b:prop="show" b:content="x.name"/>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root != nullptr);
+
+    // wrapFor 优先于 wrapIfHas → 应得到 ForElement
+    auto forEl = std::dynamic_pointer_cast<BroadItem::ForElement>(root);
+    QVERIFY(forEl != nullptr);
 }
 // NOLINTEND(readability-convert-member-functions-to-static)
 
