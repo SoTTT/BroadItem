@@ -19,10 +19,15 @@ cmake -B build -S . && cmake --build build
 ## Test
 
 ```bash
-ctest --test-dir build                    # test_parser + test_property_context + test_sized_element
+ctest --test-dir build                    # all 8 test suites
 ./build/tests/test_parser                 # run single test suite
 ./build/tests/test_property_context       # run single test suite
 ./build/tests/test_sized_element          # run single test suite
+./build/tests/test_layout_behavior        # run single test suite
+./build/tests/test_for_element            # run single test suite
+./build/tests/test_flatten_children       # run single test suite
+./build/tests/test_binding                # run single test suite
+./build/tests/test_expression             # run single test suite
 ./build/example/basic
 ./build/example/complex
 ./build/example/playground                # GUI playground for manual experiments

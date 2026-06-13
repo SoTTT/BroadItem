@@ -40,6 +40,15 @@ private:
     QString m_warning; // default: QString() is null
 };
 
+/// @brief 文件作用域消息捕获器：安装后收集所有 qWarning/qCritical 消息
+static QStringList s_warnings;
+
+static void captureWarning(QtMsgType type, const QMessageLogContext&, const QString& msg)
+{
+    Q_UNUSED(type)
+    s_warnings.append(msg);
+}
+
 class TestParser : public QObject {
     Q_OBJECT
 
@@ -60,6 +69,8 @@ private slots:
     void testAutoWrapFor();
     void testAutoWrapIfHas();
     void testAutoWrapBothForAndIfHas();
+    void testNamespaceDeclarationSkipped();
+    void testBindingAttributeSkipped();
 };
 
 /// @brief 解析最简单的文本元素并验证根节点不为空
@@ -324,6 +335,50 @@ void TestParser::testAutoWrapBothForAndIfHas()
     auto forEl = std::dynamic_pointer_cast<BroadItem::ForElement>(root);
     QVERIFY(forEl != nullptr);
 }
+/// @brief 验证 @c xmlns:b 命名空间声明不触发 "unknown attribute" 警告
+void TestParser::testNamespaceDeclarationSkipped()
+{
+    s_warnings.clear();
+    QtMessageHandler original = qInstallMessageHandler(captureWarning);
+
+    QString xml = R"(
+        <root>
+            <text xmlns:b="urn:broaditem:binding" font-size="12">Hello</text>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    qInstallMessageHandler(original);
+
+    QVERIFY(root != nullptr);
+
+    for (const QString& w : s_warnings) {
+        QVERIFY2(!w.contains("unknown attribute", Qt::CaseInsensitive),
+                 qPrintable(QString("Unexpected 'unknown attribute' warning: %1").arg(w)));
+    }
+}
+
+/// @brief 验证 @c b:content / @c b:of / @c b:as / @c b:prop 绑定属性不触发 "unknown attribute" 警告
+void TestParser::testBindingAttributeSkipped()
+{
+    s_warnings.clear();
+    QtMessageHandler original = qInstallMessageHandler(captureWarning);
+
+    QString xml = R"(
+        <root xmlns:b="urn:broaditem:binding">
+            <text b:content="title" font-size="12">Hello</text>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    qInstallMessageHandler(original);
+
+    QVERIFY(root != nullptr);
+
+    for (const QString& w : s_warnings) {
+        QVERIFY2(!w.contains("unknown attribute", Qt::CaseInsensitive),
+                 qPrintable(QString("Unexpected 'unknown attribute' warning: %1").arg(w)));
+    }
+}
+
 // NOLINTEND(readability-convert-member-functions-to-static)
 
 QTEST_MAIN(TestParser)
