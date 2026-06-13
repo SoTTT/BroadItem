@@ -3,13 +3,11 @@
 #include <QGraphicsObject>
 #include <QVariantMap>
 #include <memory>
-#include <broaditem/context/LayoutContext.h>
+
+#include <broaditem/core/Frame.h>
 #include <broaditem/context/PropertyContext.h>
 
 namespace BroadItem {
-
-class Element;
-using ElementPtr = std::shared_ptr<Element>;
 
 /// @brief 顶层 QGraphicsItem，渲染 XML 定义的布局并支持数据绑定。
 class BroadItem : public QGraphicsObject {
@@ -44,23 +42,15 @@ public:
     /// @brief 通过上下文访问属性的方括号运算符语法糖。
     PropertyProxy operator[](const QString& key)
     {
-        return m_propertyContext ? (*m_propertyContext)[key] : PropertyProxy(nullptr, QString());
+        auto ctx = m_frame.propertyContext();
+        return ctx ? (*ctx)[key] : PropertyProxy(nullptr, QString());
     }
 
 private:
-    ElementPtr m_rootElement;                          ///< The root element of the parsed layout tree.
-    std::shared_ptr<PropertyContext> m_propertyContext; ///< Property context for data binding.
-    LayoutContext m_context;                            ///< Layout context wrapping the property context.
-    QRectF m_boundingRect;                              ///< Cached bounding rectangle.
+    Frame m_frame;                  ///< 内部布局引擎，持有元素树、上下文和布局逻辑。
 
-    /// @brief 设置属性上下文（如果未提供则创建默认的 MapPropertyContext）。
+    /// @brief 设置属性上下文变更回调，连接 Frame 布局与 QGraphicsItem 重绘。
     void setupPropertyContext();
-    /// @brief 从 XML 文件构建布局。
-    void buildFromFile(const QString& path);
-    /// @brief 从已注册的布局 ID 构建布局。
-    void buildFromRegistry(int layoutId);
-    /// @brief 执行完整的测量/布局/渲染周期。
-    void performLayout();
 };
 
 } // namespace BroadItem
