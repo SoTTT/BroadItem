@@ -7,16 +7,16 @@ namespace BroadItem {
 
 /// @brief 将 XML 属性名与数据绑定路径关联的绑定对象。
 ///
-/// 将属性名（如 ":content"、":prop"、":of"）与 Expression 路径关联，
+/// 将属性名（如 "b:content"、"b:prop"、"b:of"）与 Expression 路径关联，
 /// 并提供检查路径是否绑定指定属性的方法。
 class Binding {
 public:
     /// @brief 用属性名和路径字符串构造绑定。
-    /// @param attributeName XML 属性名（如 ":content"）。
+    /// @param attributeName XML 属性名（如 "b:content"）。
     /// @param path 数据绑定路径（如 "user.name"）。
     Binding(const QString& attributeName, const QString& path);
 
-    /// @brief 返回属性名（如 ":content"、":prop"、":of"）。
+    /// @brief 返回属性名（如 "b:content"、"b:prop"、"b:of"）。
     const QString& attributeName() const { return m_attributeName; }
 
     /// @brief 返回底层的 Expression 对象（用于分段访问）。
@@ -36,7 +36,7 @@ public:
     bool bindsProperty(const QString& propName) const;
 
 private:
-    QString m_attributeName;  ///< XML 属性名（如 ":content"）。
+    QString m_attributeName;  ///< XML 属性名（如 "b:content"）。
     Expression m_expression;  ///< 绑定的路径表达式。
 };
 

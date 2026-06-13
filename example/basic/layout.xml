@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<root>
+<root xmlns:b="urn:broaditem:binding">
     <column space="8" padding="12" background-color="#f0f0f0" background-radius="8">
-        <text font-size="18" bold="true" :content="title">默认标题</text>
+        <text font-size="18" bold="true" b:content="title">默认标题</text>
         <row space="4">
             <text font-size="12" color="#666">状态:</text>
-            <text font-size="12" :content="status">未知</text>
+            <text font-size="12" b:content="status">未知</text>
         </row>
         <row space="4">
             <text font-size="12" color="#666">IP:</text>
-            <text font-size="12" :content="ip">0.0.0.0</text>
+            <text font-size="12" b:content="ip">0.0.0.0</text>
         </row>
     </column>
 </root>

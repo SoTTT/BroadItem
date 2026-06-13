@@ -3,7 +3,7 @@
 namespace BroadItem {
 
 /// @brief 用属性名和路径字符串构造绑定。
-/// @param attributeName XML 属性名（如 ":content"）。
+/// @param attributeName XML 属性名（如 "b:content"）。
 /// @param path 数据绑定路径（如 "user.name"）。
 Binding::Binding(const QString& attributeName, const QString& path)
     : m_attributeName(attributeName)

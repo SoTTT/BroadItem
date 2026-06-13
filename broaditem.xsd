@@ -15,16 +15,16 @@
       <root xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
             xsi:noNamespaceSchemaLocation="broaditem.xsd">
 
-  LIMITATION:
-    xmllint CLI validation does NOT work with colon-prefixed attributes
-    (:content, :of, :prop, :as). These are technically invalid XML 1.0
-    with Namespaces, but Qt QDomDocument handles them fine.
-    Editor-based validation (VS Code, IntelliJ) works correctly.
+  NAMESPACE:
+    Binding attributes use the b: namespace prefix declared as
+      xmlns:b="urn:broaditem:binding"
+    Attributes: b:content / b:of / b:as / b:prop
 
-    The parser auto-wraps any non-control element with :of/:as into <for>,
-    and any with :prop into <if-has>.
+    The parser auto-wraps any non-control element with b:of/b:as into <for>,
+    and any with b:prop into <if-has>.
 -->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:b="urn:broaditem:binding"
            elementFormDefault="qualified">
 
   <!-- ================================================================ -->
@@ -138,25 +138,23 @@
   </xs:attributeGroup>
 
   <!-- ================================================================ -->
-  <!--  Data binding attributes (:content, :of, :as, :prop)              -->
-  <!--  Cannot use typed xs:attribute (colon violates NCName in XSD 1.0) -->
-  <!--  xs:anyAttribute allows them; editors can still autocomplete      -->
-  <!--  via the annotation/documentation below.                          -->
+  <!--  Data binding attributes (b:content, b:of, b:as, b:prop)          -->
+  <!--  Defined via anyAttribute in the binding namespace; editors can    -->
+  <!--  autocomplete via the annotation/documentation below.              -->
   <!-- ================================================================ -->
   <xs:attributeGroup name="bindingAttrs">
-    <xs:anyAttribute namespace="##local" processContents="lax">
+    <xs:anyAttribute namespace="urn:broaditem:binding" processContents="lax">
       <xs:annotation>
         <xs:documentation>
-Binding attributes (colon-prefixed):
-  :content = property path for TextElement content binding
-  :of      = property path for ForElement data source
-  :as      = per-item variable name for ForElement
-  :prop    = property path for IfHasElement condition check
+Binding attributes (b: prefix, xmlns:b="urn:broaditem:binding"):
+  b:content = property path for TextElement content binding
+  b:of      = property path for ForElement data source
+  b:as      = per-item variable name for ForElement
+  b:prop    = property path for IfHasElement condition check
 
-These appear as literal attribute names with a colon prefix
-(e.g. :content="device_name", :of="items", :as="item").
-The colon is NOT a namespace separator — it is part of the
-attribute name in BroadItem's XML dialect.
+These are W3C-compliant namespace-qualified attributes.
+The b: prefix is the canonical prefix, but any prefix bound to
+urn:broaditem:binding is accepted by the parser.
         </xs:documentation>
       </xs:annotation>
     </xs:anyAttribute>
@@ -203,7 +201,7 @@ attribute name in BroadItem's XML dialect.
   <!-- ================================================================ -->
   <!--  <text>                                                          -->
   <!--  Mixed content: text between tags = default display text          -->
-  <!--  content / :content are MUTUALLY EXCLUSIVE                       -->
+  <!--  content / b:content are MUTUALLY EXCLUSIVE                      -->
   <!-- ================================================================ -->
   <xs:element name="text">
     <xs:annotation>
@@ -211,8 +209,8 @@ attribute name in BroadItem's XML dialect.
 text — renders text with optional data binding.
 
 Static:  content="Hello"  OR  text between tags
-Binding: :content="propName"  (e.g. "device.cpu")
-         content and :content are mutually exclusive.
+Binding: b:content="propName"  (e.g. "device.cpu")
+         content and b:content are mutually exclusive.
 
 Size:    width / height (pixels, optional, -1 = auto)
 
@@ -257,7 +255,7 @@ space:       gap between children in pixels (default: 0)
 main-stretch: true | false  (default: false) — stretch all children to max main-axis size
 
 Box model attributes (margin, padding, border, background) apply.
-Control pseudo-attributes (:of, :as, :prop) auto-wrap if present.
+Control pseudo-attributes (b:of, b:as, b:prop) auto-wrap if present.
       </xs:documentation>
     </xs:annotation>
     <xs:complexType>
@@ -354,12 +352,12 @@ space-column: override horizontal spacing
 for — iterates over a list. One child (the template) cloned per item.
 Control elements do NOT have box model decorators.
 
-:of   required — data binding path to QStringList or QVariantList
-:as   required — per-item variable name for template bindings
+b:of   required — data binding path to QStringList or QVariantList
+b:as   required — per-item variable name for template bindings
 
 Example:
-  &lt;for :of="processes" :as="p"&gt;
-      &lt;text :content="p.name" /&gt;
+  &lt;for b:of="processes" b:as="p"&gt;
+      &lt;text b:content="p.name" /&gt;
   &lt;/for&gt;
       </xs:documentation>
     </xs:annotation>
@@ -380,12 +378,12 @@ Example:
 if-has — conditionally renders its child.
 Control elements do NOT have box model decorators.
 
-:prop  property to check — renders child if exists AND not null
+b:prop  property to check — renders child if exists AND not null
 not    if present (any value), inverts: show when absent/null
 
 Example:
-  &lt;if-has :prop="warning"&gt;
-      &lt;text :content="warning" /&gt;
+  &lt;if-has b:prop="warning"&gt;
+      &lt;text b:content="warning" /&gt;
   &lt;/if-has&gt;
       </xs:documentation>
     </xs:annotation>
