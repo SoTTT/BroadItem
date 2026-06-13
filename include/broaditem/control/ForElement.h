@@ -15,7 +15,7 @@ public:
     void setBindProperty(const QString& bind);
     /// @brief 设置每次迭代要克隆的模板元素。
     void setTemplate(ElementPtr templ);
-    /// @brief 设置 :as 别名变量名。
+    /// @brief 设置 b:as 别名变量名。
     void setAsVariable(const QString& v) { m_asVariable = v; }
     /// @brief 获取模板元素。
     ElementPtr templateElement() const { return m_template; }
@@ -36,7 +36,7 @@ public:
     void render(QPainter* painter, const LayoutContext& ctx) const override;
 
 private:
-    Binding m_binding{":of", QString{}}; ///< Binding for the :of attribute (data source).
+    Binding m_binding{"b:of", QString{}}; ///< Binding for the b:of attribute (data source).
     QString m_asVariable;   ///< The alias variable name bound to each iteration value.
     ElementPtr m_template;  ///< The template element to clone for each iteration.
 };

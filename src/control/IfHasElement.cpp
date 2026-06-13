@@ -4,14 +4,14 @@
 namespace BroadItem {
 
 /// @brief 返回 IfHasElement 支持的 XML 属性集合。
-/// @return Reference to a static set containing ":prop" and "not".
+/// @return Reference to a static set containing "not" (b:prop is namespace-aware, not listed here).
 const QSet<QString>& IfHasElement::supportedAttributes() const
 {
-    static const QSet<QString> attrs = {":prop", "not"};
+    static const QSet<QString> attrs = {"not"};
     return attrs;
 }
 
-/// @brief 从 XML 元素解析 :prop 和 not 属性。
+/// @brief 从 XML 元素解析 b:prop 和 not 属性。
 /// @param xml The DOM element to parse.
 void IfHasElement::parse(const QDomElement& xml)
 {
@@ -112,7 +112,7 @@ void IfHasElement::render(QPainter* painter, const LayoutContext& ctx) const
     m_child->render(painter, ctx);
 }
 
-/// @brief 检查此元素是否绑定指定属性（通过 :prop 或在子元素中）。
+/// @brief 检查此元素是否绑定指定属性（通过 b:prop 或在子元素中）。
 /// @param name The property name to check.
 /// @return True if the property is bound.
 bool IfHasElement::bindsProperty(const QString& name) const

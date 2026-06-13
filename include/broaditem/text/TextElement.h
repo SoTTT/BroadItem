@@ -25,7 +25,7 @@ private:
     QString m_contentLiteral;    ///< Literal content from XML (before binding interpolation).
     bool m_hasContentLiteral = false; ///< Whether literal content was provided.
     bool m_bindingsResolved = false; ///< Set after resolveBindings() to skip live lookup.
-    Binding m_binding{":content", QString{}}; ///< Binding for the :content attribute.
+    Binding m_binding{"b:content", QString{}}; ///< Binding for the b:content attribute.
     QFont m_font;                ///< Font used for rendering.
     QString m_vAlign = "baseline"; ///< Vertical alignment ("baseline", "top", "center", "bottom").
     QString m_hAlign = "left";   ///< Horizontal alignment ("left", "center", "right").

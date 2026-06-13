@@ -34,7 +34,7 @@ public:
     void render(QPainter* painter, const LayoutContext& ctx) const override;
 
 private:
-    Binding m_binding{":prop", QString{}};  ///< Binding for the :prop attribute.
+    Binding m_binding{"b:prop", QString{}};  ///< Binding for the b:prop attribute.
     bool m_not = false;       ///< If true, invert the condition (render when property does NOT exist).
     ElementPtr m_child;      ///< The child element to conditionally render.
 

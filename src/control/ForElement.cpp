@@ -7,14 +7,14 @@
 namespace BroadItem {
 
 /// @brief 返回 ForElement 支持的 XML 属性集合。
-/// @return Reference to a static set containing ":of" and ":as".
+/// @return Reference to a static set (binding attributes b:of/b:as are namespace-aware, not listed here).
 const QSet<QString>& ForElement::supportedAttributes() const
 {
-    static const QSet<QString> attrs = {":of", ":as"};
+    static const QSet<QString> attrs = {};
     return attrs;
 }
 
-/// @brief 从 XML 元素解析 :of 和 :as 属性。
+/// @brief 从 XML 元素解析 b:of 和 b:as 属性。
 /// @param xml The DOM element to parse.
 void ForElement::parse(const QDomElement& xml)
 {
@@ -55,7 +55,7 @@ ElementPtr ForElement::clone() const
 
 /// @brief 通过遍历绑定的列表将此控制元素展开为具体元素。
 ///
-/// 支持 :of 为 QStringList 或 QVariantList。为每个迭代项创建 per-item
+/// 支持 b:of 为 QStringList 或 QVariantList。为每个迭代项创建 per-item
 /// MapPropertyContext（含层次和平铺键），通过 ItemPropertyContext 链到全局 context，
 /// 克隆模板并调用 resolveBindings() 解析每个克隆的属性绑定。
 ///
@@ -152,12 +152,12 @@ void ForElement::render(QPainter* painter, const LayoutContext& ctx) const
     }
 }
 
-/// @brief 检查此元素是否绑定指定属性（通过 :of 或在模板中）。
+/// @brief 检查此元素是否绑定指定属性（通过 b:of 或在模板中）。
 /// @param name The property name to check.
 /// @return True if the property is bound.
 bool ForElement::bindsProperty(const QString& name) const
 {
-    // 1. Check if the :of data source property changed → always triggers relayout
+    // 1. Check if the b:of data source property changed → always triggers relayout
     if (m_binding.bindsProperty(name))
         return true;
 

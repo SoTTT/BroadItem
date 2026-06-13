@@ -12,14 +12,14 @@ const QSet<QString>& TextElement::supportedAttributes() const
 {
     static const QSet<QString> attrs = QSet<QString>{
         "width", "height",
-        "content", ":content", "v-align", "h-align",
+        "content", "v-align", "h-align",
         "font-family", "font-size", "bold", "under-line",
         "wrap", "max-width", "color"
     } + boxModelAttributeNames();
     return attrs;
 }
 
-/// @brief 解析文本特定属性：content、:content 绑定、字体、对齐、换行等。
+/// @brief 解析文本特定属性：content、b:content 绑定、字体、对齐、换行等。
 /// @param xml The DOM element to parse.
 void TextElement::parse(const QDomElement& xml)
 {
@@ -68,7 +68,7 @@ void TextElement::parse(const QDomElement& xml)
         m_color = parseColor(xml.attribute("color"));
 }
 
-/// @brief 解析显示的文本：字面量内容、绑定的 :content 属性或解析的 XML 文本。
+/// @brief 解析显示的文本：字面量内容、绑定的 b:content 属性或解析的 XML 文本。
 /// @param ctx The layout context for property lookup.
 /// @return The resolved text string.
 QString TextElement::resolvedText(const LayoutContext& ctx) const
@@ -260,7 +260,7 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
     }
 }
 
-/// @brief 检查此文本元素是否通过 :content 绑定指定属性。
+/// @brief 检查此文本元素是否通过 b:content 绑定指定属性。
 /// @param name The property name to check.
 /// @return True if the property matches the :content binding.
 bool TextElement::bindsProperty(const QString& name) const

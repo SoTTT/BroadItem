@@ -3,6 +3,25 @@
 
 namespace BroadItem {
 
+/// @brief 绑定属性的 XML 命名空间 URI。
+const QString BINDING_NS = QStringLiteral("urn:broaditem:binding");
+
+/// @brief 判断属性是否为 xmlns 命名空间声明。
+/// @param attr The DOM attribute to check.
+/// @return True if the attribute name starts with "xmlns".
+bool isNamespaceDeclaration(const QDomAttr& attr)
+{
+    return attr.name().startsWith(QLatin1String("xmlns"));
+}
+
+/// @brief 判断属性是否属于绑定命名空间。
+/// @param attr The DOM attribute to check.
+/// @return True if attr.namespaceURI() == BINDING_NS.
+bool isBindingAttribute(const QDomAttr& attr)
+{
+    return attr.namespaceURI() == BINDING_NS;
+}
+
 /// @brief 基础解析方法；子类覆盖以提取其属性。
 /// @param xml The DOM element to parse.
 void Element::parse(const QDomElement& xml)
@@ -57,6 +76,10 @@ bool Element::matchesProperty(const QString& bindPath, const QString& propName)
 }
 
 /// @brief 通过与 supportedAttributes() 比较来警告未知 XML 属性。
+///
+/// 遍历所有 XML 属性，跳过 xmlns 声明属性和绑定命名空间属性，
+/// 其余属性若不在 supportedAttributes() 集合中则记录 qWarning。
+///
 /// @param xml The DOM element whose attributes to validate.
 void Element::validateAttributes(const QDomElement& xml) const
 {
@@ -64,6 +87,10 @@ void Element::validateAttributes(const QDomElement& xml) const
     QDomNamedNodeMap attrs = xml.attributes();
     for (int i = 0; i < attrs.size(); ++i) {
         QDomAttr attr = attrs.item(i).toAttr();
+        if (isNamespaceDeclaration(attr))
+            continue;
+        if (isBindingAttribute(attr))
+            continue;
         QString name = attr.name();
         if (!known.contains(name)) {
             qWarning() << xml.tagName() << ": unknown attribute" << name << "=\"" << attr.value() << "\"";

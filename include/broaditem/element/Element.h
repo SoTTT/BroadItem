@@ -2,6 +2,7 @@
 
 #include <QPainter>
 #include <QDomElement>
+#include <QDomAttr>
 #include <QStringList>
 #include <QSet>
 #include <QRectF>
@@ -10,6 +11,19 @@
 #include <broaditem/context/LayoutContext.h>
 
 namespace BroadItem {
+
+/// @brief 绑定属性的 XML 命名空间 URI。
+extern const QString BINDING_NS;
+
+/// @brief 判断属性是否为 xmlns 命名空间声明。
+/// @param attr The DOM attribute to check.
+/// @return True if the attribute name starts with "xmlns".
+bool isNamespaceDeclaration(const QDomAttr& attr);
+
+/// @brief 判断属性是否属于绑定命名空间。
+/// @param attr The DOM attribute to check.
+/// @return True if attr.namespaceURI() == BINDING_NS.
+bool isBindingAttribute(const QDomAttr& attr);
 
 class Element;
 using ElementPtr = std::shared_ptr<Element>;
@@ -48,7 +62,7 @@ public:
     /// @brief 设置该元素的包围矩形。
     void setRect(const QRectF& r) { m_rect = r; }
 
-    /// @brief 返回该元素支持的属性名集合（包括绑定属性如 ":content"）。
+    /// @brief 返回该元素支持的属性名集合。
     virtual const QSet<QString>& supportedAttributes() const {
         static const QSet<QString> empty;
         return empty;
@@ -66,6 +80,25 @@ public:
     static bool validateInt(const QString& value, const QString& attrName, int& out);
     /// @brief 验证属性值是否为 bool，有效返回 true。
     static bool validateBool(const QString& value, const QString& attrName, bool& out);
+
+    /// @brief BroadItem 数据绑定属性的 XML 命名空间 URI。
+    inline static const QString BINDING_NS = QStringLiteral("urn:broaditem:binding");
+
+    /// @brief 判断属性是否属于 BINDING_NS 命名空间。
+    /// @param attr A DOM attribute node.
+    /// @return True if attr.namespaceURI() == BINDING_NS.
+    static bool isBindingAttribute(const QDomAttr& attr)
+    {
+        return attr.namespaceURI() == BINDING_NS;
+    }
+
+    /// @brief 判断属性是否为命名空间声明（xmlns 或 xmlns:prefix）。
+    /// @param attr A DOM attribute node.
+    /// @return True if attr.name() starts with "xmlns".
+    static bool isNamespaceDeclaration(const QDomAttr& attr)
+    {
+        return attr.name().startsWith(QLatin1String("xmlns"));
+    }
 
 protected:
     QRectF m_rect;  ///< The bounding rectangle of this element.
