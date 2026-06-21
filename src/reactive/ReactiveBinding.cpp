@@ -3,7 +3,6 @@
 #include <broaditem/reactive/ReactiveProperty.h>
 
 #include <QDebug>
-#include <QGraphicsObject>
 
 namespace BroadItem {
 
