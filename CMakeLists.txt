@@ -74,6 +74,10 @@ add_library(BroadItem STATIC
     src/parser/LayoutRegistry.cpp
     include/broaditem/parser/XmlLayoutParser.h
     include/broaditem/parser/LayoutRegistry.h
+
+    # reactive — observable graphics object base
+    src/reactive/ObservableGraphicsObject.cpp
+    include/broaditem/reactive/ObservableGraphicsObject.h
 )
 
 target_include_directories(BroadItem PUBLIC
