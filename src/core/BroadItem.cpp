@@ -10,7 +10,7 @@ namespace BroadItem {
 BroadItem::BroadItem(const QString& xmlFilePath,
                      std::shared_ptr<PropertyContext> ctx,
                      QGraphicsItem* parent)
-    : QGraphicsObject(parent)
+    : ObservableGraphicsObject(parent)
     , m_frame(Frame::fromFile(xmlFilePath, std::move(ctx)))
 {
     setupPropertyContext();
@@ -23,7 +23,7 @@ BroadItem::BroadItem(const QString& xmlFilePath,
 BroadItem::BroadItem(int layoutId,
                      std::shared_ptr<PropertyContext> ctx,
                      QGraphicsItem* parent)
-    : QGraphicsObject(parent)
+    : ObservableGraphicsObject(parent)
     , m_frame(Frame::fromRegistry(layoutId, std::move(ctx)))
 {
     setupPropertyContext();
