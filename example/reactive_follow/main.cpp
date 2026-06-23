@@ -78,8 +78,11 @@ int main(int argc, char* argv[])
                                            offsetTransform);
 
     // 拖动蓝色矩形时更新相对偏移，使后续拖动红色矩形保持新的相对位置。
-    QObject::connect(follower, &BroadItem::ObservableGraphicsObject::positionChanged,
-                     &app, [&]() {
+    // pos 无 NOTIFY 信号，改为分别连接 xChanged() 和 yChanged()
+    QObject::connect(follower, &QGraphicsObject::xChanged, &app, [&]() {
+        offset = follower->pos() - leader->pos();
+    });
+    QObject::connect(follower, &QGraphicsObject::yChanged, &app, [&]() {
         offset = follower->pos() - leader->pos();
     });
 

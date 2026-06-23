@@ -7,38 +7,20 @@ namespace BroadItem {
 ObservableGraphicsObject::ObservableGraphicsObject(QGraphicsItem* parent)
     : QGraphicsObject(parent)
 {
+    // 启用几何和场景位置变化标志，使 Qt 内部 xChanged()/yChanged() 信号能够发射
     setFlags(flags() | QGraphicsItem::ItemSendsGeometryChanges
             | QGraphicsItem::ItemSendsScenePositionChanges);
 }
 
-/// @brief 重写 QGraphicsItem::itemChange，检测属性变化并发射对应信号。
+/// @brief 重写 QGraphicsItem::itemChange，调用基类实现。
 ///
-/// 当 QGraphicsItem 的属性发生变化时，此方法根据变化类型发射对应的信号，
-/// 然后调用基类 QGraphicsObject::itemChange 完成默认处理。
+/// 信号（xChanged/yChanged/scaleChanged/rotationChanged/opacityChanged/visibleChanged）
+/// 均由 Qt 内部 QMetaProperty NOTIFY 机制自动发出，本方法仅透传到基类。
 /// @param change 变化的类型。
 /// @param value 变化的新值。
 /// @return 处理后的值。
 QVariant ObservableGraphicsObject::itemChange(GraphicsItemChange change, const QVariant& value)
 {
-    switch (change) {
-    case ItemPositionHasChanged:
-        emit positionChanged(value.toPointF());
-        break;
-    case ItemScaleHasChanged:
-        emit scaleChanged(value.toDouble());
-        break;
-    case ItemRotationHasChanged:
-        emit rotationChanged(value.toDouble());
-        break;
-    case ItemOpacityHasChanged:
-        emit opacityChanged(value.toDouble());
-        break;
-    case ItemVisibleHasChanged:
-        emit visibilityChanged(value.toBool());
-        break;
-    default:
-        break;
-    }
     return QGraphicsObject::itemChange(change, value);
 }
 

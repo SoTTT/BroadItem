@@ -1,4 +1,5 @@
 #include <QtTest/QtTest>
+#include <QGraphicsObject>
 #include <broaditem/reactive/ObservableGraphicsObject.h>
 #include <broaditem/reactive/ReactiveBinding.h>
 #include <broaditem/reactive/ReactiveProperty.h>
@@ -186,16 +187,17 @@ private slots:
         QVERIFY(bindingAB->isEnabled());
         QVERIFY(bindingBA->isEnabled());
 
-        QSignalSpy spyA(a, &BroadItem::ObservableGraphicsObject::positionChanged);
-        QSignalSpy spyB(b, &BroadItem::ObservableGraphicsObject::positionChanged);
+        // 监听 xChanged() 信号（pos 无 NOTIFY，通过 xChanged/yChanged 连接）
+        QSignalSpy spyAX(a, &QGraphicsObject::xChanged);
+        QSignalSpy spyBX(b, &QGraphicsObject::xChanged);
 
         // 触发循环：A 的位置变化经由 bindingAB（+10 偏移）写入 B，
         // B 的变化经由 bindingBA 回写到 A，因值不同形成无限循环
         a->setPos(100.0, 200.0);
 
         // 验证信号确实被触发
-        QVERIFY(spyA.count() >= 1);
-        QVERIFY(spyB.count() >= 1);
+        QVERIFY(spyAX.count() >= 1);
+        QVERIFY(spyBX.count() >= 1);
 
         // 至少有一个绑定被循环检测禁用
         QVERIFY(!bindingAB->isEnabled() || !bindingBA->isEnabled());
@@ -356,7 +358,7 @@ private slots:
         QVERIFY(b6 == nullptr);
     }
 
-    /// @brief 测试 BroadItem 作为绑定源。
+    /// @brief 测试 BroadItem 作为绑定源（QObject* 接口）。
     void testBroadItemAsSource()
     {
         BroadItem::BroadItem source(QStringLiteral("test_layout.xml"));
@@ -383,7 +385,7 @@ private slots:
         delete scaleBinding;
     }
 
-    /// @brief 测试 BroadItem 作为绑定目标。
+    /// @brief 测试 BroadItem 作为绑定目标（QObject* 接口）。
     void testBroadItemAsTarget()
     {
         TestObservableObject source;
@@ -408,6 +410,38 @@ private slots:
         delete binding;
         opacityBinding->destroy();
         delete opacityBinding;
+    }
+
+    /// @brief 测试 pos 分量变化：只改 x 时 target 同步更新。
+    ///
+    /// 验证 pos 绑定通过 xChanged()/yChanged() 特判连接在只改变 x 分量时仍能触发目标更新。
+    void testPosComponentChange()
+    {
+        TestObservableObject source;
+        TestObservableObject target;
+
+        auto* binding = BroadItem::ReactiveBinding::create(&source, BroadItem::Property::Pos,
+                                                &target, BroadItem::Property::Pos);
+        QVERIFY(binding != nullptr);
+
+        // 初始位置
+        source.setPos(100.0, 200.0);
+        QCOMPARE(target.pos(), QPointF(100.0, 200.0));
+
+        // 只改变 x 分量，验证 target 同步
+        source.setX(300.0);
+        QCOMPARE(target.pos(), QPointF(300.0, 200.0));
+
+        // 只改变 y 分量，验证 target 同步
+        source.setY(400.0);
+        QCOMPARE(target.pos(), QPointF(300.0, 400.0));
+
+        // 同时改变两个分量
+        source.setPos(500.0, 600.0);
+        QCOMPARE(target.pos(), QPointF(500.0, 600.0));
+
+        binding->destroy();
+        delete binding;
     }
 
     // NOLINTEND(readability-convert-member-functions-to-static)

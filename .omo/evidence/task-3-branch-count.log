@@ -1,0 +1,1 @@
+BRANCHES: Hardcoded property references in ReactiveBinding.cpp = 2 (both pos special cases, as expected)

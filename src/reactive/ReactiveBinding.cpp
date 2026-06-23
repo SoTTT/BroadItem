@@ -1,35 +1,56 @@
 #include <broaditem/reactive/ReactiveBinding.h>
-#include <broaditem/reactive/ObservableGraphicsObject.h>
 #include <broaditem/reactive/ReactiveProperty.h>
 
 #include <QDebug>
+#include <QMetaProperty>
 
 namespace BroadItem {
 
-/// @brief 检查属性名是否属于支持的属性。
+/// @brief 验证属性名在指定对象上有效。
+///
+/// 属性必须存在于对象的 metaObject 中、可写、且有 NOTIFY 信号。
+/// 特殊处理：pos 属性无 NOTIFY 信号但通过 xChanged()/yChanged() 连接，单独允许。
+/// @param obj 要检查的 QObject。
 /// @param prop 属性名。
-/// @return true 表示属性名有效。
-bool ReactiveBinding::isValidProperty(const QString& prop)
+/// @return true 表示属性有效。
+bool ReactiveBinding::isValidProperty(const QObject* obj, const QString& prop)
 {
-    return prop == Property::Pos
-        || prop == Property::Scale
-        || prop == Property::Rotation
-        || prop == Property::Opacity
-        || prop == Property::Visible;
+    if (!obj || prop.isEmpty()) {
+        return false;
+    }
+
+    const QMetaObject* meta = obj->metaObject();
+    int propIdx = meta->indexOfProperty(prop.toLatin1().constData());
+    if (propIdx < 0) {
+        return false;
+    }
+
+    QMetaProperty metaProp = meta->property(propIdx);
+    if (!metaProp.isWritable()) {
+        return false;
+    }
+
+    // pos 属性没有 NOTIFY 信号，通过 xChanged()/yChanged() 特判支持
+    if (prop == Property::Pos) {
+        return true;
+    }
+
+    // 其他属性必须有 NOTIFY 信号
+    return metaProp.hasNotifySignal();
 }
 
 /// @brief 私有构造，通过 create() 工厂创建。
 ///
-/// 存储参数，连接源信号和目标/源的 destroyed() 信号，默认启用绑定。
-/// @param source 源图形对象。
+/// 存储参数，连接源信号的 NOTIFY 信号或分量信号，连接目标/源的 destroyed() 信号。
+/// @param source 源对象。
 /// @param sourceProperty 源属性名。
-/// @param target 目标图形对象。
+/// @param target 目标对象。
 /// @param targetProperty 目标属性名。
 /// @param transform 可选的变换函数。
 /// @param parent 父 QObject。
-ReactiveBinding::ReactiveBinding(ObservableGraphicsObject* source,
+ReactiveBinding::ReactiveBinding(QObject* source,
                                  QString sourceProperty,
-                                 ObservableGraphicsObject* target,
+                                 QObject* target,
                                  QString targetProperty,
                                  Transform transform,
                                  QObject* parent)
@@ -63,17 +84,17 @@ ReactiveBinding::ReactiveBinding(ObservableGraphicsObject* source,
 
 /// @brief 静态工厂：创建响应式绑定并返回裸指针。
 ///
-/// 执行参数校验：源和目标非空、属性名有效、不自绑定。
+/// 执行参数校验：源和目标非空、属性名在对应对象上有效、不自绑定。
 /// 校验失败时输出 qWarning 并返回 nullptr。
-/// @param source 源 ObservableGraphicsObject。
+/// @param source 源 QObject。
 /// @param sourceProperty 源属性名。
-/// @param target 目标 ObservableGraphicsObject。
+/// @param target 目标 QObject。
 /// @param targetProperty 目标属性名。
 /// @param transform 可选的变换函数。
 /// @return ReactiveBinding* 新绑定实例，失败时返回 nullptr。
-ReactiveBinding* ReactiveBinding::create(ObservableGraphicsObject* source,
+ReactiveBinding* ReactiveBinding::create(QObject* source,
                                          const QString& sourceProperty,
-                                         ObservableGraphicsObject* target,
+                                         QObject* target,
                                          const QString& targetProperty,
                                          Transform transform)
 {
@@ -87,13 +108,15 @@ ReactiveBinding* ReactiveBinding::create(ObservableGraphicsObject* source,
         return nullptr;
     }
 
-    if (!isValidProperty(sourceProperty)) {
-        qWarning() << "ReactiveBinding::create: invalid sourceProperty" << sourceProperty;
+    if (!isValidProperty(source, sourceProperty)) {
+        qWarning() << "ReactiveBinding::create: invalid sourceProperty" << sourceProperty
+                    << "on source" << source;
         return nullptr;
     }
 
-    if (!isValidProperty(targetProperty)) {
-        qWarning() << "ReactiveBinding::create: invalid targetProperty" << targetProperty;
+    if (!isValidProperty(target, targetProperty)) {
+        qWarning() << "ReactiveBinding::create: invalid targetProperty" << targetProperty
+                    << "on target" << target;
         return nullptr;
     }
 
@@ -112,7 +135,11 @@ void ReactiveBinding::destroy()
 {
     m_enabled = false;
 
-    disconnect(m_signalConnection);
+    for (const auto& conn : m_signalConnections) {
+        disconnect(conn);
+    }
+    m_signalConnections.clear();
+
     disconnect(m_sourceDestroyConnection);
     disconnect(m_targetDestroyConnection);
 
@@ -135,15 +162,15 @@ bool ReactiveBinding::isEnabled() const
 }
 
 /// @brief 获取源对象。
-/// @return 源 ObservableGraphicsObject 指针。
-ObservableGraphicsObject* ReactiveBinding::source() const
+/// @return 源 QObject 指针。
+QObject* ReactiveBinding::source() const
 {
     return m_source;
 }
 
 /// @brief 获取目标对象。
-/// @return 目标 ObservableGraphicsObject 指针。
-ObservableGraphicsObject* ReactiveBinding::target() const
+/// @return 目标 QObject 指针。
+QObject* ReactiveBinding::target() const
 {
     return m_target;
 }
@@ -162,11 +189,16 @@ QString ReactiveBinding::targetProperty() const
     return m_targetProperty;
 }
 
+/// @brief 源属性变化槽，触发属性评估。
+void ReactiveBinding::onSourceChanged()
+{
+    evaluate();
+}
+
 /// @brief 手动触发一次属性评估：读取源 → 变换 → 写入目标。
 ///
 /// 循环检测：如果 m_evaluating 已为 true（重入），则自动禁用绑定并输出警告。
 /// 如果绑定已禁用、源或目标已销毁，则跳过执行。
-/// 类型检查：读取值与目标属性类型不匹配时输出警告并跳过写入。
 void ReactiveBinding::evaluate()
 {
     if (!m_enabled || !m_source || !m_target) {
@@ -191,7 +223,7 @@ void ReactiveBinding::evaluate()
         value = m_transform(value);
     }
 
-    // 类型检查：写入前验证值类型与目标属性匹配
+    // 写入目标属性
     if (value.isValid()) {
         writeProperty(m_target, m_targetProperty, value);
     }
@@ -201,106 +233,92 @@ void ReactiveBinding::evaluate()
 
 /// @brief 连接源对象的对应属性变化信号。
 ///
-/// 根据 m_sourceProperty 连接到 ObservableGraphicsObject 的对应信号。
-/// 信号触发时调用 evaluate() 执行属性同步。
+/// 对 scale/rotation/opacity/visible：通过 QMetaProperty::notifySignal() 获取
+/// 信号的 QMetaMethod，用 QMetaMethod-to-QMetaMethod connect 连接到 onSourceChanged()。
+/// 对 pos：连接 xChanged() 和 yChanged() 两个信号（pos 无 NOTIFY 信号）。
 void ReactiveBinding::connectSourceSignal()
 {
     if (!m_source) {
         return;
     }
 
-    if (m_sourceProperty == Property::Pos) {
-        m_signalConnection = connect(m_source, &ObservableGraphicsObject::positionChanged,
-                                     this, [this](const QPointF&) { evaluate(); });
-    } else if (m_sourceProperty == Property::Scale) {
-        m_signalConnection = connect(m_source, &ObservableGraphicsObject::scaleChanged,
-                                     this, [this](qreal) { evaluate(); });
-    } else if (m_sourceProperty == Property::Rotation) {
-        m_signalConnection = connect(m_source, &ObservableGraphicsObject::rotationChanged,
-                                     this, [this](qreal) { evaluate(); });
-    } else if (m_sourceProperty == Property::Opacity) {
-        m_signalConnection = connect(m_source, &ObservableGraphicsObject::opacityChanged,
-                                     this, [this](qreal) { evaluate(); });
-    } else if (m_sourceProperty == Property::Visible) {
-        m_signalConnection = connect(m_source, &ObservableGraphicsObject::visibilityChanged,
-                                     this, [this](bool) { evaluate(); });
+    // 获取 onSourceChanged 槽的 QMetaMethod
+    int slotIdx = metaObject()->indexOfSlot("onSourceChanged()");
+    if (slotIdx < 0) {
+        qWarning() << "ReactiveBinding::connectSourceSignal: onSourceChanged slot not found";
+        return;
     }
+    QMetaMethod slotMethod = metaObject()->method(slotIdx);
+
+    // pos 属性没有 NOTIFY 信号，连接 xChanged() 和 yChanged()
+    if (m_sourceProperty == Property::Pos) {
+        const QMetaObject* meta = m_source->metaObject();
+        int xIdx = meta->indexOfMethod("xChanged()");
+        int yIdx = meta->indexOfMethod("yChanged()");
+        if (xIdx >= 0) {
+            m_signalConnections.append(
+                connect(m_source, meta->method(xIdx), this, slotMethod));
+        }
+        if (yIdx >= 0) {
+            m_signalConnections.append(
+                connect(m_source, meta->method(yIdx), this, slotMethod));
+        }
+        return;
+    }
+
+    // 其他属性：通过 QMetaProperty::notifySignal() 获取 NOTIFY 信号
+    const QMetaObject* meta = m_source->metaObject();
+    int propIdx = meta->indexOfProperty(m_sourceProperty.toLatin1().constData());
+    if (propIdx < 0) {
+        qWarning() << "ReactiveBinding::connectSourceSignal: property not found:"
+                    << m_sourceProperty;
+        return;
+    }
+
+    QMetaProperty metaProp = meta->property(propIdx);
+    if (!metaProp.hasNotifySignal()) {
+        qWarning() << "ReactiveBinding::connectSourceSignal: property has no notify signal:"
+                    << m_sourceProperty;
+        return;
+    }
+
+    QMetaMethod notifySignal = metaProp.notifySignal();
+    m_signalConnections.append(
+        connect(m_source, notifySignal, this, slotMethod));
 }
 
-/// @brief 从图形对象读取属性值。
-/// @param obj 图形对象指针。
+/// @brief 从 QObject 读取属性值。
+///
+/// 通过 QObject::property() 统一读取，对 QGraphicsObject 的 pos 属性同样有效。
+/// @param obj QObject 指针。
 /// @param prop 属性名。
 /// @return 属性值 QVariant。
-QVariant ReactiveBinding::readProperty(const ObservableGraphicsObject* obj, const QString& prop)
+QVariant ReactiveBinding::readProperty(const QObject* obj, const QString& prop)
 {
     if (!obj) {
         return {};
     }
 
-    if (prop == Property::Pos) {
-        return obj->pos();
-    } else if (prop == Property::Scale) {
-        return obj->scale();
-    } else if (prop == Property::Rotation) {
-        return obj->rotation();
-    } else if (prop == Property::Opacity) {
-        return obj->opacity();
-    } else if (prop == Property::Visible) {
-        return obj->isVisible();
-    }
-
-    qWarning() << "ReactiveBinding::readProperty: unknown property" << prop;
-    return {};
+    return obj->property(prop.toLatin1().constData());
 }
 
-/// @brief 向图形对象写入属性值。
-/// @param obj 图形对象指针。
+/// @brief 向 QObject 写入属性值。
+///
+/// 通过 QObject::setProperty() 统一写入。若写入失败则输出 warning。
+/// @param obj QObject 指针。
 /// @param prop 属性名。
 /// @param value 要写入的值。
-void ReactiveBinding::writeProperty(ObservableGraphicsObject* obj, const QString& prop,
+void ReactiveBinding::writeProperty(QObject* obj, const QString& prop,
                                     const QVariant& value)
 {
     if (!obj) {
         return;
     }
 
-    if (prop == Property::Pos) {
-        if (value.canConvert<QPointF>()) {
-            obj->setPos(value.toPointF());
-        } else {
-            qWarning() << "ReactiveBinding::writeProperty: type mismatch for pos, expected QPointF, got"
-                        << value.typeName();
-        }
-    } else if (prop == Property::Scale) {
-        if (value.canConvert<qreal>()) {
-            obj->setScale(value.value<qreal>());
-        } else {
-            qWarning() << "ReactiveBinding::writeProperty: type mismatch for scale, expected qreal, got"
-                        << value.typeName();
-        }
-    } else if (prop == Property::Rotation) {
-        if (value.canConvert<qreal>()) {
-            obj->setRotation(value.value<qreal>());
-        } else {
-            qWarning() << "ReactiveBinding::writeProperty: type mismatch for rotation, expected qreal, got"
-                        << value.typeName();
-        }
-    } else if (prop == Property::Opacity) {
-        if (value.canConvert<qreal>()) {
-            obj->setOpacity(value.value<qreal>());
-        } else {
-            qWarning() << "ReactiveBinding::writeProperty: type mismatch for opacity, expected qreal, got"
-                        << value.typeName();
-        }
-    } else if (prop == Property::Visible) {
-        if (value.canConvert<bool>()) {
-            obj->setVisible(value.toBool());
-        } else {
-            qWarning() << "ReactiveBinding::writeProperty: type mismatch for visible, expected bool, got"
-                        << value.typeName();
-        }
-    } else {
-        qWarning() << "ReactiveBinding::writeProperty: unknown property" << prop;
+    bool ok = obj->setProperty(prop.toLatin1().constData(), value);
+    if (!ok) {
+        qWarning() << "ReactiveBinding::writeProperty: failed to set property"
+                    << prop << "on" << obj << "value type:" << value.typeName();
     }
 }
 
