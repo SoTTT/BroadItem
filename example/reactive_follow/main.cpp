@@ -48,7 +48,8 @@ private:
 
 /// @brief 入口点。演示两个 Item 通过 ReactiveBinding 实现位置跟随。
 ///
-/// 红色矩形可通过鼠标拖动，蓝色矩形通过绑定自动跟随，并带有一个固定偏移量。拖动红色矩形时，蓝色矩形会实时同步位置。
+/// 红色矩形可通过鼠标拖动，蓝色矩形通过绑定自动跟随；拖动蓝色矩形可调整两者的相对位置，
+/// 之后拖动红色矩形时，蓝色矩形会保持新的相对距离同步移动。
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
@@ -59,21 +60,28 @@ int main(int argc, char* argv[])
     auto* leader = new ColoredRect(Qt::red, 60, 60);
     auto* follower = new ColoredRect(Qt::blue, 60, 60);
 
+    QPointF offset(120.0, 80.0);
+
     leader->setPos(50, 170);
-    follower->setPos(50, 170);
+    follower->setPos(leader->pos() + offset);
 
     scene.addItem(leader);
     scene.addItem(follower);
 
-    // 创建绑定：leader.pos → follower.pos，并添加 (120, 80) 的偏移变换
-    auto offsetTransform = [](const QVariant& value) -> QVariant {
-        return value.toPointF() + QPointF(120, 80);
+    auto offsetTransform = [&offset](const QVariant& value) -> QVariant {
+        return value.toPointF() + offset;
     };
 
     BroadItem::ReactiveBinding* binding =
         BroadItem::ReactiveBinding::create(leader, BroadItem::Property::Pos,
                                            follower, BroadItem::Property::Pos,
                                            offsetTransform);
+
+    // 拖动蓝色矩形时更新相对偏移，使后续拖动红色矩形保持新的相对位置。
+    QObject::connect(follower, &BroadItem::ObservableGraphicsObject::positionChanged,
+                     &app, [&]() {
+        offset = follower->pos() - leader->pos();
+    });
 
     QGraphicsView view(&scene);
     view.setRenderHints(QPainter::Antialiasing);

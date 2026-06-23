@@ -1,4 +1,4 @@
-#include <broaditem/layout/ColumnLayout.h>
+#include <broaditem/element/layout/ColumnLayout.h>
 #include <broaditem/element/SizedElement.h>
 #include <QPainter>
 #include <QDomElement>

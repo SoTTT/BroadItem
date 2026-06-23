@@ -1,4 +1,4 @@
-#include <broaditem/control/IfHasElement.h>
+#include <broaditem/element/control/IfHasElement.h>
 #include <QDomElement>
 
 namespace BroadItem {

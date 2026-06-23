@@ -1,4 +1,4 @@
-#include <broaditem/layout/RowLayout.h>
+#include <broaditem/element/layout/RowLayout.h>
 #include <broaditem/element/SizedElement.h>
 #include <algorithm>
 #include <QPainter>

@@ -1,4 +1,4 @@
-#include <broaditem/text/TextElement.h>
+#include <broaditem/element/text/TextElement.h>
 #include <QPainter>
 #include <QTextLayout>
 #include <QDomElement>

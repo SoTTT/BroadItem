@@ -5,8 +5,8 @@
 #include <broaditem/core/LayoutEngine.h>
 #include <broaditem/element/Element.h>
 #include <broaditem/element/SizedElement.h>
-#include <broaditem/text/TextElement.h>
-#include <broaditem/layout/RowLayout.h>
+#include <broaditem/element/text/TextElement.h>
+#include <broaditem/element/layout/RowLayout.h>
 #include <QDebug>
 
 class TestSizedElement : public QObject {

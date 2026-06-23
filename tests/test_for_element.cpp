@@ -1,10 +1,10 @@
 #include <QtTest/QtTest>
-#include <broaditem/control/ForElement.h>
-#include <broaditem/control/IfHasElement.h>
-#include <broaditem/text/TextElement.h>
-#include <broaditem/layout/RowLayout.h>
-#include <broaditem/layout/ColumnLayout.h>
-#include <broaditem/layout/GridLayout.h>
+#include <broaditem/element/control/ForElement.h>
+#include <broaditem/element/control/IfHasElement.h>
+#include <broaditem/element/text/TextElement.h>
+#include <broaditem/element/layout/RowLayout.h>
+#include <broaditem/element/layout/ColumnLayout.h>
+#include <broaditem/element/layout/GridLayout.h>
 #include <broaditem/context/LayoutContext.h>
 #include <broaditem/context/MapPropertyContext.h>
 #include <QDomDocument>

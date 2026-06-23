@@ -1,4 +1,4 @@
-#include <broaditem/control/ForElement.h>
+#include <broaditem/element/control/ForElement.h>
 #include <broaditem/context/MapPropertyContext.h>
 #include <broaditem/context/ItemPropertyContext.h>
 #include <QDomElement>

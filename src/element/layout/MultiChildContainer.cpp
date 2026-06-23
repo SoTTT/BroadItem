@@ -1,6 +1,6 @@
-#include <broaditem/layout/MultiChildContainer.h>
-#include <broaditem/control/ForElement.h>
-#include <broaditem/control/IfHasElement.h>
+#include <broaditem/element/layout/MultiChildContainer.h>
+#include <broaditem/element/control/ForElement.h>
+#include <broaditem/element/control/IfHasElement.h>
 #include <QPainter>
 #include <algorithm>
 

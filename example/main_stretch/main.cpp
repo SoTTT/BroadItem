@@ -30,13 +30,13 @@ int main(int argc, char* argv[])
     const QString basePath = QApplication::applicationDirPath();
 
     // 上方：未启用 main-stretch 的行，文本标签宽度由各自内容决定
-    auto* withoutItem = new BroadItem::BroadItem(basePath + "/main-stretch-without.xml");
+    auto* withoutItem = new BroadItem::BroadItem(basePath + "/main_stretch_without.xml");
     withoutItem->setPos(40, 80);
     scene.addItem(withoutItem);
     scene.addItem(makeLabelRect("未启用 main-stretch：子元素宽度由内容决定", 30, 40, 640, 32));
 
     // 下方：启用 main-stretch 的行，文本标签按最宽者统一
-    auto* withItem = new BroadItem::BroadItem(basePath + "/main-stretch-with.xml");
+    auto* withItem = new BroadItem::BroadItem(basePath + "/main_stretch_with.xml");
     withItem->setPos(40, 260);
     scene.addItem(withItem);
     scene.addItem(makeLabelRect("启用 main-stretch：子元素宽度统一", 30, 220, 640, 32));

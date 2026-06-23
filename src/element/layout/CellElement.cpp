@@ -1,4 +1,4 @@
-#include <broaditem/layout/CellElement.h>
+#include <broaditem/element/layout/CellElement.h>
 #include <QPainter>
 #include <QDomElement>
 

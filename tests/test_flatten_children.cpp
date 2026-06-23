@@ -1,8 +1,8 @@
 #include <QtTest/QtTest>
-#include <broaditem/layout/MultiChildContainer.h>
-#include <broaditem/control/ForElement.h>
-#include <broaditem/control/IfHasElement.h>
-#include <broaditem/layout/CellElement.h>
+#include <broaditem/element/layout/MultiChildContainer.h>
+#include <broaditem/element/control/ForElement.h>
+#include <broaditem/element/control/IfHasElement.h>
+#include <broaditem/element/layout/CellElement.h>
 #include <broaditem/context/LayoutContext.h>
 #include <broaditem/context/MapPropertyContext.h>
 

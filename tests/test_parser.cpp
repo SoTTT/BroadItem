@@ -6,8 +6,8 @@
 #include <broaditem/core/LayoutEngine.h>
 #include <broaditem/parser/LayoutRegistry.h>
 #include <broaditem/element/Element.h>
-#include <broaditem/control/IfHasElement.h>
-#include <broaditem/control/ForElement.h>
+#include <broaditem/element/control/IfHasElement.h>
+#include <broaditem/element/control/ForElement.h>
 #include <QDebug>
 
 // Minimal element for IfHasElement null value test

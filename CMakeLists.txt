@@ -48,26 +48,26 @@ add_library(BroadItem STATIC
     include/broaditem/element/ContainerElement.h
 
     # layout — multi-child layout containers
-    src/layout/MultiChildContainer.cpp
-    src/layout/ColumnLayout.cpp
-    src/layout/RowLayout.cpp
-    src/layout/GridLayout.cpp
-    src/layout/CellElement.cpp
-    include/broaditem/layout/MultiChildContainer.h
-    include/broaditem/layout/ColumnLayout.h
-    include/broaditem/layout/RowLayout.h
-    include/broaditem/layout/GridLayout.h
-    include/broaditem/layout/CellElement.h
+    src/element/layout/MultiChildContainer.cpp
+    src/element/layout/ColumnLayout.cpp
+    src/element/layout/RowLayout.cpp
+    src/element/layout/GridLayout.cpp
+    src/element/layout/CellElement.cpp
+    include/broaditem/element/layout/MultiChildContainer.h
+    include/broaditem/element/layout/ColumnLayout.h
+    include/broaditem/element/layout/RowLayout.h
+    include/broaditem/element/layout/GridLayout.h
+    include/broaditem/element/layout/CellElement.h
 
     # control — control-flow elements
-    src/control/ForElement.cpp
-    src/control/IfHasElement.cpp
-    include/broaditem/control/ForElement.h
-    include/broaditem/control/IfHasElement.h
+    src/element/control/ForElement.cpp
+    src/element/control/IfHasElement.cpp
+    include/broaditem/element/control/ForElement.h
+    include/broaditem/element/control/IfHasElement.h
 
     # text — text rendering leaf element
-    src/text/TextElement.cpp
-    include/broaditem/text/TextElement.h
+    src/element/text/TextElement.cpp
+    include/broaditem/element/text/TextElement.h
 
     # parser — XML layout parsing and registry
     src/parser/XmlLayoutParser.cpp
