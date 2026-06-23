@@ -2,7 +2,6 @@
 #include <QGraphicsScene>
 #include <QGraphicsView>
 #include <QPainter>
-#include <QTimer>
 
 #include <broaditem/reactive/ObservableGraphicsObject.h>
 #include <broaditem/reactive/ReactiveBinding.h>
@@ -23,6 +22,7 @@ public:
         , m_width(width)
         , m_height(height)
     {
+        setFlags(flags() | QGraphicsItem::ItemIsMovable);
     }
 
     /// @brief 返回项的包围矩形。
@@ -48,8 +48,7 @@ private:
 
 /// @brief 入口点。演示两个 Item 通过 ReactiveBinding 实现位置跟随。
 ///
-/// 红色矩形作为领导者，蓝色矩形通过绑定跟随，并带有一个固定偏移量。
-/// 使用 QTimer 周期性移动红色矩形，蓝色矩形会自动同步位置。
+/// 红色矩形可通过鼠标拖动，蓝色矩形通过绑定自动跟随，并带有一个固定偏移量。拖动红色矩形时，蓝色矩形会实时同步位置。
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
@@ -57,7 +56,6 @@ int main(int argc, char* argv[])
     QGraphicsScene scene;
     scene.setSceneRect(0, 0, 600, 400);
 
-    // 创建领导者和跟随者两个彩色矩形
     auto* leader = new ColoredRect(Qt::red, 60, 60);
     auto* follower = new ColoredRect(Qt::blue, 60, 60);
 
@@ -77,18 +75,6 @@ int main(int argc, char* argv[])
                                            follower, BroadItem::Property::Pos,
                                            offsetTransform);
 
-    // 使用定时器让领导者左右移动，跟随者会自动跟随
-    auto* timer = new QTimer(&app);
-    QObject::connect(timer, &QTimer::timeout, [&]() {
-        // 在场景宽度范围内做往复运动
-        qreal x = leader->pos().x() + 5.0;
-        if (x > 450.0) {
-            x = 50.0;
-        }
-        leader->setPos(x, leader->pos().y());
-    });
-    timer->start(50);
-
     QGraphicsView view(&scene);
     view.setRenderHints(QPainter::Antialiasing);
     view.setWindowTitle(QStringLiteral("Reactive Binding 跟随示例"));
@@ -98,12 +84,11 @@ int main(int argc, char* argv[])
     // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     const int result = app.exec();
 
-    // 清理绑定和定时器
+    // 清理绑定
     if (binding != nullptr) {
         binding->destroy();
         delete binding;
     }
-    delete timer;
 
     return result;
 }
