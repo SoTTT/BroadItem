@@ -27,3 +27,7 @@ target_link_libraries(frame_widget PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5:
 
 add_executable(frame_image frame_image/main.cpp)
 target_link_libraries(frame_image PRIVATE BroadItem Qt5::Core Qt5::Gui Qt5::Widgets Qt5::Xml)
+
+# Reactive binding follow example
+add_executable(reactive_follow reactive_follow/main.cpp)
+target_link_libraries(reactive_follow PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)
