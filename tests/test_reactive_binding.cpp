@@ -1,18 +1,23 @@
 #include <QtTest/QtTest>
 #include <QGraphicsObject>
-#include <broaditem/reactive/ObservableGraphicsObject.h>
 #include <broaditem/reactive/ReactiveBinding.h>
 #include <broaditem/reactive/ReactiveProperty.h>
 #include <broaditem/core/BroadItem.h>
 
-/// @brief 最小化 BroadItem::ObservableGraphicsObject 具体实现，用于测试绑定逻辑。
+/// @brief 最小化 QGraphicsObject 具体实现，用于测试绑定逻辑。
 ///
 /// 实现 QGraphicsObject 要求的 boundingRect() 和 paint() 纯虚函数，
-/// 使得 ObservableGraphicsObject 可以被直接实例化用于单元测试。
-class TestObservableObject : public BroadItem::ObservableGraphicsObject {
+/// 在构造函数中设置 ItemSendsGeometryChanges|ItemSendsScenePositionChanges
+/// 标志，使得 Qt 内部 NOTIFY 信号（xChanged/yChanged 等）正常发射。
+class TestObservableObject : public QGraphicsObject {
+    Q_OBJECT
 public:
     explicit TestObservableObject(QGraphicsItem* parent = nullptr)
-        : BroadItem::ObservableGraphicsObject(parent) {}
+        : QGraphicsObject(parent)
+    {
+        setFlags(flags() | QGraphicsItem::ItemSendsGeometryChanges
+                         | QGraphicsItem::ItemSendsScenePositionChanges);
+    }
 
     [[nodiscard]] QRectF boundingRect() const override { return {0, 0, 100, 100}; }
     void paint(QPainter*, const QStyleOptionGraphicsItem*, QWidget*) override {}

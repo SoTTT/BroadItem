@@ -6,12 +6,10 @@
 
 #include <broaditem/core/Frame.h>
 #include <broaditem/context/PropertyContext.h>
-#include <broaditem/reactive/ObservableGraphicsObject.h>
-
 namespace BroadItem {
 
 /// @brief 顶层 QGraphicsItem，渲染 XML 定义的布局并支持数据绑定。
-class BroadItem : public ObservableGraphicsObject {
+class BroadItem : public QGraphicsObject {
     Q_OBJECT
 public:
     /// @brief 从 XML 文件路径构造 BroadItem。

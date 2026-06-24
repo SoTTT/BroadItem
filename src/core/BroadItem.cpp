@@ -10,10 +10,12 @@ namespace BroadItem {
 BroadItem::BroadItem(const QString& xmlFilePath,
                      std::shared_ptr<PropertyContext> ctx,
                      QGraphicsItem* parent)
-    : ObservableGraphicsObject(parent)
+    : QGraphicsObject(parent)
     , m_frame(Frame::fromFile(xmlFilePath, std::move(ctx)))
 {
     setupPropertyContext();
+    setFlags(flags() | QGraphicsItem::ItemSendsGeometryChanges
+                     | QGraphicsItem::ItemSendsScenePositionChanges);
 }
 
 /// @brief 从注册的布局 ID 构造 BroadItem。
@@ -23,10 +25,12 @@ BroadItem::BroadItem(const QString& xmlFilePath,
 BroadItem::BroadItem(int layoutId,
                      std::shared_ptr<PropertyContext> ctx,
                      QGraphicsItem* parent)
-    : ObservableGraphicsObject(parent)
+    : QGraphicsObject(parent)
     , m_frame(Frame::fromRegistry(layoutId, std::move(ctx)))
 {
     setupPropertyContext();
+    setFlags(flags() | QGraphicsItem::ItemSendsGeometryChanges
+                     | QGraphicsItem::ItemSendsScenePositionChanges);
 }
 
 /// @brief 析构函数。

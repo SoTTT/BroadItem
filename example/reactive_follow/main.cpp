@@ -1,14 +1,15 @@
 #include <QApplication>
+#include <QGraphicsObject>
 #include <QGraphicsScene>
 #include <QGraphicsView>
 #include <QPainter>
 
-#include <broaditem/reactive/ObservableGraphicsObject.h>
 #include <broaditem/reactive/ReactiveBinding.h>
 #include <broaditem/reactive/ReactiveProperty.h>
 
-/// @brief 示例用的彩色矩形项，继承 ObservableGraphicsObject 以支持属性绑定。
-class ColoredRect : public BroadItem::ObservableGraphicsObject {
+/// @brief 示例用的彩色矩形项，直接继承 QGraphicsObject 以支持属性绑定。
+class ColoredRect : public QGraphicsObject {
+    Q_OBJECT
 public:
     /// @brief 构造彩色矩形项。
     /// @param color 填充颜色。
@@ -17,12 +18,14 @@ public:
     /// @param parent 父项。
     explicit ColoredRect(const QColor& color, qreal width, qreal height,
                          QGraphicsItem* parent = nullptr)
-        : BroadItem::ObservableGraphicsObject(parent)
+        : QGraphicsObject(parent)
         , m_color(color)
         , m_width(width)
         , m_height(height)
     {
-        setFlags(flags() | QGraphicsItem::ItemIsMovable);
+        setFlags(flags() | QGraphicsItem::ItemIsMovable
+                         | QGraphicsItem::ItemSendsGeometryChanges
+                         | QGraphicsItem::ItemSendsScenePositionChanges);
     }
 
     /// @brief 返回项的包围矩形。
@@ -103,3 +106,5 @@ int main(int argc, char* argv[])
 
     return result;
 }
+
+#include "main.moc"

@@ -75,10 +75,8 @@ add_library(BroadItem STATIC
     include/broaditem/parser/XmlLayoutParser.h
     include/broaditem/parser/LayoutRegistry.h
 
-    # reactive — observable graphics object, property keys, and reactive binding
-    src/reactive/ObservableGraphicsObject.cpp
+    # reactive — property keys and reactive binding
     src/reactive/ReactiveBinding.cpp
-    include/broaditem/reactive/ObservableGraphicsObject.h
     include/broaditem/reactive/ReactiveProperty.h
     include/broaditem/reactive/ReactiveBinding.h
 )
