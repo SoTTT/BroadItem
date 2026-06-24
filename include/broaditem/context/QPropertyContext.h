@@ -18,6 +18,12 @@ namespace BroadItem {
  *
  * 通知机制通过 NOTIFY 信号自动连接（构造后 QTimer::singleShot 延迟连接 + 各 API 同步兜底）
  * 和 QDynamicPropertyChangeEvent 拦截实现。
+ *
+ * @warning 共存风险：若对同一 QObject 同时使用 QPropertyContext（proxy 模式）
+ * 与 ReactiveBinding，该 QObject 的 Q_PROPERTY NOTIFY 信号会被两套系统同时连接。
+ * 对 visible/opacity 等两套系统均可绑定的属性，属性变更可能触发级联更新。
+ * 当前版本两套系统默认隔离（BroadItem 默认使用 MapPropertyContext），
+ * 此风险仅在显式向 BroadItem 传入 QPropertyContext 时出现。
  */
 class QPropertyContext : public QObject, public PropertyContext {
     Q_OBJECT

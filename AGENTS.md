@@ -44,6 +44,7 @@ ctest --test-dir build                    # all 8 test suites
 - **Box model**: margin → border → background → padding → content. Container size = content + decorators. Only content area expands when stretched.
 - Data context is a `QVariantMap` (`LayoutContext`). `BroadItem::setDynamicProperty()` triggers relayout only if the bound property is actually used.
 - **Reactive module** (`include/broaditem/reactive/`, `src/reactive/`): Item-level property synchronization between `QGraphicsItem` instances via pure meta-object driven reactive bindings. `ObservableGraphicsObject` (base class for `BroadItem`) enables Qt's internal `Q_PROPERTY` NOTIFY signals by setting `ItemSendsGeometryChanges|ItemSendsScenePositionChanges` flags. `ReactiveBinding` (static `create()` factory) accepts `QObject*` source/target, auto-discovers NOTIFY signals via `QMetaProperty::notifySignal()`, reads/writes via `QObject::property()`/`setProperty()`, and handles `pos` specially via `xChanged()`/`yChanged()` connections. Supports optional transform, cycle detection, and automatic cleanup on source/target destruction. `Property` struct provides property key constants. Comments: Doxygen in headers, Chinese in source files. Not integrated with XML layout or `PropertyContext` in this version.
+- ⚠️ 共存注意：QPropertyContext（proxy 模式）连接目标对象的所有 Q_PROPERTY NOTIFY 信号（`setupNotifyConnections()`），与 ReactiveBinding 的元对象连接重叠。当前默认隔离（BroadItem 使用 MapPropertyContext），但若显式混用需注意 `visible`/`opacity` 等可叠加属性的级联反馈环风险。
 
 ## Code Conventions
 
