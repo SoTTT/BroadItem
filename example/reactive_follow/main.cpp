@@ -138,7 +138,12 @@ int main(int argc, char* argv[])
     view.show();
     view.setFocus();
 
-    // 按 D 键删除黄色矩形，演示端点删除后连接线自动隐藏的生命周期行为
+    // 按 D 键删除黄色矩形，演示端点删除后连接线的生命周期行为。
+    //
+    // 设计说明：端点 destroyed 时 ConnectionLine 自动 setVisible(false) 而非自销毁。
+    // 原因：QObject::destroyed() 在析构中途发出，slot 内 delete this 不安全；
+    // 且外部可能持有 line 裸指针，自动 deleteLater 会造成悬空。
+    // line 的最终销毁应由拥有者主动触发（见函数末尾清理逻辑）。
     QObject::connect(&view, &InteractiveView::deleteRequested, [&]() {
         if (secondFollower) {
             delete secondFollower;
@@ -148,9 +153,10 @@ int main(int argc, char* argv[])
         }
     });
 
-    // 按 B 键删除蓝色矩形（follower），演示中间端点删除对上下游连接线的影响
-    // 此时 line1 (red→blue) 和 line2 (blue→yellow) 都应自动隐藏
-    // 黄色矩形仍在场景中但不再跟随（secondFollowBinding 的 leader 被销毁）
+    // 按 B 键删除蓝色矩形（follower），演示中间端点删除对上下游连接线的影响。
+    // 此时 line1 (red→blue) 和 line2 (blue→yellow) 均因端点 destroyed 而自动 setVisible(false)。
+    // 黄色矩形仍在场景中但不再跟随（secondFollowBinding 的 leader 被销毁后自动失效）。
+    // 线本身不自销毁，需由外部拥有者主动 delete（见函数末尾清理逻辑）。
     QObject::connect(&view, &InteractiveView::deleteBlueRequested, [&]() {
         if (follower) {
             delete follower;
