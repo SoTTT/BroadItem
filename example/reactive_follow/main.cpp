@@ -7,7 +7,7 @@
 #include <broaditem/reactive/ConnectionLine.h>
 #include <broaditem/reactive/FollowBinding.h>
 
-#include <QTimer>
+#include <QKeyEvent>
 #include <QDebug>
 
 /// @brief 示例用的彩色矩形项，直接继承 QGraphicsObject 以支持属性绑定。
@@ -52,6 +52,36 @@ private:
     qreal m_height;  ///< 矩形高度
 };
 
+/// @brief 支持键盘交互的视图，处理退出与删除按键。
+class InteractiveView : public QGraphicsView {
+    Q_OBJECT
+public:
+    /// @brief 构造视图。
+    /// @param scene 关联的场景。
+    explicit InteractiveView(QGraphicsScene* scene, QWidget* parent = nullptr)
+        : QGraphicsView(scene, parent) {}
+
+signals:
+    /// @brief 用户按下 D 键时发出，请求删除黄色矩形。
+    void deleteRequested();
+
+protected:
+    /// @brief 处理键盘事件。
+    /// @param event 键盘事件。
+    void keyPressEvent(QKeyEvent* event) override
+    {
+        if (event->key() == Qt::Key_Escape || event->key() == Qt::Key_Q) {
+            qApp->quit();
+            return;
+        }
+        if (event->key() == Qt::Key_D) {
+            emit deleteRequested();
+            return;
+        }
+        QGraphicsView::keyPressEvent(event);
+    }
+};
+
 /// @brief 入口点。演示三个 Item 通过 FollowBinding 实现位置跟随。
 ///
 /// 红色矩形可通过鼠标拖动，蓝色矩形通过 FollowBinding 自动跟随并保持相对偏移；
@@ -94,27 +124,27 @@ int main(int argc, char* argv[])
     line1->setPen(QPen(Qt::gray, 2.0));
     line2->setPen(QPen(Qt::darkGray, 2.0));
 
-    QGraphicsView view(&scene);
+    InteractiveView view(&scene);
     view.setRenderHints(QPainter::Antialiasing);
-    view.setWindowTitle(QStringLiteral("Follow Binding 跟随示例"));
+    view.setWindowTitle(QStringLiteral("Follow Binding 跟随示例 (Esc/Q 退出, D 删黄矩形)"));
     view.resize(620, 420);
     view.show();
+    view.setFocus();
 
-    // 演示端点删除后连接线自动隐藏的生命周期行为
-    // 3 秒后删除黄色矩形，line2 应自动变为不可见
-    QTimer::singleShot(3000, [&]() {
-        delete secondFollower;
-        secondFollower = nullptr;
-        qDebug() << "yellowRect destroyed, line2 visible=" << line2->isVisible();
+    // 按 D 键删除黄色矩形，演示端点删除后连接线自动隐藏的生命周期行为
+    QObject::connect(&view, &InteractiveView::deleteRequested, [&]() {
+        if (secondFollower) {
+            delete secondFollower;
+            secondFollower = nullptr;
+            qDebug() << "yellowRect destroyed, line2 visible="
+                     << (line2 ? line2->isVisible() : false);
+        }
     });
-
-    // offscreen 模式下 5 秒后自动退出，确保测试可结束
-    QTimer::singleShot(5000, &app, &QApplication::quit);
 
     // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     const int result = app.exec();
 
-    // 清理：先删连接线，再删 FollowBinding，最后处理矩形（secondFollower 已在 timer 中删除）
+    // 清理：先删连接线，再删 FollowBinding，最后处理矩形（secondFollower 可能已通过 D 键删除）
     if (line1) {
         delete line1;
         line1 = nullptr;
@@ -136,7 +166,7 @@ int main(int argc, char* argv[])
         secondFollowBinding = nullptr;
     }
 
-    // 清理矩形（secondFollower 已在 timer 中删除，判空跳过）
+    // 清理矩形（secondFollower 可能已通过 D 键删除，判空跳过）
     if (leader) {
         delete leader;
         leader = nullptr;
