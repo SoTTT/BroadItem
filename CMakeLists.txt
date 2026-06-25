@@ -77,8 +77,10 @@ add_library(BroadItem STATIC
 
     # reactive — property keys and reactive binding
     src/reactive/ReactiveBinding.cpp
+    src/reactive/FollowBinding.cpp
     include/broaditem/reactive/ReactiveProperty.h
     include/broaditem/reactive/ReactiveBinding.h
+    include/broaditem/reactive/FollowBinding.h
 )
 
 target_include_directories(BroadItem PUBLIC

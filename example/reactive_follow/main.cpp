@@ -4,8 +4,7 @@
 #include <QGraphicsView>
 #include <QPainter>
 
-#include <broaditem/reactive/ReactiveBinding.h>
-#include <broaditem/reactive/ReactiveProperty.h>
+#include <broaditem/reactive/FollowBinding.h>
 
 /// @brief 示例用的彩色矩形项，直接继承 QGraphicsObject 以支持属性绑定。
 class ColoredRect : public QGraphicsObject {
@@ -49,10 +48,10 @@ private:
     qreal m_height;  ///< 矩形高度
 };
 
-/// @brief 入口点。演示两个 Item 通过 ReactiveBinding 实现位置跟随。
+/// @brief 入口点。演示两个 Item 通过 FollowBinding 实现位置跟随。
 ///
-/// 红色矩形可通过鼠标拖动，蓝色矩形通过绑定自动跟随；拖动蓝色矩形可调整两者的相对位置，
-/// 之后拖动红色矩形时，蓝色矩形会保持新的相对距离同步移动。
+/// 红色矩形可通过鼠标拖动，蓝色矩形通过 FollowBinding 自动跟随并保持相对偏移；
+/// 拖动蓝色矩形可调整两者的相对位置，之后拖动红色矩形时，蓝色矩形会保持新的相对距离同步移动。
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
@@ -71,27 +70,12 @@ int main(int argc, char* argv[])
     scene.addItem(leader);
     scene.addItem(follower);
 
-    auto offsetTransform = [&offset](const QVariant& value) -> QVariant {
-        return value.toPointF() + offset;
-    };
-
-    BroadItem::ReactiveBinding* binding =
-        BroadItem::ReactiveBinding::create(leader, BroadItem::Property::Pos,
-                                           follower, BroadItem::Property::Pos,
-                                           offsetTransform);
-
-    // 拖动蓝色矩形时更新相对偏移，使后续拖动红色矩形保持新的相对位置。
-    // pos 无 NOTIFY 信号，改为分别连接 xChanged() 和 yChanged()
-    QObject::connect(follower, &QGraphicsObject::xChanged, &app, [&]() {
-        offset = follower->pos() - leader->pos();
-    });
-    QObject::connect(follower, &QGraphicsObject::yChanged, &app, [&]() {
-        offset = follower->pos() - leader->pos();
-    });
+    BroadItem::FollowBinding* followBinding =
+        BroadItem::FollowBinding::create(leader, follower, offset);
 
     QGraphicsView view(&scene);
     view.setRenderHints(QPainter::Antialiasing);
-    view.setWindowTitle(QStringLiteral("Reactive Binding 跟随示例"));
+    view.setWindowTitle(QStringLiteral("Follow Binding 跟随示例"));
     view.resize(620, 420);
     view.show();
 
@@ -99,9 +83,9 @@ int main(int argc, char* argv[])
     const int result = app.exec();
 
     // 清理绑定
-    if (binding != nullptr) {
-        binding->destroy();
-        delete binding;
+    if (followBinding != nullptr) {
+        followBinding->destroy();
+        delete followBinding;
     }
 
     return result;

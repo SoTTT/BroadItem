@@ -41,6 +41,20 @@ public:
                                    const QString& targetProperty,
                                    Transform transform = nullptr);
 
+    /// @brief 创建只观察源属性变化的绑定，不写入目标对象。
+    ///
+    /// 适用于需要响应属性变化但不需要同步到另一个属性的场景。回调函数接收源值，
+    /// 其返回值会被忽略。
+    /// @param source 源 QObject 指针。
+    /// @param sourceProperty 源属性名。
+    /// @param callback 属性变化时的回调函数。
+    /// @param parent 父 QObject。
+    /// @return ReactiveBinding* 新绑定实例；参数无效时返回 nullptr。
+    static ReactiveBinding* createObserver(QObject* source,
+                                           const QString& sourceProperty,
+                                           Transform callback,
+                                           QObject* parent = nullptr);
+
     /// @brief 销毁绑定，断开所有连接并标记为无效。
     void destroy();
 
@@ -52,7 +66,7 @@ public:
     /// @return true 表示绑定已启用。
     [[nodiscard]] bool isEnabled() const;
 
-    /// @brief 手动触发一次属性评估：读取源属性，变换，写入目标。
+    /// @brief 手动触发一次属性评估：读取源属性，变换，非观察者模式下写入目标。
     ///
     /// 如果绑定已禁用或 m_evaluating 标志为 true（重入），则跳过执行。
     void evaluate();

@@ -39,6 +39,34 @@ bool ReactiveBinding::isValidProperty(const QObject* obj, const QString& prop)
     return metaProp.hasNotifySignal();
 }
 
+/// @brief 创建只观察源属性变化的绑定，不写入目标对象。
+///
+/// 校验 source 非空且 sourceProperty 有效。回调函数接收源值，返回值被忽略。
+/// @param source 源 QObject。
+/// @param sourceProperty 源属性名。
+/// @param callback 属性变化时的回调函数。
+/// @param parent 父 QObject。
+/// @return ReactiveBinding* 新绑定实例；参数无效时返回 nullptr。
+ReactiveBinding* ReactiveBinding::createObserver(QObject* source,
+                                                 const QString& sourceProperty,
+                                                 Transform callback,
+                                                 QObject* parent)
+{
+    if (!source) {
+        qWarning() << "ReactiveBinding::createObserver: source is null";
+        return nullptr;
+    }
+
+    if (!isValidProperty(source, sourceProperty)) {
+        qWarning() << "ReactiveBinding::createObserver: invalid sourceProperty" << sourceProperty
+                    << "on source" << source;
+        return nullptr;
+    }
+
+    return new ReactiveBinding(source, sourceProperty, nullptr, QString(),
+                               std::move(callback), parent);
+}
+
 /// @brief 私有构造，通过 create() 工厂创建。
 ///
 /// 存储参数，连接源信号的 NOTIFY 信号或分量信号，连接目标/源的 destroyed() 信号。
@@ -195,13 +223,13 @@ void ReactiveBinding::onSourceChanged()
     evaluate();
 }
 
-/// @brief 手动触发一次属性评估：读取源 → 变换 → 写入目标。
+/// @brief 手动触发一次属性评估：读取源 → 变换 →（非观察者模式）写入目标。
 ///
 /// 循环检测：如果 m_evaluating 已为 true（重入），则自动禁用绑定并输出警告。
-/// 如果绑定已禁用、源或目标已销毁，则跳过执行。
+/// 如果绑定已禁用或源已销毁，则跳过执行。观察者模式下目标为空，仅执行回调。
 void ReactiveBinding::evaluate()
 {
-    if (!m_enabled || !m_source || !m_target) {
+    if (!m_enabled || !m_source) {
         return;
     }
 
@@ -223,8 +251,8 @@ void ReactiveBinding::evaluate()
         value = m_transform(value);
     }
 
-    // 写入目标属性
-    if (value.isValid()) {
+    // 仅在非观察者模式下写入目标属性
+    if (m_target != nullptr && !m_targetProperty.isEmpty() && value.isValid()) {
         writeProperty(m_target, m_targetProperty, value);
     }
 

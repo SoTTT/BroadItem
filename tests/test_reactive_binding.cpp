@@ -2,6 +2,7 @@
 #include <QGraphicsObject>
 #include <broaditem/reactive/ReactiveBinding.h>
 #include <broaditem/reactive/ReactiveProperty.h>
+#include <broaditem/reactive/FollowBinding.h>
 #include <broaditem/core/BroadItem.h>
 
 /// @brief 最小化 QGraphicsObject 具体实现，用于测试绑定逻辑。
@@ -444,6 +445,57 @@ private slots:
         // 同时改变两个分量
         source.setPos(500.0, 600.0);
         QCOMPARE(target.pos(), QPointF(500.0, 600.0));
+
+        binding->destroy();
+        delete binding;
+    }
+
+    /// @brief 测试观察者模式：源属性变化时回调被执行，不写入目标。
+    void testObserverCallback()
+    {
+        TestObservableObject source;
+        QPointF observedPos;
+
+        auto* binding = BroadItem::ReactiveBinding::createObserver(
+            &source, BroadItem::Property::Pos,
+            [&observedPos](const QVariant& v) -> QVariant {
+                observedPos = v.toPointF();
+                return {};
+            });
+        QVERIFY(binding != nullptr);
+
+        source.setPos(42.0, 99.0);
+        QCOMPARE(observedPos, QPointF(42.0, 99.0));
+
+        source.setPos(123.0, 456.0);
+        QCOMPARE(observedPos, QPointF(123.0, 456.0));
+
+        binding->destroy();
+        delete binding;
+    }
+
+    /// @brief 测试 FollowBinding：拖动 follower 后 leader 移动应保持新偏移。
+    void testFollowBindingOffsetUpdate()
+    {
+        TestObservableObject leader;
+        TestObservableObject follower;
+
+        QPointF initialOffset(120.0, 80.0);
+        leader.setPos(50.0, 170.0);
+        follower.setPos(leader.pos() + initialOffset);
+
+        auto* binding = BroadItem::FollowBinding::create(
+            &leader, &follower, initialOffset);
+        QVERIFY(binding != nullptr);
+
+        // 拖动 follower 到 (200, 300)，偏移应更新为 (150, 130)
+        follower.setPos(200.0, 300.0);
+        QCOMPARE(binding->offset(), QPointF(150.0, 130.0));
+
+        // 移动 leader 到 (60, 180)，follower 应保持新偏移
+        leader.setPos(60.0, 180.0);
+        QCOMPARE(follower.pos(), QPointF(210.0, 310.0));
+        QCOMPARE(binding->offset(), QPointF(150.0, 130.0));
 
         binding->destroy();
         delete binding;
