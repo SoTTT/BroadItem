@@ -65,6 +65,9 @@ signals:
     /// @brief 用户按下 D 键时发出，请求删除黄色矩形。
     void deleteRequested();
 
+    /// @brief 用户按下 B 键时发出，请求删除蓝色矩形。
+    void deleteBlueRequested();
+
 protected:
     /// @brief 处理键盘事件。
     /// @param event 键盘事件。
@@ -76,6 +79,10 @@ protected:
         }
         if (event->key() == Qt::Key_D) {
             emit deleteRequested();
+            return;
+        }
+        if (event->key() == Qt::Key_B) {
+            emit deleteBlueRequested();
             return;
         }
         QGraphicsView::keyPressEvent(event);
@@ -126,7 +133,7 @@ int main(int argc, char* argv[])
 
     InteractiveView view(&scene);
     view.setRenderHints(QPainter::Antialiasing);
-    view.setWindowTitle(QStringLiteral("Follow Binding 跟随示例 (Esc/Q 退出, D 删黄矩形)"));
+    view.setWindowTitle(QStringLiteral("Follow Binding 跟随示例 (Esc/Q 退出, D 删黄矩形, B 删蓝矩形)"));
     view.resize(620, 420);
     view.show();
     view.setFocus();
@@ -137,6 +144,20 @@ int main(int argc, char* argv[])
             delete secondFollower;
             secondFollower = nullptr;
             qDebug() << "yellowRect destroyed, line2 visible="
+                     << (line2 ? line2->isVisible() : false);
+        }
+    });
+
+    // 按 B 键删除蓝色矩形（follower），演示中间端点删除对上下游连接线的影响
+    // 此时 line1 (red→blue) 和 line2 (blue→yellow) 都应自动隐藏
+    // 黄色矩形仍在场景中但不再跟随（secondFollowBinding 的 leader 被销毁）
+    QObject::connect(&view, &InteractiveView::deleteBlueRequested, [&]() {
+        if (follower) {
+            delete follower;
+            follower = nullptr;
+            qDebug() << "blueRect destroyed, line1 visible="
+                     << (line1 ? line1->isVisible() : false)
+                     << ", line2 visible="
                      << (line2 ? line2->isVisible() : false);
         }
     });
