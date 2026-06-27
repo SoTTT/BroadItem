@@ -96,7 +96,8 @@ protected:
 /// 三个 ColoredRect 各自由 AnchorDecorator 包裹，装饰器提供锚点和外框。
 /// ConnectionLine 通过锚点连接装饰器，FollowBinding 在装饰器层级实现位置跟随链：
 /// leaderDecorator → followerDecorator → secondFollowerDecorator。
-/// 红色矩形可通过鼠标拖动，蓝色和黄色矩形通过 FollowBinding 自动跟随并保持相对偏移。
+/// 拖拽由装饰器接管：红色矩形的 AnchorDecorator 处理鼠标拖拽（ItemIsMovable），
+/// 矩形自身禁用鼠标与移动标志。蓝色和黄色矩形通过 FollowBinding 级联跟随并保持相对偏移。
 /// Esc/Q 退出，D 删除黄色矩形（级联销毁其装饰器和锚点），B 删除蓝色矩形。
 int main(int argc, char* argv[])
 {
@@ -133,6 +134,18 @@ int main(int argc, char* argv[])
     leaderDecorator->setPen(QPen(Qt::red, 1.5));
     followerDecorator->setPen(QPen(Qt::blue, 1.5));
     secondFollowerDecorator->setPen(QPen(QColor(0xCC, 0xAA, 0x00), 1.5));
+
+    // 拖拽由装饰器接管：禁用矩形的鼠标与移动标志，启用装饰器的左键拖拽。
+    auto enableDecoratorDrag = [](BroadItem::AnchorDecorator* dec,
+                                  QGraphicsObject* rect) {
+        rect->setAcceptedMouseButtons(Qt::NoButton);
+        rect->setFlag(QGraphicsItem::ItemIsMovable, false);
+        dec->setAcceptedMouseButtons(Qt::LeftButton);
+        dec->setFlag(QGraphicsItem::ItemIsMovable, true);
+    };
+    enableDecoratorDrag(leaderDecorator, leader);
+    enableDecoratorDrag(followerDecorator, follower);
+    enableDecoratorDrag(secondFollowerDecorator, secondFollower);
 
     // FollowBinding 装饰器→装饰器：拖动 leader 时级联带动整条链。
     BroadItem::FollowBinding* followBinding =
