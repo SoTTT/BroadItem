@@ -79,10 +79,14 @@ add_library(BroadItem STATIC
     src/reactive/ReactiveBinding.cpp
     src/reactive/FollowBinding.cpp
     src/reactive/ConnectionLine.cpp
+    src/reactive/AnchorPoint.cpp
+    src/reactive/AnchorDecorator.cpp
     include/broaditem/reactive/ReactiveProperty.h
     include/broaditem/reactive/ReactiveBinding.h
     include/broaditem/reactive/FollowBinding.h
     include/broaditem/reactive/ConnectionLine.h
+    include/broaditem/reactive/AnchorPoint.h
+    include/broaditem/reactive/AnchorDecorator.h
 )
 
 target_include_directories(BroadItem PUBLIC

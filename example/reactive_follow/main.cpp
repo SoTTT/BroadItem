@@ -4,6 +4,8 @@
 #include <QGraphicsView>
 #include <QPainter>
 
+#include <broaditem/reactive/AnchorDecorator.h>
+#include <broaditem/reactive/AnchorPoint.h>
 #include <broaditem/reactive/ConnectionLine.h>
 #include <broaditem/reactive/FollowBinding.h>
 
@@ -89,11 +91,13 @@ protected:
     }
 };
 
-/// @brief 入口点。演示三个 Item 通过 FollowBinding 实现位置跟随。
+/// @brief 入口点。演示 AnchorDecorator + AnchorPoint + ConnectionLine + FollowBinding 集成。
 ///
-/// 红色矩形可通过鼠标拖动，蓝色矩形通过 FollowBinding 自动跟随并保持相对偏移；
-/// 拖动蓝色矩形可调整两者的相对位置，之后拖动红色矩形时，蓝色矩形会保持新的相对距离同步移动。
-/// 黄色矩形跟随蓝色矩形，形成 red → blue → yellow 的跟随链。
+/// 三个 ColoredRect 各自由 AnchorDecorator 包裹，装饰器提供锚点和外框。
+/// ConnectionLine 通过锚点连接装饰器，FollowBinding 在装饰器层级实现位置跟随链：
+/// leaderDecorator → followerDecorator → secondFollowerDecorator。
+/// 红色矩形可通过鼠标拖动，蓝色和黄色矩形通过 FollowBinding 自动跟随并保持相对偏移。
+/// Esc/Q 退出，D 删除黄色矩形（级联销毁其装饰器和锚点），B 删除蓝色矩形。
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
@@ -116,16 +120,43 @@ int main(int argc, char* argv[])
     scene.addItem(follower);
     scene.addItem(secondFollower);
 
-    BroadItem::FollowBinding* followBinding =
-        BroadItem::FollowBinding::create(leader, follower, offset);
-    BroadItem::FollowBinding* secondFollowBinding =
-        BroadItem::FollowBinding::create(follower, secondFollower, secondOffset);
+    // 创建 AnchorDecorator 包裹每个矩形，提供锚点和外框。
+    // create() 后矩形的 parentItem 变为装饰器，装饰器根据矩形包围盒自定位。
+    auto* leaderDecorator =
+        BroadItem::AnchorDecorator::create(&scene, leader);
+    auto* followerDecorator =
+        BroadItem::AnchorDecorator::create(&scene, follower);
+    auto* secondFollowerDecorator =
+        BroadItem::AnchorDecorator::create(&scene, secondFollower);
 
-    // 创建两条连接线，绘制矩形端点之间的连线
-    // line1 连接红色(leader) → 蓝色(follower)
-    // line2 连接蓝色(follower) → 黄色(secondFollower)
-    auto* line1 = BroadItem::ConnectionLine::create(&scene, leader, follower);
-    auto* line2 = BroadItem::ConnectionLine::create(&scene, follower, secondFollower);
+    // 设置装饰器外框画笔颜色以区分三个矩形
+    leaderDecorator->setPen(QPen(Qt::red, 1.5));
+    followerDecorator->setPen(QPen(Qt::blue, 1.5));
+    secondFollowerDecorator->setPen(QPen(QColor(0xCC, 0xAA, 0x00), 1.5));
+
+    // FollowBinding 装饰器→装饰器：拖动 leader 时级联带动整条链。
+    BroadItem::FollowBinding* followBinding =
+        BroadItem::FollowBinding::create(leaderDecorator, followerDecorator,
+                                         offset);
+    BroadItem::FollowBinding* secondFollowBinding =
+        BroadItem::FollowBinding::create(followerDecorator,
+                                         secondFollowerDecorator,
+                                         secondOffset);
+
+    // 创建两条连接线，通过锚点连接装饰器
+    // line1 连接 leaderDecorator 东锚点 → followerDecorator 西锚点
+    // line2 连接 followerDecorator 东锚点 → secondFollowerDecorator 西锚点
+    auto* line1 = BroadItem::ConnectionLine::create(
+        &scene,
+        leaderDecorator->anchor(BroadItem::AnchorDecorator::AnchorSide::East),
+        followerDecorator->anchor(
+            BroadItem::AnchorDecorator::AnchorSide::West));
+    auto* line2 = BroadItem::ConnectionLine::create(
+        &scene,
+        followerDecorator->anchor(
+            BroadItem::AnchorDecorator::AnchorSide::East),
+        secondFollowerDecorator->anchor(
+            BroadItem::AnchorDecorator::AnchorSide::West));
 
     // 设置不同画笔颜色以区分两条线
     line1->setPen(QPen(Qt::gray, 2.0));
@@ -133,45 +164,55 @@ int main(int argc, char* argv[])
 
     InteractiveView view(&scene);
     view.setRenderHints(QPainter::Antialiasing);
-    view.setWindowTitle(QStringLiteral("Follow Binding 跟随示例 (Esc/Q 退出, D 删黄矩形, B 删蓝矩形)"));
+    view.setWindowTitle(QStringLiteral(
+        "AnchorDecorator 集成示例 (Esc/Q 退出, D 删黄矩形, B 删蓝矩形)"));
     view.resize(620, 420);
     view.show();
     view.setFocus();
 
-    // 按 D 键删除黄色矩形，演示端点删除后连接线的生命周期行为。
+    // 按 D 键删除黄色矩形，演示级联销毁装饰器和锚点的生命周期行为。
     //
-    // 设计说明：端点 destroyed 时 ConnectionLine 自动 setVisible(false) 而非自销毁。
-    // 原因：QObject::destroyed() 在析构中途发出，slot 内 delete this 不安全；
-    // 且外部可能持有 line 裸指针，自动 deleteLater 会造成悬空。
-    // line 的最终销毁应由拥有者主动触发（见函数末尾清理逻辑）。
+    // 删除 secondFollower 后，其 AnchorDecorator 通过 QObject::destroyed 信号
+    // 触发 deleteLater()，装饰器及其 8 个锚点自动销毁。
+    // line2 因端点（锚点）销毁而自动 setVisible(false)。
     QObject::connect(&view, &InteractiveView::deleteRequested, [&]() {
         if (secondFollower) {
             delete secondFollower;
             secondFollower = nullptr;
-            qDebug() << "yellowRect destroyed, line2 visible="
-                     << (line2 ? line2->isVisible() : false);
+            secondFollowerDecorator =
+                nullptr;  // 装饰器已通过 deleteLater 自动销毁
+            qDebug()
+                << "yellowRect destroyed (decorator also destroyed), line2 visible="
+                << (line2 ? line2->isVisible() : false);
         }
     });
 
     // 按 B 键删除蓝色矩形（follower），演示中间端点删除对上下游连接线的影响。
-    // 此时 line1 (red→blue) 和 line2 (blue→yellow) 均因端点 destroyed 而自动 setVisible(false)。
-    // 黄色矩形仍在场景中但不再跟随（secondFollowBinding 的 leader 被销毁后自动失效）。
-    // 线本身不自销毁，需由外部拥有者主动 delete（见函数末尾清理逻辑）。
+    //
+    // 删除 follower 后，其 AnchorDecorator 自动销毁，锚点级联销毁。
+    // line1（leaderDecorator→followerDecorator）和 line2（followerDecorator→
+    // secondFollowerDecorator）均因锚点 destroyed 而自动 setVisible(false)。
+    // secondFollower 仍在场景中但不再跟随
+    // （secondFollowBinding 的 leader 被销毁后自动失效）。
     QObject::connect(&view, &InteractiveView::deleteBlueRequested, [&]() {
         if (follower) {
             delete follower;
             follower = nullptr;
-            qDebug() << "blueRect destroyed, line1 visible="
-                     << (line1 ? line1->isVisible() : false)
-                     << ", line2 visible="
-                     << (line2 ? line2->isVisible() : false);
+            followerDecorator =
+                nullptr;  // 装饰器已通过 deleteLater 自动销毁
+            qDebug()
+                << "blueRect destroyed (decorator also destroyed), line1 visible="
+                << (line1 ? line1->isVisible() : false)
+                << ", line2 visible="
+                << (line2 ? line2->isVisible() : false);
         }
     });
 
     // NOLINTNEXTLINE(readability-static-accessed-through-instance)
     const int result = app.exec();
 
-    // 清理：先删连接线，再删 FollowBinding，最后处理矩形（secondFollower 可能已通过 D 键删除）
+    // 清理：先删连接线，再删 FollowBinding。
+    // 装饰器在删除矩形时自动销毁，此处仅判空清理。
     if (line1) {
         delete line1;
         line1 = nullptr;
@@ -193,18 +234,22 @@ int main(int argc, char* argv[])
         secondFollowBinding = nullptr;
     }
 
-    // 清理矩形（secondFollower 可能已通过 D 键删除，判空跳过）
+    // 清理矩形（secondFollower 可能已通过 D 键删除）。
+    // 删除矩形后装饰器通过 deleteLater 自动销毁，仅需置空本地指针。
     if (leader) {
         delete leader;
         leader = nullptr;
+        leaderDecorator = nullptr;
     }
     if (follower) {
         delete follower;
         follower = nullptr;
+        followerDecorator = nullptr;
     }
     if (secondFollower) {
         delete secondFollower;
         secondFollower = nullptr;
+        secondFollowerDecorator = nullptr;
     }
 
     return result;
