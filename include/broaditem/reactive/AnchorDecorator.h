@@ -15,28 +15,34 @@ class ReactiveBinding;
 /// @brief AnchorDecorator — 装饰器图元，为任意 QGraphicsObject 包围 8 方向锚点和外框。
 ///
 /// AnchorDecorator 包裹一个被装饰的 QGraphicsObject（decorated），成为其
-/// QGraphicsItem 父节点，使得 decorated 随装饰器整体平移。锚点（AnchorPoint）
+/// QGraphicsItem 父节点，使 decorated 随装饰器整体移动。8 个锚点（AnchorPoint）
 /// 保持为顶级场景图元（QGraphicsItem parent = nullptr），其 scenePos 可直接
 /// 被 ConnectionLine 读取。
 ///
 /// 装饰器支持两种挂载场景：
 /// - decorated 原本为场景顶级图元：装饰器直接加入场景并接管 decorated。
-/// - decorated 已有 QGraphicsItem 父节点：装饰器插入到原父链中，形成
-///   `Parent -> AnchorDecorator -> Decorated` 的层级关系。插入与析构时均保持
+/// - decorated 已有 QGraphicsItem 父节点：装饰器插入到原父节点与 decorated 之间，
+///   形成 `Parent -> AnchorDecorator -> Decorated` 的层级关系。插入与析构时均保持
 ///   decorated 的 scenePos 不变，因此视觉上不会跳动。
+///
+/// 装饰器使用 ParentDestroySentinel 占位图元探测原父节点销毁：
+/// sentinel 作为原父节点的 QGraphicsItem 子节点、且比 AnchorDecorator 更早插入；
+/// 当原父节点被销毁时，sentinel 先于装饰器被删除并设置 m_originalParentDestroyed
+/// 标记，避免析构时将 decorated 挂回正在销毁的父节点。
+///
+/// 生命周期：
+/// - 通过静态工厂 create() 构造，参数无效时返回 nullptr 并输出 qWarning。
+/// - 析构时先销毁所有 ReactiveBinding observer，再恢复 decorated 的父级：
+///   若原父节点仍存活，将 decorated 重新挂回原父节点并保持 scenePos；
+///   若原父节点已被销毁，将 decorated 恢复为场景顶级并保持 scenePos。
+/// - 删除 ParentDestroySentinel、8 个锚点，并释放所有 observer 绑定。
+/// - 当 decorated 被销毁时，装饰器通过 deleteLater() 自我调度删除。
 ///
 /// 装饰器通过 ReactiveBinding::createObserver 监听 decorated 的 pos 属性变化
 /// 以实现几何体实时跟动；在 decorated 具备带 NOTIFY 信号的 width/height 属性时
 /// 额外连接这两个属性的观察者。
 ///
-/// 生命周期：
-/// - 通过静态工厂 create() 构造，参数无效时返回 nullptr 并输出 qWarning。
-/// - 析构时若 decorated 仍存活，将其恢复到原始父节点（若原始父节点仍存活）
-///   或场景顶级（若原始父节点已被销毁），并保持 scenePos 不变。
-/// - 删除 8 个锚点，销毁所有 observer 绑定。
-/// - 当 decorated 被销毁时，装饰器通过 deleteLater() 自我调度删除。
-///
-/// 限制：
+/// 其它说明：
 /// - 不参与 XML 元素树和 measure/layout/render 管线。
 /// - 不处理鼠标/键盘交互。
 class AnchorDecorator : public QGraphicsObject {

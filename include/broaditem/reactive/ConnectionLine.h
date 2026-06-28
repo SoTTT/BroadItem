@@ -12,18 +12,31 @@ namespace BroadItem {
 class ReactiveBinding;
 class FollowBinding;
 
-/// @brief 连接线 — 纯场景级视觉项，用于在两个 QGraphicsObject 之间绘制实时跟动的连接线。
+/// @brief 连接线 — 纯场景级视觉项，在两个 QGraphicsObject 之间绘制实时跟动的连接线。
 ///
-/// ConnectionLine 通过 ReactiveBinding::createScenePosObserver() 监听两端 item 的场景位置变化，
-/// 当任一端自身移动或其任意 QGraphicsObject 祖先移动时自动重绘连接线。
-/// create() 工厂内部透明配对 FollowBinding，偏移量由创建瞬间的两端 scenePos() 差自动计算。
-/// 支持端点位于任意深度的嵌套 parent 链中。
+/// 连接线自身为场景顶级图元，boundingRect() 与 paint() 均使用场景坐标。
+/// 两端点通过 ReactiveBinding::createScenePosObserver() 监听其 scenePos() 变化，
+/// 包括端点自身及其所有 QGraphicsObject 祖先的位置、变换与可见性变化，
+/// 因此端点可位于任意深度的嵌套 parent 链中。
+/// create() 工厂内部使用 FollowBinding 配对，偏移量由创建瞬间两端 scenePos() 的差值决定。
 ///
-/// 生命周期：ConnectionLine 析构时显式 destroy() + delete 内部所有 binding 以防止泄漏。
-/// 任一端点销毁或离开场景时，线自动 setVisible(false) 但仍存活，需由用户自行 delete 整线。
+/// 生命周期：端点销毁或离开场景时，线自动 setVisible(false) 隐藏；
+/// 整线仍保持存活，由调用方负责 delete。析构时显式 destroy() + delete
+/// 内部所有 binding，避免连接泄漏。
 class ConnectionLine : public QGraphicsObject {
     Q_OBJECT
 public:
+    /// @brief 创建一条连接 a 与 b 的场景级连接线。
+    ///
+    /// 内部创建 ConnectionLine、将其加入 scene，并建立 FollowBinding 与
+    /// ReactiveBinding::createScenePosObserver() 监听。偏移量由创建瞬间两端
+    /// scenePos() 的差值决定。
+    ///
+    /// @param scene 目标场景，必须非空且 a、b 均已加入该场景。
+    /// @param a 端点 A，必须为非空的 QGraphicsObject 且拥有 pos 属性。
+    /// @param b 端点 B，必须为非空的 QGraphicsObject 且拥有 pos 属性。
+    /// @param parent 可选的 QObject 父对象。
+    /// @return ConnectionLine* 新实例；参数无效时返回 nullptr。
     static ConnectionLine* create(QGraphicsScene* scene,
                                   QObject* a,
                                   QObject* b,
@@ -43,7 +56,14 @@ public:
                QWidget* widget) override;
 
 private slots:
+    /// @brief 端点 A 的场景位置变化回调。
+    ///
+    /// 更新最近记录的场景坐标并重绘；若端点已销毁或离开场景则隐藏线。
     void onAPosChanged();
+
+    /// @brief 端点 B 的场景位置变化回调。
+    ///
+    /// 更新最近记录的场景坐标并重绘；若端点已销毁或离开场景则隐藏线。
     void onBPosChanged();
 
 private:
