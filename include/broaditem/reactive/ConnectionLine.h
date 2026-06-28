@@ -14,15 +14,13 @@ class FollowBinding;
 
 /// @brief 连接线 — 纯场景级视觉项，用于在两个 QGraphicsObject 之间绘制实时跟动的连接线。
 ///
-/// ConnectionLine 通过 ReactiveBinding::createObserver() 监听两端 item 的 pos 属性变化，
-/// 当任一端移动时自动重绘连接线。create() 工厂内部透明配对 FollowBinding，
-/// 偏移量由创建瞬间的两端位置差自动计算。
+/// ConnectionLine 通过 ReactiveBinding::createScenePosObserver() 监听两端 item 的场景位置变化，
+/// 当任一端自身移动或其任意 QGraphicsObject 祖先移动时自动重绘连接线。
+/// create() 工厂内部透明配对 FollowBinding，偏移量由创建瞬间的两端 scenePos() 差自动计算。
+/// 支持端点位于任意深度的嵌套 parent 链中。
 ///
 /// 生命周期：ConnectionLine 析构时显式 destroy() + delete 内部所有 binding 以防止泄漏。
-/// 任一端点销毁时，线自动 setVisible(false) 但仍存活，需由用户自行 delete 整线。
-///
-/// MVP 限制：假定两端点是顶层场景 item（pos == scenePos），不支持嵌套 parent 的 scenePos 映射。
-/// 仅跟踪 pos 属性，不跟踪 scale / rotation / opacity / visible。
+/// 任一端点销毁或离开场景时，线自动 setVisible(false) 但仍存活，需由用户自行 delete 整线。
 class ConnectionLine : public QGraphicsObject {
     Q_OBJECT
 public:

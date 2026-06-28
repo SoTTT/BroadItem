@@ -1,5 +1,5 @@
 /// @file ConnectionLine.cpp
-/// @brief ConnectionLine 实现 —— 场景级连接线，通过 observer 监听两端 pos 并实时绘制。
+/// @brief ConnectionLine 实现 —— 场景级连接线，通过场景位置 observer 监听两端并实时绘制。
 
 #include <broaditem/reactive/ConnectionLine.h>
 #include <broaditem/reactive/ReactiveBinding.h>
@@ -64,10 +64,8 @@ ConnectionLine* ConnectionLine::create(QGraphicsScene* scene,
     auto* conn = new ConnectionLine(a, b, parent);
     scene->addItem(conn);
 
-    // 计算初始 offset → 创建 FollowBinding
-    QPointF aPos = a->property(Property::Pos.toLatin1().constData()).toPointF();
-    QPointF bPos = b->property(Property::Pos.toLatin1().constData()).toPointF();
-    QPointF offset = bPos - aPos;
+    // 计算初始 offset → 创建 FollowBinding（基于场景坐标，支持嵌套 parent）
+    QPointF offset = bObj->scenePos() - aObj->scenePos();
 
     conn->m_followBinding = FollowBinding::create(a, b, offset, conn);
     if (!conn->m_followBinding) {
@@ -77,9 +75,9 @@ ConnectionLine* ConnectionLine::create(QGraphicsScene* scene,
         return nullptr;
     }
 
-    // 创建 pos observer（只读不写 pos，避免触发循环检测）
-    conn->m_aObserver = ReactiveBinding::createObserver(
-        a, Property::Pos,
+    // 创建场景位置 observer（递归监听目标及其父链，只读不写）
+    conn->m_aObserver = ReactiveBinding::createScenePosObserver(
+        aObj,
         [conn](const QVariant&) -> QVariant {
             conn->onAPosChanged();
             return {};
@@ -92,8 +90,8 @@ ConnectionLine* ConnectionLine::create(QGraphicsScene* scene,
         return nullptr;
     }
 
-    conn->m_bObserver = ReactiveBinding::createObserver(
-        b, Property::Pos,
+    conn->m_bObserver = ReactiveBinding::createScenePosObserver(
+        bObj,
         [conn](const QVariant&) -> QVariant {
             conn->onBPosChanged();
             return {};
@@ -142,8 +140,10 @@ ConnectionLine::ConnectionLine(QObject* a, QObject* b, QObject* parent)
     setFlag(ItemIsSelectable, false);
     setZValue(1);
 
-    m_lastAPos = a->property(Property::Pos.toLatin1().constData()).toPointF();
-    m_lastBPos = b->property(Property::Pos.toLatin1().constData()).toPointF();
+    auto* aObj = qobject_cast<QGraphicsObject*>(a);
+    auto* bObj = qobject_cast<QGraphicsObject*>(b);
+    m_lastAPos = aObj ? aObj->scenePos() : QPointF();
+    m_lastBPos = bObj ? bObj->scenePos() : QPointF();
 }
 
 ConnectionLine::~ConnectionLine()
@@ -210,7 +210,14 @@ void ConnectionLine::paint(QPainter* painter,
 void ConnectionLine::onAPosChanged()
 {
     if (!m_a) return;
-    m_lastAPos = m_a->property(Property::Pos.toLatin1().constData()).toPointF();
+
+    auto* obj = qobject_cast<QGraphicsObject*>(m_a);
+    if (!obj || !obj->scene()) {
+        setVisible(false);
+        return;
+    }
+
+    m_lastAPos = obj->scenePos();
     prepareGeometryChange();
     update();
 }
@@ -218,7 +225,14 @@ void ConnectionLine::onAPosChanged()
 void ConnectionLine::onBPosChanged()
 {
     if (!m_b) return;
-    m_lastBPos = m_b->property(Property::Pos.toLatin1().constData()).toPointF();
+
+    auto* obj = qobject_cast<QGraphicsObject*>(m_b);
+    if (!obj || !obj->scene()) {
+        setVisible(false);
+        return;
+    }
+
+    m_lastBPos = obj->scenePos();
     prepareGeometryChange();
     update();
 }
