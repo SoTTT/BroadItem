@@ -2,7 +2,177 @@
 #include <broaditem/reactive/ReactiveProperty.h>
 
 #include <QDebug>
+#include <QGraphicsObject>
 #include <QMetaProperty>
+
+namespace {
+
+/// @brief 场景位置变化跟踪器，递归监听目标对象及其父链的位置相关信号。
+///
+/// 负责连接目标对象以及所有 QGraphicsObject 祖先的 xChanged()/yChanged() 信号，
+/// 并在目标对象的 parentChanged() 信号触发时重新建立父链连接。
+class ScenePosTracker : public QObject {
+    Q_OBJECT
+public:
+    /// @brief 构造跟踪器。
+    /// @param target 要跟踪的 QGraphicsObject。
+    /// @param onChanged 位置可能变化时的回调。
+    /// @param parent 父 QObject。
+    explicit ScenePosTracker(QGraphicsObject* target,
+                             std::function<void()> onChanged,
+                             QObject* parent = nullptr)
+        : QObject(parent)
+        , m_target(target)
+        , m_onChanged(std::move(onChanged))
+    {
+        rebuildConnections();
+    }
+
+    ~ScenePosTracker() override
+    {
+        clearConnections();
+    }
+
+private slots:
+    /// @brief 任意祖先或目标自身位置分量变化时调用。
+    void onPositionChanged()
+    {
+        if (m_onChanged) {
+            m_onChanged();
+        }
+    }
+
+    /// @brief 任意祖先或目标自身的缩放、旋转、可见性、透明度变化时调用。
+    void onVisualChanged()
+    {
+        if (m_onChanged) {
+            m_onChanged();
+        }
+    }
+
+    /// @brief 目标对象的父级发生变化时重建整个父链监听。
+    void onParentChanged()
+    {
+        rebuildConnections();
+        if (m_onChanged) {
+            m_onChanged();
+        }
+    }
+
+private:
+    /// @brief 建立目标对象及所有 QGraphicsObject 祖先的位置与视觉信号连接。
+    ///
+    /// 沿 parentItem() 向上遍历，对每个可转换为 QGraphicsObject 的祖先连接 xChanged()/yChanged()、
+    /// scaleChanged()/rotationChanged()/visibleChanged()/opacityChanged() 以及 parentChanged()（仅目标）。
+    /// 因 QGraphicsItem* 不是 QObject*，此处使用 dynamic_cast（qobject_cast 需要 QObject 派生指针）。
+    void rebuildConnections()
+    {
+        clearConnections();
+        if (!m_target) {
+            return;
+        }
+
+        connectPositionSignals(m_target);
+        connectVisualSignals(m_target);
+        connectParentChangedSignal(m_target);
+
+        QGraphicsItem* item = m_target->parentItem();
+        while (item != nullptr) {
+            if (auto* obj = dynamic_cast<QGraphicsObject*>(item)) {
+                connectPositionSignals(obj);
+                connectVisualSignals(obj);
+            }
+            item = item->parentItem();
+        }
+    }
+
+    /// @brief 断开所有已建立的位置和父级变化连接。
+    void clearConnections()
+    {
+        for (const auto& conn : m_positionConnections) {
+            disconnect(conn);
+        }
+        m_positionConnections.clear();
+
+        disconnect(m_parentChangedConnection);
+    }
+
+    /// @brief 连接单个 QGraphicsObject 的 xChanged()/yChanged() 信号。
+    ///
+    /// 使用 QMetaMethod-to-QMetaMethod 连接，与 ReactiveBinding::connectSourceSignal() 的 pos 处理保持一致。
+    /// @param obj 要连接的对象。
+    void connectPositionSignals(QGraphicsObject* obj)
+    {
+        const QMetaObject* meta = obj->metaObject();
+        int slotIdx = metaObject()->indexOfSlot("onPositionChanged()");
+        if (slotIdx < 0) {
+            return;
+        }
+        QMetaMethod slotMethod = metaObject()->method(slotIdx);
+
+        int xIdx = meta->indexOfMethod("xChanged()");
+        int yIdx = meta->indexOfMethod("yChanged()");
+        if (xIdx >= 0) {
+            m_positionConnections.append(
+                connect(obj, meta->method(xIdx), this, slotMethod));
+        }
+        if (yIdx >= 0) {
+            m_positionConnections.append(
+                connect(obj, meta->method(yIdx), this, slotMethod));
+        }
+    }
+
+    /// @brief 连接单个 QGraphicsObject 的 scaleChanged()/rotationChanged()/visibleChanged()/opacityChanged() 信号。
+    /// @param obj 要连接的对象。
+    void connectVisualSignals(QGraphicsObject* obj)
+    {
+        static const char* kSignals[] = {
+            "scaleChanged()",
+            "rotationChanged()",
+            "visibleChanged()",
+            "opacityChanged()",
+        };
+
+        const QMetaObject* meta = obj->metaObject();
+        int slotIdx = metaObject()->indexOfSlot("onVisualChanged()");
+        if (slotIdx < 0) {
+            return;
+        }
+        QMetaMethod slotMethod = metaObject()->method(slotIdx);
+
+        for (const char* sig : kSignals) {
+            int idx = meta->indexOfMethod(sig);
+            if (idx >= 0) {
+                m_positionConnections.append(
+                    connect(obj, meta->method(idx), this, slotMethod));
+            }
+        }
+    }
+
+    /// @brief 连接目标对象的 parentChanged() 信号以重建父链。
+    /// @param obj 目标对象。
+    void connectParentChangedSignal(QGraphicsObject* obj)
+    {
+        const QMetaObject* meta = obj->metaObject();
+        int slotIdx = metaObject()->indexOfSlot("onParentChanged()");
+        if (slotIdx < 0) {
+            return;
+        }
+        QMetaMethod slotMethod = metaObject()->method(slotIdx);
+
+        int signalIdx = meta->indexOfMethod("parentChanged()");
+        if (signalIdx >= 0) {
+            m_parentChangedConnection = connect(obj, meta->method(signalIdx), this, slotMethod);
+        }
+    }
+
+    QGraphicsObject* m_target;                              ///< 被跟踪的目标对象。
+    std::function<void()> m_onChanged;                     ///< 变化通知回调。
+    QVector<QMetaObject::Connection> m_positionConnections; ///< 位置、视觉及父级变化信号连接。
+    QMetaObject::Connection m_parentChangedConnection;      ///< 目标 parentChanged 连接。
+};
+
+} // namespace
 
 namespace BroadItem {
 
@@ -67,6 +237,25 @@ ReactiveBinding* ReactiveBinding::createObserver(QObject* source,
                                std::move(callback), parent);
 }
 
+/// @brief 创建场景位置观察者，递归监听目标对象及其所有父节点的位置变化。
+///
+/// 校验 source 非空且为有效的 QGraphicsObject。回调函数接收当前 scenePos() 的 QVariant(QPointF)。
+/// @param source 要观察的 QGraphicsObject。
+/// @param callback 场景位置变化回调。
+/// @param parent 父 QObject。
+/// @return ReactiveBinding* 新绑定实例；参数无效时返回 nullptr。
+ReactiveBinding* ReactiveBinding::createScenePosObserver(QGraphicsObject* source,
+                                                         Transform callback,
+                                                         QObject* parent)
+{
+    if (!source) {
+        qWarning() << "ReactiveBinding::createScenePosObserver: source is null";
+        return nullptr;
+    }
+
+    return new ReactiveBinding(source, std::move(callback), parent);
+}
+
 /// @brief 私有构造，通过 create() 工厂创建。
 ///
 /// 存储参数，连接源信号的 NOTIFY 信号或分量信号，连接目标/源的 destroyed() 信号。
@@ -108,6 +297,46 @@ ReactiveBinding::ReactiveBinding(QObject* source,
             m_enabled = false;
         });
     }
+}
+
+/// @brief 场景位置观察者专用构造。
+///
+/// 设置自定义源值读取器返回 source->scenePos()，并创建内部 ScenePosTracker
+/// 递归监听目标对象及其父链的 xChanged()/yChanged() 与 parentChanged() 信号。
+/// @param source 要观察的 QGraphicsObject。
+/// @param callback 场景位置变化回调。
+/// @param parent 父 QObject。
+ReactiveBinding::ReactiveBinding(QGraphicsObject* source,
+                                 Transform callback,
+                                 QObject* parent)
+    : QObject(parent)
+    , m_source(source)
+    , m_target(nullptr)
+    , m_sourceProperty()
+    , m_targetProperty()
+    , m_transform(std::move(callback))
+    , m_enabled(true)
+    , m_evaluating(false)
+    , m_customSourceReader([source]() -> QVariant {
+        if (!source) {
+            return {};
+        }
+        return source->scenePos();
+    })
+{
+    if (m_source) {
+        m_sourceDestroyConnection = connect(m_source, &QObject::destroyed, this, [this]() {
+            m_source = nullptr;
+            m_enabled = false;
+            if (m_scenePosTracker != nullptr) {
+                delete m_scenePosTracker;
+                m_scenePosTracker = nullptr;
+            }
+        });
+    }
+
+    auto* tracker = new ScenePosTracker(source, [this]() { evaluate(); }, this);
+    m_scenePosTracker = tracker;
 }
 
 /// @brief 静态工厂：创建响应式绑定并返回裸指针。
@@ -167,6 +396,11 @@ void ReactiveBinding::destroy()
         disconnect(conn);
     }
     m_signalConnections.clear();
+
+    if (m_scenePosTracker != nullptr) {
+        delete m_scenePosTracker;
+        m_scenePosTracker = nullptr;
+    }
 
     disconnect(m_sourceDestroyConnection);
     disconnect(m_targetDestroyConnection);
@@ -244,7 +478,12 @@ void ReactiveBinding::evaluate()
 
     m_evaluating = true;
 
-    QVariant value = readProperty(m_source, m_sourceProperty);
+    QVariant value;
+    if (m_customSourceReader) {
+        value = m_customSourceReader();
+    } else {
+        value = readProperty(m_source, m_sourceProperty);
+    }
 
     // 应用变换函数
     if (m_transform) {
@@ -351,3 +590,5 @@ void ReactiveBinding::writeProperty(QObject* obj, const QString& prop,
 }
 
 } // namespace BroadItem
+
+#include "ReactiveBinding.moc"

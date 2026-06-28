@@ -6,6 +6,8 @@
 #include <QVector>
 #include <functional>
 
+class QGraphicsObject;
+
 namespace BroadItem {
 
 /// @brief 响应式绑定类，将源 QObject 的属性变化单向同步到目标 QObject。
@@ -55,6 +57,18 @@ public:
                                            Transform callback,
                                            QObject* parent = nullptr);
 
+    /// @brief 创建场景位置观察者，递归监听目标对象及其所有父节点的位置变化。
+    ///
+    /// 当目标对象自身或其任意 QGraphicsObject 父节点的位置发生变化，或目标对象被重新父级化时，
+    /// 回调函数会收到目标对象当前的 scenePos()（以 QVariant(QPointF) 形式）。
+    /// @param source 要观察的 QGraphicsObject 指针。
+    /// @param callback 场景位置变化时的回调函数，接收当前 scenePos() 值。
+    /// @param parent 父 QObject。
+    /// @return ReactiveBinding* 新绑定实例；参数无效时返回 nullptr。
+    static ReactiveBinding* createScenePosObserver(QGraphicsObject* source,
+                                                   Transform callback,
+                                                   QObject* parent = nullptr);
+
     /// @brief 销毁绑定，断开所有连接并标记为无效。
     void destroy();
 
@@ -100,6 +114,16 @@ private:
                     Transform transform,
                     QObject* parent = nullptr);
 
+    /// @brief 场景位置观察者专用构造。
+    ///
+    /// 不连接普通属性信号，而是使用内部 ScenePosTracker 递归监听目标及其父链的位置变化。
+    /// @param source 要观察的 QGraphicsObject。
+    /// @param callback 场景位置变化回调。
+    /// @param parent 父 QObject。
+    ReactiveBinding(QGraphicsObject* source,
+                    Transform callback,
+                    QObject* parent = nullptr);
+
     /// @brief 连接源对象的对应属性变化信号。
     ///
     /// 对 scale/rotation/opacity/visible：通过 QMetaProperty::notifySignal() 获取信号方法并连接。
@@ -127,6 +151,8 @@ private:
     Transform m_transform;                        ///< 可选的变换函数。
     bool m_enabled;                               ///< 绑定是否启用。
     bool m_evaluating;                            ///< 循环检测标志，防止 evaluate() 重入。
+    std::function<QVariant()> m_customSourceReader; ///< 场景位置观察者的自定义源值读取器。
+    QObject* m_scenePosTracker = nullptr;         ///< 场景位置观察者内部使用的跟踪器对象。
 
     QVector<QMetaObject::Connection> m_signalConnections;       ///< 与源信号的主要连接。
     QMetaObject::Connection m_sourceDestroyConnection;          ///< 源销毁连接。
