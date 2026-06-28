@@ -1,5 +1,6 @@
 #include <QtTest/QtTest>
 #include <QGraphicsObject>
+#include <QGraphicsScene>
 #include <broaditem/reactive/ReactiveBinding.h>
 #include <broaditem/reactive/ReactiveProperty.h>
 #include <broaditem/reactive/FollowBinding.h>
@@ -499,6 +500,120 @@ private slots:
 
         binding->destroy();
         delete binding;
+    }
+
+    /// @brief 测试 createScenePosObserver 在嵌套 parent 场景下的行为。
+    ///
+    /// 目标对象初始挂在 parentA 下，移动 parentA 后回调应得到正确的 scenePos；
+    /// 运行时重新父级化到 parentB 后，tracker 应重建父链并继续响应 parentB 移动。
+    void testScenePosObserverNestedParent()
+    {
+        QGraphicsScene scene;
+        auto* parentA = new TestObservableObject();
+        auto* parentB = new TestObservableObject();
+        auto* child = new TestObservableObject(parentA);
+        scene.addItem(parentA);
+        scene.addItem(parentB);
+
+        child->setPos(10.0, 10.0);
+
+        QPointF observedPos;
+        auto* binding = BroadItem::ReactiveBinding::createScenePosObserver(
+            child,
+            [&observedPos](const QVariant& v) -> QVariant {
+                observedPos = v.toPointF();
+                return {};
+            });
+        QVERIFY(binding != nullptr);
+        QVERIFY(binding->isEnabled());
+
+        parentA->setPos(100.0, 100.0);
+        QCOMPARE(observedPos, QPointF(110.0, 110.0));
+
+        child->setParentItem(parentB);
+        parentB->setPos(200.0, 50.0);
+        QCOMPARE(observedPos, QPointF(210.0, 60.0));
+
+        binding->destroy();
+        delete binding;
+        delete child;
+        delete parentA;
+        delete parentB;
+    }
+
+    /// @brief 测试跨 parent chain 的 FollowBinding 跟随。
+    ///
+    /// leader 与 follower 分别位于不同父节点链下，移动 leader 的父节点时，
+    /// follower 应保持固定的场景坐标偏移。
+    void testFollowBindingNestedParents()
+    {
+        QGraphicsScene scene;
+        auto* leaderParent = new TestObservableObject();
+        auto* followerParent = new TestObservableObject();
+        auto* leader = new TestObservableObject(leaderParent);
+        auto* follower = new TestObservableObject(followerParent);
+        scene.addItem(leaderParent);
+        scene.addItem(followerParent);
+
+        leader->setPos(10.0, 20.0);
+        follower->setPos(30.0, 40.0);
+
+        auto* binding = BroadItem::FollowBinding::create(
+            leader, follower, QPointF());
+        QVERIFY(binding != nullptr);
+
+        const QPointF expectedOffset = follower->scenePos() - leader->scenePos();
+
+        leaderParent->setPos(100.0, 0.0);
+        QCOMPARE(follower->scenePos(), leader->scenePos() + expectedOffset);
+
+        binding->destroy();
+        delete binding;
+        delete leader;
+        delete follower;
+        delete leaderParent;
+        delete followerParent;
+    }
+
+    /// @brief 测试祖先销毁时场景位置观察者的安全清理。
+    ///
+    /// 将 child 先从即将被删除的中间祖先 parentA 重新父级化到 parentRoot，
+    /// 再删除 parentA；observer 不应崩溃，且能继续响应剩余 parent chain。
+    void testScenePosObserverAncestorDestroy()
+    {
+        QGraphicsScene scene;
+        auto* parentRoot = new TestObservableObject();
+        auto* parentA = new TestObservableObject(parentRoot);
+        auto* child = new TestObservableObject(parentA);
+        scene.addItem(parentRoot);
+
+        child->setPos(10.0, 10.0);
+
+        QPointF observedPos;
+        auto* binding = BroadItem::ReactiveBinding::createScenePosObserver(
+            child,
+            [&observedPos](const QVariant& v) -> QVariant {
+                observedPos = v.toPointF();
+                return {};
+            });
+        QVERIFY(binding != nullptr);
+        QVERIFY(binding->isEnabled());
+
+        // 将 child 提前从 parentA 下解离，挂到 parentRoot，避免被级联删除
+        child->setParentItem(parentRoot);
+        QVERIFY(binding->isEnabled());
+
+        // 删除中间祖先 parentA，observer 不应崩溃
+        delete parentA;
+        QVERIFY(binding->isEnabled());
+
+        parentRoot->setPos(50.0, 50.0);
+        QCOMPARE(observedPos, QPointF(60.0, 60.0));
+
+        binding->destroy();
+        delete binding;
+        delete child;
+        delete parentRoot;
     }
 
     // NOLINTEND(readability-convert-member-functions-to-static)
