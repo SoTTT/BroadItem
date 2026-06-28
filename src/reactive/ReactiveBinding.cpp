@@ -10,8 +10,9 @@ namespace {
 
 /// @brief 场景位置变化跟踪器，递归监听目标对象及其父链的位置相关信号。
 ///
-/// 负责连接目标对象以及所有 QGraphicsObject 祖先的 xChanged()/yChanged() 信号，
-/// 并在目标对象的 parentChanged() 信号触发时重新建立父链连接。
+/// 负责连接目标对象以及所有 QGraphicsObject 祖先的 xChanged()/yChanged()、
+/// scaleChanged()/rotationChanged()/visibleChanged()/opacityChanged() 以及
+/// parentChanged() 信号。任意被跟踪对象的 parentChanged() 触发时都会重建父链连接。
 /// 构造时会为目标及其所有 QGraphicsObject 祖先自动启用
 /// ItemSendsGeometryChanges | ItemSendsScenePositionChanges 标志。
 class ScenePosTracker : public QObject {
@@ -53,7 +54,7 @@ private slots:
         }
     }
 
-    /// @brief 目标对象的父级发生变化时重建整个父链监听。
+    /// @brief 被跟踪对象的父级发生变化时重建整个父链监听并通知变化。
     void onParentChanged()
     {
         rebuildConnections();
@@ -78,10 +79,10 @@ private:
         QVector<QMetaObject::Connection> connections;
     };
 
-    /// @brief 建立目标对象及所有 QGraphicsObject 祖先的位置与视觉信号连接。
+    /// @brief 建立目标对象及所有 QGraphicsObject 祖先的位置、视觉与父级变化信号连接。
     ///
     /// 沿 parentItem() 向上遍历，对每个可转换为 QGraphicsObject 的祖先连接 xChanged()/yChanged()、
-    /// scaleChanged()/rotationChanged()/visibleChanged()/opacityChanged() 以及 parentChanged()（仅目标）。
+    /// scaleChanged()/rotationChanged()/visibleChanged()/opacityChanged() 以及 parentChanged()。
     /// 因 QGraphicsItem* 不是 QObject*，此处使用 dynamic_cast（qobject_cast 需要 QObject 派生指针）。
     void rebuildConnections()
     {
@@ -92,7 +93,6 @@ private:
 
         ensureGeometryChangeFlags(m_target);
         trackItem(m_target);
-        connectParentChangedSignal(m_target);
 
         QGraphicsItem* item = m_target->parentItem();
         while (item != nullptr) {
@@ -104,7 +104,7 @@ private:
         }
     }
 
-    /// @brief 跟踪单个对象：连接位置、视觉信号，祖先额外监听 destroyed()。
+    /// @brief 跟踪单个对象：连接位置、视觉、父级变化信号，祖先额外监听 destroyed()。
     /// @param obj 要跟踪的 QGraphicsObject。
     void trackItem(QGraphicsObject* obj)
     {
@@ -112,6 +112,7 @@ private:
         tracked.object = obj;
         connectPositionSignals(obj, tracked.connections);
         connectVisualSignals(obj, tracked.connections);
+        connectParentChangedSignal(obj, tracked.connections);
 
         if (obj != m_target) {
             tracked.connections.append(
@@ -121,7 +122,7 @@ private:
         m_trackedItems.append(std::move(tracked));
     }
 
-    /// @brief 断开所有已建立的位置和父级变化连接。
+    /// @brief 断开所有已建立的位置、视觉与父级变化连接。
     void clearConnections()
     {
         for (const auto& tracked : m_trackedItems) {
@@ -130,8 +131,6 @@ private:
             }
         }
         m_trackedItems.clear();
-
-        disconnect(m_parentChangedConnection);
     }
 
     /// @brief 若对象尚未启用几何变化标志，则自动设置。
@@ -199,9 +198,10 @@ private:
         }
     }
 
-    /// @brief 连接目标对象的 parentChanged() 信号以重建父链。
-    /// @param obj 目标对象。
-    void connectParentChangedSignal(QGraphicsObject* obj)
+    /// @brief 连接单个 QGraphicsObject 的 parentChanged() 信号。
+    /// @param obj 要连接的对象。
+    /// @param outConnections 输出连接列表。
+    void connectParentChangedSignal(QGraphicsObject* obj, QVector<QMetaObject::Connection>& outConnections)
     {
         const QMetaObject* meta = obj->metaObject();
         int slotIdx = metaObject()->indexOfSlot("onParentChanged()");
@@ -212,14 +212,14 @@ private:
 
         int signalIdx = meta->indexOfMethod("parentChanged()");
         if (signalIdx >= 0) {
-            m_parentChangedConnection = connect(obj, meta->method(signalIdx), this, slotMethod);
+            outConnections.append(
+                connect(obj, meta->method(signalIdx), this, slotMethod));
         }
     }
 
     QPointer<QGraphicsObject> m_target;                              ///< 被跟踪的目标对象。
     std::function<void()> m_onChanged;                               ///< 变化通知回调。
     QVector<TrackedItem> m_trackedItems;                             ///< 被跟踪对象及其连接。
-    QMetaObject::Connection m_parentChangedConnection;               ///< 目标 parentChanged 连接。
 };
 
 } // namespace
