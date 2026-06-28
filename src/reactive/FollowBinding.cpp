@@ -2,15 +2,18 @@
 #include <broaditem/reactive/ReactiveProperty.h>
 
 #include <QDebug>
+#include <QGraphicsObject>
 
 namespace BroadItem {
 
-/// @brief 创建 leader 与 follower 之间的相对位置跟随绑定。
+/// @brief 创建 leader 与 follower 之间的场景坐标相对位置跟随绑定。
 ///
-/// 校验 leader 和 follower 非空，且均支持 pos 属性。参数无效时返回 nullptr。
+/// 校验 leader 和 follower 非空，均为 QGraphicsObject 实例，且均支持 pos 属性。参数无效时返回 nullptr。
+/// 偏移量根据创建时 leader 与 follower 的实际场景位置计算：
+/// m_offset = follower->scenePos() - leader->scenePos()。
 /// @param leader 自由移动的领导对象。
 /// @param follower 跟随 leader 的目标对象。
-/// @param initialOffset follower 相对于 leader 的初始偏移量。
+/// @param initialOffset 保留的初始偏移量参数（当前实现从实际场景位置计算偏移，不使用该参数）。
 /// @param parent 父 QObject。
 /// @return FollowBinding* 新绑定实例；参数无效时返回 nullptr。
 FollowBinding* FollowBinding::create(QObject* leader,
@@ -18,6 +21,8 @@ FollowBinding* FollowBinding::create(QObject* leader,
                                      const QPointF& initialOffset,
                                      QObject* parent)
 {
+    Q_UNUSED(initialOffset)
+
     if (!leader) {
         qWarning() << "FollowBinding::create: leader is null";
         return nullptr;
@@ -38,12 +43,25 @@ FollowBinding* FollowBinding::create(QObject* leader,
         return nullptr;
     }
 
-    return new FollowBinding(leader, follower, initialOffset, parent);
+    auto* leaderObj = qobject_cast<QGraphicsObject*>(leader);
+    if (!leaderObj) {
+        qWarning() << "FollowBinding::create: leader is not a QGraphicsObject" << leader;
+        return nullptr;
+    }
+
+    auto* followerObj = qobject_cast<QGraphicsObject*>(follower);
+    if (!followerObj) {
+        qWarning() << "FollowBinding::create: follower is not a QGraphicsObject" << follower;
+        return nullptr;
+    }
+
+    const QPointF offset = followerObj->scenePos() - leaderObj->scenePos();
+    return new FollowBinding(leaderObj, followerObj, offset, parent);
 }
 
-/// @brief 私有构造，设置内部 ReactiveBinding 和 follower 拖拽监听。
-FollowBinding::FollowBinding(QObject* leader,
-                             QObject* follower,
+/// @brief 私有构造，设置内部场景位置监听和 follower 拖拽监听。
+FollowBinding::FollowBinding(QGraphicsObject* leader,
+                             QGraphicsObject* follower,
                              const QPointF& initialOffset,
                              QObject* parent)
     : QObject(parent)
@@ -54,27 +72,24 @@ FollowBinding::FollowBinding(QObject* leader,
     , m_posBinding(nullptr)
     , m_offsetBinding(nullptr)
 {
-    // 使用 ReactiveBinding 将 leader.pos 同步到 follower.pos，并应用偏移量变换。
-    auto posTransform = [this](const QVariant& value) -> QVariant {
-        return value.toPointF() + m_offset;
-    };
-
-    m_posBinding = ReactiveBinding::create(m_leader, Property::Pos,
-                                           m_follower, Property::Pos,
-                                           posTransform);
-
-    // 使用 ReactiveBinding 的观察者模式监听 follower.pos 变化，用于捕获用户拖拽并更新偏移量。
-    auto offsetObserver = [this](const QVariant& value) -> QVariant {
-        if (!m_leader || !m_follower || m_updating) {
-            return {};
-        }
-        QPointF leaderPos = m_leader->property(Property::Pos.toLatin1().constData()).toPointF();
-        m_offset = value.toPointF() - leaderPos;
+    // 监听 leader 的场景位置变化，变化时重新同步 follower。
+    auto leaderSceneObserver = [this](const QVariant&) -> QVariant {
+        sync();
         return {};
     };
 
-    m_offsetBinding = ReactiveBinding::createObserver(m_follower, Property::Pos,
-                                                      offsetObserver);
+    m_posBinding = ReactiveBinding::createScenePosObserver(m_leader, leaderSceneObserver, this);
+
+    // 监听 follower 的场景位置变化，用于捕获用户拖拽并更新偏移量。
+    auto offsetObserver = [this](const QVariant&) -> QVariant {
+        if (!m_leader || !m_follower || m_updating) {
+            return {};
+        }
+        m_offset = m_follower->scenePos() - m_leader->scenePos();
+        return {};
+    };
+
+    m_offsetBinding = ReactiveBinding::createScenePosObserver(m_follower, offsetObserver, this);
 
     // 监听对象销毁。
     if (m_leader) {
@@ -109,20 +124,24 @@ void FollowBinding::destroy()
     m_follower = nullptr;
 }
 
-/// @brief 获取当前相对偏移量。
+/// @brief 获取当前场景坐标相对偏移量。
 QPointF FollowBinding::offset() const
 {
     return m_offset;
 }
 
-/// @brief 设置新的相对偏移量，并立即同步 follower 位置。
+/// @brief 设置新的场景坐标相对偏移量，并立即同步 follower 位置。
 void FollowBinding::setOffset(const QPointF& offset)
 {
     m_offset = offset;
     sync();
 }
 
-/// @brief 立即根据当前 leader 位置和偏移量重新同步 follower。
+/// @brief 立即根据当前 leader 场景位置和偏移量重新同步 follower。
+///
+/// 计算目标场景位置 targetScenePos = leader->scenePos() + m_offset，
+/// 然后将其转换到 follower 的父节点坐标系（若无父节点则直接使用场景坐标），
+/// 最后写入 follower->pos()。
 void FollowBinding::sync()
 {
     if (!m_leader || !m_follower || m_updating) {
@@ -130,8 +149,14 @@ void FollowBinding::sync()
     }
 
     m_updating = true;
-    QPointF leaderPos = m_leader->property(Property::Pos.toLatin1().constData()).toPointF();
-    m_follower->setProperty(Property::Pos.toLatin1().constData(), leaderPos + m_offset);
+    const QPointF targetScenePos = m_leader->scenePos() + m_offset;
+
+    QGraphicsItem* parent = m_follower->parentItem();
+    const QPointF targetLocalPos = (parent != nullptr)
+                                       ? parent->mapFromScene(targetScenePos)
+                                       : targetScenePos;
+
+    m_follower->setPos(targetLocalPos);
     m_updating = false;
 }
 
