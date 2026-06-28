@@ -69,6 +69,9 @@ public:
                                                    Transform callback,
                                                    QObject* parent = nullptr);
 
+    /// @brief 析构函数，释放内部资源。
+    ~ReactiveBinding() override;
+
     /// @brief 销毁绑定，断开所有连接并标记为无效。
     void destroy();
 
@@ -116,7 +119,9 @@ private:
 
     /// @brief 场景位置观察者专用构造。
     ///
-    /// 不连接普通属性信号，而是使用内部 ScenePosTracker 递归监听目标及其父链的位置变化。
+    /// 不连接普通属性信号，而是使用内部 ScenePosTracker 递归监听目标及其父链的位置变化
+    ///（xChanged()/yChanged()、scaleChanged()/rotationChanged()/visibleChanged()/opacityChanged()）
+    /// 以及目标自身的 parentChanged() 信号。
     /// @param source 要观察的 QGraphicsObject。
     /// @param callback 场景位置变化回调。
     /// @param parent 父 QObject。

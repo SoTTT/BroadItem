@@ -4,6 +4,7 @@
 #include <QDebug>
 #include <QGraphicsObject>
 #include <QMetaProperty>
+#include <QPointer>
 
 namespace {
 
@@ -11,6 +12,8 @@ namespace {
 ///
 /// 负责连接目标对象以及所有 QGraphicsObject 祖先的 xChanged()/yChanged() 信号，
 /// 并在目标对象的 parentChanged() 信号触发时重新建立父链连接。
+/// 构造时会为目标及其所有 QGraphicsObject 祖先自动启用
+/// ItemSendsGeometryChanges | ItemSendsScenePositionChanges 标志。
 class ScenePosTracker : public QObject {
     Q_OBJECT
 public:
@@ -59,7 +62,22 @@ private slots:
         }
     }
 
+    /// @brief 任意祖先被销毁时重建父链并通知变化。
+    void onAncestorDestroyed()
+    {
+        rebuildConnections();
+        if (m_onChanged) {
+            m_onChanged();
+        }
+    }
+
 private:
+    /// @brief 单个被跟踪对象及其信号连接。
+    struct TrackedItem {
+        QPointer<QGraphicsObject> object;
+        QVector<QMetaObject::Connection> connections;
+    };
+
     /// @brief 建立目标对象及所有 QGraphicsObject 祖先的位置与视觉信号连接。
     ///
     /// 沿 parentItem() 向上遍历，对每个可转换为 QGraphicsObject 的祖先连接 xChanged()/yChanged()、
@@ -72,36 +90,67 @@ private:
             return;
         }
 
-        connectPositionSignals(m_target);
-        connectVisualSignals(m_target);
+        ensureGeometryChangeFlags(m_target);
+        trackItem(m_target);
         connectParentChangedSignal(m_target);
 
         QGraphicsItem* item = m_target->parentItem();
         while (item != nullptr) {
             if (auto* obj = dynamic_cast<QGraphicsObject*>(item)) {
-                connectPositionSignals(obj);
-                connectVisualSignals(obj);
+                ensureGeometryChangeFlags(obj);
+                trackItem(obj);
             }
             item = item->parentItem();
         }
     }
 
+    /// @brief 跟踪单个对象：连接位置、视觉信号，祖先额外监听 destroyed()。
+    /// @param obj 要跟踪的 QGraphicsObject。
+    void trackItem(QGraphicsObject* obj)
+    {
+        TrackedItem tracked;
+        tracked.object = obj;
+        connectPositionSignals(obj, tracked.connections);
+        connectVisualSignals(obj, tracked.connections);
+
+        if (obj != m_target) {
+            tracked.connections.append(
+                connect(obj, &QObject::destroyed, this, &ScenePosTracker::onAncestorDestroyed));
+        }
+
+        m_trackedItems.append(std::move(tracked));
+    }
+
     /// @brief 断开所有已建立的位置和父级变化连接。
     void clearConnections()
     {
-        for (const auto& conn : m_positionConnections) {
-            disconnect(conn);
+        for (const auto& tracked : m_trackedItems) {
+            for (const auto& conn : tracked.connections) {
+                disconnect(conn);
+            }
         }
-        m_positionConnections.clear();
+        m_trackedItems.clear();
 
         disconnect(m_parentChangedConnection);
+    }
+
+    /// @brief 若对象尚未启用几何变化标志，则自动设置。
+    /// @param obj 要设置标志的 QGraphicsObject。
+    static void ensureGeometryChangeFlags(QGraphicsObject* obj)
+    {
+        const auto requiredFlags = QGraphicsItem::ItemSendsGeometryChanges
+                                   | QGraphicsItem::ItemSendsScenePositionChanges;
+        if ((obj->flags() & requiredFlags) != requiredFlags) {
+            obj->setFlags(obj->flags() | requiredFlags);
+        }
     }
 
     /// @brief 连接单个 QGraphicsObject 的 xChanged()/yChanged() 信号。
     ///
     /// 使用 QMetaMethod-to-QMetaMethod 连接，与 ReactiveBinding::connectSourceSignal() 的 pos 处理保持一致。
     /// @param obj 要连接的对象。
-    void connectPositionSignals(QGraphicsObject* obj)
+    /// @param outConnections 输出连接列表。
+    void connectPositionSignals(QGraphicsObject* obj, QVector<QMetaObject::Connection>& outConnections)
     {
         const QMetaObject* meta = obj->metaObject();
         int slotIdx = metaObject()->indexOfSlot("onPositionChanged()");
@@ -113,18 +162,19 @@ private:
         int xIdx = meta->indexOfMethod("xChanged()");
         int yIdx = meta->indexOfMethod("yChanged()");
         if (xIdx >= 0) {
-            m_positionConnections.append(
+            outConnections.append(
                 connect(obj, meta->method(xIdx), this, slotMethod));
         }
         if (yIdx >= 0) {
-            m_positionConnections.append(
+            outConnections.append(
                 connect(obj, meta->method(yIdx), this, slotMethod));
         }
     }
 
     /// @brief 连接单个 QGraphicsObject 的 scaleChanged()/rotationChanged()/visibleChanged()/opacityChanged() 信号。
     /// @param obj 要连接的对象。
-    void connectVisualSignals(QGraphicsObject* obj)
+    /// @param outConnections 输出连接列表。
+    void connectVisualSignals(QGraphicsObject* obj, QVector<QMetaObject::Connection>& outConnections)
     {
         static const char* kSignals[] = {
             "scaleChanged()",
@@ -143,7 +193,7 @@ private:
         for (const char* sig : kSignals) {
             int idx = meta->indexOfMethod(sig);
             if (idx >= 0) {
-                m_positionConnections.append(
+                outConnections.append(
                     connect(obj, meta->method(idx), this, slotMethod));
             }
         }
@@ -166,10 +216,10 @@ private:
         }
     }
 
-    QGraphicsObject* m_target;                              ///< 被跟踪的目标对象。
-    std::function<void()> m_onChanged;                     ///< 变化通知回调。
-    QVector<QMetaObject::Connection> m_positionConnections; ///< 位置、视觉及父级变化信号连接。
-    QMetaObject::Connection m_parentChangedConnection;      ///< 目标 parentChanged 连接。
+    QPointer<QGraphicsObject> m_target;                              ///< 被跟踪的目标对象。
+    std::function<void()> m_onChanged;                               ///< 变化通知回调。
+    QVector<TrackedItem> m_trackedItems;                             ///< 被跟踪对象及其连接。
+    QMetaObject::Connection m_parentChangedConnection;               ///< 目标 parentChanged 连接。
 };
 
 } // namespace
@@ -302,7 +352,8 @@ ReactiveBinding::ReactiveBinding(QObject* source,
 /// @brief 场景位置观察者专用构造。
 ///
 /// 设置自定义源值读取器返回 source->scenePos()，并创建内部 ScenePosTracker
-/// 递归监听目标对象及其父链的 xChanged()/yChanged() 与 parentChanged() 信号。
+/// 递归监听目标对象及其父链的 xChanged()/yChanged()、scaleChanged()/rotationChanged()、
+/// visibleChanged()/opacityChanged() 与 parentChanged() 信号。
 /// @param source 要观察的 QGraphicsObject。
 /// @param callback 场景位置变化回调。
 /// @param parent 父 QObject。
@@ -337,6 +388,15 @@ ReactiveBinding::ReactiveBinding(QGraphicsObject* source,
 
     auto* tracker = new ScenePosTracker(source, [this]() { evaluate(); }, this);
     m_scenePosTracker = tracker;
+}
+
+/// @brief 析构函数：确保内部场景位置跟踪器被释放。
+ReactiveBinding::~ReactiveBinding()
+{
+    if (m_scenePosTracker != nullptr) {
+        delete m_scenePosTracker;
+        m_scenePosTracker = nullptr;
+    }
 }
 
 /// @brief 静态工厂：创建响应式绑定并返回裸指针。
