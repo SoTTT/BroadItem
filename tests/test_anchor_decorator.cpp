@@ -193,22 +193,69 @@ private slots:
         QVERIFY(decorator == nullptr);
     }
 
-    /// @brief 测试已有 QGraphicsItem 父项拒绝：item 已挂载到非装饰器父项时拒绝创建。
-    void decoratorCreateRejectsExistingParent()
+    /// @brief 测试已有 QGraphicsItem 父项时装饰器可插入到父链中：
+    ///        Parent -> AnchorDecorator -> Decorated，且 decorated scenePos 不变。
+    void decoratorCreateWithExistingParent()
     {
         QGraphicsScene scene;
         // 创建一个普通父项
         auto* parent = new TestObservableObject();
         scene.addItem(parent);
-        // item 挂在 parent 下
+        parent->setPos(30, 40);
+
+        // item 挂在 parent 下，并设置一个相对于父项的偏移
         auto* item = new SizedTestObject(parent);
+        item->setPos(10, 20);
 
-        QTest::ignoreMessage(QtWarningMsg, QRegularExpression(".*"));
+        QPointF scenePosBefore = item->scenePos();
+
         auto* decorator = BroadItem::AnchorDecorator::create(&scene, item);
-        QVERIFY(decorator == nullptr);
+        QVERIFY(decorator != nullptr);
 
-        // 清理：删除 parent 会自动删除 item
+        // 新的父链：parent -> decorator -> item
+        QCOMPARE(item->parentItem(), static_cast<QGraphicsItem*>(decorator));
+        QCOMPARE(decorator->parentItem(), static_cast<QGraphicsItem*>(parent));
+
+        // decorated 的场景位置应保持不变
+        QVERIFY2(pointsNear(item->scenePos(), scenePosBefore),
+                 "item scene position should be preserved when decorator is inserted");
+
+        // 删除装饰器后应恢复到 parent -> item
+        delete decorator;
+        QCOMPARE(item->parentItem(), static_cast<QGraphicsItem*>(parent));
+        QVERIFY2(pointsNear(item->scenePos(), scenePosBefore),
+                 "item scene position should be preserved after decorator deletion");
+
         delete parent;
+    }
+
+    /// @brief 测试原父节点被销毁时，decorated 应恢复为场景顶级并保持 scenePos。
+    void originalParentDestructionRestoresToScene()
+    {
+        QGraphicsScene scene;
+        auto* parent = new TestObservableObject();
+        scene.addItem(parent);
+        parent->setPos(10, 15);
+
+        auto* item = new SizedTestObject(parent);
+        item->setPos(20, 25);
+
+        QPointF scenePosBefore = item->scenePos();
+
+        auto* decorator = BroadItem::AnchorDecorator::create(&scene, item);
+        QVERIFY(decorator != nullptr);
+
+        QPointF scenePosBeforeParentDelete = item->scenePos();
+
+        // 销毁原父节点，装饰器会被级联删除，item 应恢复为场景顶级
+        delete parent;
+
+        QVERIFY(item->parentItem() == nullptr);
+        QVERIFY(item->scene() == &scene);
+        QVERIFY2(pointsNear(item->scenePos(), scenePosBeforeParentDelete),
+                 "item scene position should be preserved after original parent deletion");
+
+        delete item;
     }
 
     /// @brief 测试双重装饰拒绝：已挂载装饰器的 item 拒绝再次装饰。

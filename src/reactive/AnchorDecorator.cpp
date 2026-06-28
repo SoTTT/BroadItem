@@ -15,6 +15,52 @@
 namespace BroadItem {
 
 // ══════════════════════════════════════════════════════════════════
+// 原父节点销毁探测占位图元
+// ══════════════════════════════════════════════════════════════════
+
+/// @brief 插入到原父节点下的占位图元，用于在父节点被销毁时提前设置标记。
+///
+/// 该图元作为原父节点的 QGraphicsItem 子节点、且比 AnchorDecorator 更早插入。
+/// 当原父节点被销毁时，子节点按插入顺序删除，此占位图元先被删除，
+/// 在其析构函数中将关联装饰器的 m_originalParentDestroyed 标记置为 true，
+/// 使 AnchorDecorator 析构时知道不应再将 decorated 挂回正在销毁的父节点。
+class AnchorDecorator::ParentDestroySentinel : public QGraphicsObject {
+public:
+    ParentDestroySentinel(QGraphicsItem* parent, AnchorDecorator* watcher)
+        : QGraphicsObject(parent)
+        , m_watcher(watcher)
+    {
+        // 不参与渲染与交互
+        setAcceptedMouseButtons(Qt::NoButton);
+        setFlag(ItemIsSelectable, false);
+    }
+
+    ~ParentDestroySentinel() override
+    {
+        if (m_watcher) {
+            m_watcher->m_originalParentDestroyed = true;
+        }
+    }
+
+    void setWatcher(AnchorDecorator* watcher)
+    {
+        m_watcher = watcher;
+    }
+
+    [[nodiscard]] QRectF boundingRect() const override
+    {
+        return QRectF();
+    }
+
+    void paint(QPainter*, const QStyleOptionGraphicsItem*, QWidget*) override
+    {
+    }
+
+private:
+    AnchorDecorator* m_watcher;
+};
+
+// ══════════════════════════════════════════════════════════════════
 // 静态辅助函数
 // ══════════════════════════════════════════════════════════════════
 
@@ -56,18 +102,45 @@ AnchorDecorator* AnchorDecorator::create(QGraphicsScene* scene,
         return nullptr;
     }
 
-    // 校验 decorated 无已有 parentItem（尚未被其他图元父化）
-    if (decorated->parentItem()) {
-        qWarning() << "AnchorDecorator::create: decorated already has a parentItem";
+    // 校验 decorated 当前未被另一个 AnchorDecorator 直接父化（避免双重装饰）
+    if (auto* existingDecorator = dynamic_cast<AnchorDecorator*>(decorated->parentItem())) {
+        qWarning() << "AnchorDecorator::create: decorated is already wrapped by another AnchorDecorator";
+        Q_UNUSED(existingDecorator)
         return nullptr;
+    }
+
+    // 记录 decorated 的原父节点与场景位置，用于插入装饰器时保持视觉位置不变
+    QGraphicsItem* originalParentItem = decorated->parentItem();
+    QGraphicsObject* originalParentObject = nullptr;
+    QPointF originalScenePos;
+    if (originalParentItem) {
+        originalParentObject = dynamic_cast<QGraphicsObject*>(originalParentItem);
+        originalScenePos = decorated->scenePos();
     }
 
     auto* decorator = new AnchorDecorator(scene, decorated, parent);
     scene->addItem(decorator);
 
+    // 若 decorated 已有父节点，将装饰器插入到原父节点与 decorated 之间，
+    // 形成 Parent -> AnchorDecorator -> Decorated 的层级关系。
+    if (originalParentItem) {
+        decorator->m_originalParent = originalParentObject;
+        // 在原父节点下、装饰器之前插入一个占位图元，用于在原父节点被销毁时
+        // 提前标记 m_originalParentDestroyed，避免析构时访问正在销毁的父节点。
+        auto* sentinel = new AnchorDecorator::ParentDestroySentinel(originalParentItem, decorator);
+        decorator->m_parentDestroySentinel = sentinel;
+        decorator->setParentItem(originalParentItem);
+        // 将装饰器放置到 decorated 原先的 scenePos 处，使后续 reparent 保持坐标不变。
+        decorator->setPos(originalParentItem->sceneTransform().inverted().map(originalScenePos));
+    }
+
     // 将 decorated 设为 decorator 的 QGraphicsItem 子节点
     // 注意：仅 QGraphicsItem 父子关系，不涉及 QObject 所有权
     decorated->setParentItem(decorator);
+    // 保持 decorated 的 scenePos 不变：用世界坐标差作为在装饰器内的局部坐标
+    if (originalParentItem) {
+        decorated->setPos(originalScenePos - decorator->scenePos());
+    }
     decorator->setZValue(1);
 
     // 创建 pos 观察者——始终连接，因 pos 属性的 NOTIFY 信号天然存在
@@ -156,6 +229,8 @@ AnchorDecorator::AnchorDecorator(QGraphicsScene* scene,
                                  QObject* parent)
     : QGraphicsObject(nullptr)          // QGraphicsItem parent 始终为 nullptr（顶级场景项）
     , m_decorated(decorated)
+    , m_originalParent(nullptr)
+    , m_originalParentDestroyed(false)
     , m_anchors{}                        // 零初始化指针数组
     , m_pen(Qt::black, 1.0)
     , m_margin(4.0)                     // 默认边距 4px，与计划一致
@@ -166,6 +241,8 @@ AnchorDecorator::AnchorDecorator(QGraphicsScene* scene,
     , m_posObserver(nullptr)
     , m_widthObserver(nullptr)
     , m_heightObserver(nullptr)
+    , m_decoratedDestroyConnection()
+    , m_parentDestroySentinel(nullptr)
 {
     if (parent) {
         QObject::setParent(parent);
@@ -174,6 +251,8 @@ AnchorDecorator::AnchorDecorator(QGraphicsScene* scene,
     // 禁用鼠标交互：装饰器不处理点击或选择
     setAcceptedMouseButtons(Qt::NoButton);
     setFlag(ItemIsSelectable, false);
+    // 启用场景位置变化通知，使锚点能在父链移动时跟随更新
+    setFlag(ItemSendsScenePositionChanges, true);
 
     // 创建 8 个 AnchorPoint：均为顶级场景图元，QObject parent = this
     // AnchorPoint 构造签名为 AnchorPoint(QGraphicsScene*, QObject*)
@@ -188,26 +267,7 @@ AnchorDecorator::~AnchorDecorator()
     // 断开 decorated 销毁信号监听
     disconnect(m_decoratedDestroyConnection);
 
-    // 如果 decorated 仍存活，将其还原为场景顶级图元
-    // 保持场景坐标不变，使 decorated 在装饰器移除后位置不变
-    if (m_decorated) {
-        QPointF pos = m_decorated->scenePos();
-        m_decorated->setParentItem(nullptr);
-        m_decorated->setPos(pos);
-        m_decorated = nullptr;
-    }
-
-    // 显式删除 8 个 AnchorPoint
-    // AnchorPoint 的 QObject parent 已设为 this，delete 将递归释放
-    for (int i = 0; i < 8; ++i) {
-        if (m_anchors[i]) {
-            delete m_anchors[i];
-            m_anchors[i] = nullptr;
-        }
-    }
-
-    // 清理 ReactiveBinding observer：先 destroy 断开信号，再 delete 释放内存
-    // 参考 ConnectionLine 析构中的清理模式
+    // 先销毁 observer，避免后续 reparent decorated 时触发 pos 变化回调
     if (m_posObserver) {
         m_posObserver->destroy();
         delete m_posObserver;
@@ -222,6 +282,39 @@ AnchorDecorator::~AnchorDecorator()
         m_heightObserver->destroy();
         delete m_heightObserver;
         m_heightObserver = nullptr;
+    }
+
+    // 如果 decorated 仍存活，将其还原到原始父节点或场景顶级
+    // 保持场景坐标不变，使 decorated 在装饰器移除后位置不变
+    if (m_decorated) {
+        QPointF scenePos = m_decorated->scenePos();
+        // 仅当占位图元仍存在（说明是显式删除装饰器）且原父节点未被销毁时才恢复挂回。
+        // 若占位图元已被删除，说明原父节点正在销毁，应将 decorated 恢复为场景顶级。
+        if (m_originalParent && m_parentDestroySentinel && !m_originalParentDestroyed) {
+            m_decorated->setParentItem(m_originalParent);
+            // 将目标场景坐标映射回原始父节点的局部坐标，保持 world position 不变
+            m_decorated->setPos(m_originalParent->sceneTransform().inverted().map(scenePos));
+        } else {
+            m_decorated->setParentItem(nullptr);
+            m_decorated->setPos(scenePos);
+        }
+        m_decorated = nullptr;
+    }
+
+    // 显式删除占位图元（显式删除装饰器时，占位图元仍在原父节点下，需要清理）
+    if (m_parentDestroySentinel) {
+        m_parentDestroySentinel->setWatcher(nullptr);
+        delete m_parentDestroySentinel;
+        m_parentDestroySentinel.clear();
+    }
+
+    // 显式删除 8 个 AnchorPoint
+    // AnchorPoint 的 QObject parent 已设为 this，delete 将递归释放
+    for (int i = 0; i < 8; ++i) {
+        if (m_anchors[i]) {
+            delete m_anchors[i];
+            m_anchors[i] = nullptr;
+        }
     }
 }
 
@@ -291,6 +384,15 @@ void AnchorDecorator::paint(QPainter* painter,
     painter->drawRect(boundingRect());
 }
 
+QVariant AnchorDecorator::itemChange(GraphicsItemChange change,
+                                     const QVariant& value)
+{
+    if (change == ItemScenePositionHasChanged) {
+        updateAnchorPositions();
+    }
+    return QGraphicsObject::itemChange(change, value);
+}
+
 // ══════════════════════════════════════════════════════════════════
 // 几何体计算
 // ══════════════════════════════════════════════════════════════════
@@ -307,22 +409,27 @@ void AnchorDecorator::computeAndApplyGeometry()
         return;
     }
 
-    // 步骤 2：获取 decorated 在场景中的轴对齐包围盒（AABB）
+    // 步骤 2：在调整任何位置前记录 decorated 的当前世界坐标，确保后续 reposition 不造成视觉跳动
+    QPointF originalScenePos = m_decorated->scenePos();
+
+    // 步骤 3：获取 decorated 在场景中的轴对齐包围盒（AABB）
     // sceneBoundingRect() 考虑了图元自身的变换（缩放、旋转等），
     // 但返回的是轴对齐矩形，保证装饰器外框始终为轴对齐
     QRectF sceneAabb = m_decorated->sceneBoundingRect();
 
-    // 步骤 3：设置装饰器自身在场景中的位置
-    // 装饰器左上角 = sceneAabb 左上角向外扩展 margin 像素
-    setPos(sceneAabb.topLeft() - QPointF(m_margin, m_margin));
+    // 步骤 4：设置装饰器自身位置，使其局部 (0,0) 对应 decorated AABB 左上角外扩 margin
+    // 若装饰器自身有父节点，需将目标场景坐标映射为父节点局部坐标
+    QPointF targetScenePos = sceneAabb.topLeft() - QPointF(m_margin, m_margin);
+    if (QGraphicsItem* parent = parentItem()) {
+        setPos(parent->sceneTransform().inverted().map(targetScenePos));
+    } else {
+        setPos(targetScenePos);
+    }
 
-    // 步骤 4：调整 decorated 在装饰器内的局部坐标
-    // itemBRect 是 decorated 自身坐标系下的 boundingRect（可能原点非零）
-    // 减去 itemBRect.x()/y() 以补偿 decorated 自身包围盒的偏移
-    QRectF itemBRect = m_decorated->boundingRect();
-    m_decorated->setPos(QPointF(m_margin - itemBRect.x(), m_margin - itemBRect.y()));
+    // 步骤 5：调整 decorated 在装饰器内的局部坐标，保持其 world position 不变
+    m_decorated->setPos(originalScenePos - scenePos());
 
-    // 步骤 5：更新 m_width/m_height，仅在值变化时发射信号
+    // 步骤 6：更新 m_width/m_height，仅在值变化时发射信号
     qreal newWidth = sceneAabb.width() + 2 * m_margin;
     qreal newHeight = sceneAabb.height() + 2 * m_margin;
 
@@ -335,10 +442,10 @@ void AnchorDecorator::computeAndApplyGeometry()
         emit heightChanged();
     }
 
-    // 步骤 6：根据新的宽高重新计算 8 个锚点位置
+    // 步骤 7：根据新的宽高重新计算 8 个锚点位置
     updateAnchorPositions();
 
-    // 步骤 7：通知 QGraphicsView 几何体已变更，触发重绘
+    // 步骤 8：通知 QGraphicsView 几何体已变更，触发重绘
     prepareGeometryChange();
     update();
 
