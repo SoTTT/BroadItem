@@ -4,7 +4,12 @@
 #include <broaditem/reactive/ReactiveBinding.h>
 #include <broaditem/reactive/ReactiveProperty.h>
 #include <broaditem/reactive/FollowBinding.h>
+#include <broaditem/reactive/ConnectionLine.h>
+#include <broaditem/reactive/AnchorDecorator.h>
+#include <broaditem/reactive/AnchorPoint.h>
 #include <broaditem/core/BroadItem.h>
+
+#include <cmath>
 
 /// @brief 最小化 QGraphicsObject 具体实现，用于测试绑定逻辑。
 ///
@@ -24,6 +29,16 @@ public:
     [[nodiscard]] QRectF boundingRect() const override { return {0, 0, 100, 100}; }
     void paint(QPainter*, const QStyleOptionGraphicsItem*, QWidget*) override {}
 };
+
+/// @brief 判断两个 QPointF 在容差范围内是否相等。
+/// @param a 第一个点。
+/// @param b 第二个点。
+/// @param delta 允许的绝对误差（默认 0.5px）。
+/// @return true 表示两点在容差内相等。
+static bool pointsNear(const QPointF& a, const QPointF& b, qreal delta = 0.5)
+{
+    return std::abs(a.x() - b.x()) <= delta && std::abs(a.y() - b.y()) <= delta;
+}
 
 /// @brief 响应式绑定系统的综合测试套件。
 ///
@@ -614,6 +629,299 @@ private slots:
         delete binding;
         delete child;
         delete parentRoot;
+    }
+
+    /// @brief 测试 createScenePosObserver 基础场景：顶层目标移动时 callback 被调用并返回正确 scenePos。
+    void testScenePosObserverBasic()
+    {
+        QGraphicsScene scene;
+        auto* target = new TestObservableObject();
+        scene.addItem(target);
+
+        QPointF observedPos;
+        auto* binding = BroadItem::ReactiveBinding::createScenePosObserver(
+            target,
+            [&observedPos](const QVariant& v) -> QVariant {
+                observedPos = v.toPointF();
+                return {};
+            });
+        QVERIFY(binding != nullptr);
+        QVERIFY(binding->isEnabled());
+
+        target->setPos(123.0, 456.0);
+        QCOMPARE(observedPos, QPointF(123.0, 456.0));
+
+        binding->destroy();
+        delete binding;
+        delete target;
+    }
+
+    /// @brief 测试 createScenePosObserver 对祖先 scale/rotation 变化的响应。
+    ///
+    /// child 挂在 parent 下，改变 parent 的 scale 与 rotation 后，
+    /// callback 应被触发且最终 scenePos 按变换更新。
+    void testScenePosObserverAncestorScaleRotation()
+    {
+        QGraphicsScene scene;
+        auto* parent = new TestObservableObject();
+        auto* child = new TestObservableObject(parent);
+        scene.addItem(parent);
+
+        child->setPos(10.0, 0.0);
+
+        int callbackCount = 0;
+        QPointF observedPos;
+        auto* binding = BroadItem::ReactiveBinding::createScenePosObserver(
+            child,
+            [&callbackCount, &observedPos](const QVariant& v) -> QVariant {
+                ++callbackCount;
+                observedPos = v.toPointF();
+                return {};
+            });
+        QVERIFY(binding != nullptr);
+
+        parent->setPos(100.0, 0.0);
+        parent->setScale(2.0);
+        parent->setRotation(90.0);
+
+        QVERIFY(callbackCount > 0);
+        // child 局部 (10,0) 经 scale=2 得 (20,0)，再旋转 90° 得 (0,20)
+        QVERIFY2(pointsNear(observedPos, QPointF(100.0, 20.0)),
+                 qPrintable(QString("expected (100,20), got (%1,%2)")
+                            .arg(observedPos.x()).arg(observedPos.y())));
+
+        binding->destroy();
+        delete binding;
+        delete child;
+        delete parent;
+    }
+
+    /// @brief 测试 ConnectionLine 在嵌套 parent 链下的端点跟随。
+    ///
+    /// 两个端点分别挂在不同父节点下，移动任一父节点后，
+    /// 连接线 boundingRect 中心应等于两端 scenePos 的中点。
+    void testConnectionLineNested()
+    {
+        QGraphicsScene scene;
+        auto* parentA = new TestObservableObject();
+        auto* parentB = new TestObservableObject();
+        auto* endpointA = new TestObservableObject(parentA);
+        auto* endpointB = new TestObservableObject(parentB);
+        scene.addItem(parentA);
+        scene.addItem(parentB);
+
+        endpointA->setPos(10.0, 0.0);
+        endpointB->setPos(0.0, 10.0);
+
+        auto* line = BroadItem::ConnectionLine::create(
+            &scene, endpointA, endpointB);
+        QVERIFY(line != nullptr);
+        QVERIFY(line->isVisible());
+
+        parentA->setPos(50.0, 50.0);
+        QCoreApplication::processEvents();
+
+        QVERIFY(line->isVisible());
+
+        QPointF mid = (endpointA->scenePos() + endpointB->scenePos()) / 2.0;
+        QRectF br = line->boundingRect();
+        QPointF center(br.center());
+        QVERIFY2(pointsNear(center, mid),
+                 qPrintable(QString("line center expected (%1,%2), got (%3,%4)")
+                            .arg(mid.x()).arg(mid.y())
+                            .arg(center.x()).arg(center.y())));
+
+        delete line;
+        delete endpointA;
+        delete endpointB;
+        delete parentA;
+        delete parentB;
+    }
+
+    /// @brief 测试 AnchorDecorator 在已有父节点链中的跟随行为。
+    ///
+    /// 装饰已有 parent 的子对象后移动 parent group，
+    /// 验证装饰器与锚点 scenePos 同步移动，且 decorated 位置保持连贯。
+    void testAnchorDecoratorNested()
+    {
+        QGraphicsScene scene;
+        auto* parent = new TestObservableObject();
+        auto* child = new TestObservableObject(parent);
+        scene.addItem(parent);
+
+        child->setPos(10.0, 20.0);
+
+        auto* decorator = BroadItem::AnchorDecorator::create(&scene, child);
+        QVERIFY(decorator != nullptr);
+
+        QPointF decoratedBefore = child->scenePos();
+        QPointF decoratorSceneBefore = decorator->scenePos();
+        auto* nAnchor = decorator->anchor(BroadItem::AnchorDecorator::AnchorSide::North);
+        QVERIFY(nAnchor != nullptr);
+        QPointF anchorBefore = nAnchor->pos();
+
+        parent->setPos(50.0, 50.0);
+        QCoreApplication::processEvents();
+
+        QPointF decoratedAfter = child->scenePos();
+        QPointF decoratorSceneAfter = decorator->scenePos();
+        QPointF anchorAfter = nAnchor->pos();
+
+        QVERIFY2(pointsNear(decoratedAfter, decoratedBefore + QPointF(50.0, 50.0)),
+                 "decorated should move with parent group");
+        QVERIFY2(pointsNear(decoratorSceneAfter, decoratorSceneBefore + QPointF(50.0, 50.0)),
+                 "decorator should move with parent group");
+        QVERIFY2(pointsNear(anchorAfter, anchorBefore + QPointF(50.0, 50.0)),
+                 "anchor should move with parent group");
+
+        delete decorator;
+        delete parent;
+    }
+
+    /// @brief 测试 AnchorDecorator 析构后 decorated 恢复到原 parent 且 scenePos 不变。
+    void testAnchorDecoratorRestoreOnDestroy()
+    {
+        QGraphicsScene scene;
+        auto* parent = new TestObservableObject();
+        scene.addItem(parent);
+        parent->setPos(30.0, 40.0);
+
+        auto* child = new TestObservableObject(parent);
+        child->setPos(10.0, 20.0);
+
+        QPointF scenePosBefore = child->scenePos();
+
+        auto* decorator = BroadItem::AnchorDecorator::create(&scene, child);
+        QVERIFY(decorator != nullptr);
+        QCOMPARE(child->parentItem(), static_cast<QGraphicsItem*>(decorator));
+
+        delete decorator;
+
+        QCOMPARE(child->parentItem(), static_cast<QGraphicsItem*>(parent));
+        QVERIFY2(pointsNear(child->scenePos(), scenePosBefore),
+                 "decorated scene position should be preserved after decorator deletion");
+
+        delete parent;
+    }
+
+    /// @brief 测试跨 parent chain 的 FollowBinding 跟随。
+    ///
+    /// leader 与 follower 分别位于不同父节点链下，移动 leader 的父节点时，
+    /// follower 应保持固定的场景坐标偏移。
+    void testFollowBindingNested()
+    {
+        QGraphicsScene scene;
+        auto* leaderParent = new TestObservableObject();
+        auto* followerParent = new TestObservableObject();
+        auto* leader = new TestObservableObject(leaderParent);
+        auto* follower = new TestObservableObject(followerParent);
+        scene.addItem(leaderParent);
+        scene.addItem(followerParent);
+
+        leader->setPos(10.0, 20.0);
+        follower->setPos(30.0, 40.0);
+
+        auto* binding = BroadItem::FollowBinding::create(
+            leader, follower, QPointF());
+        QVERIFY(binding != nullptr);
+
+        const QPointF expectedOffset = follower->scenePos() - leader->scenePos();
+
+        leaderParent->setPos(100.0, 0.0);
+        QCoreApplication::processEvents();
+
+        QCOMPARE(follower->scenePos(), leader->scenePos() + expectedOffset);
+
+        binding->destroy();
+        delete binding;
+        delete leader;
+        delete follower;
+        delete leaderParent;
+        delete followerParent;
+    }
+
+    /// @brief 测试嵌套 parent 下拖动 follower 后 offset 更新。
+    ///
+    /// 先手动移动 follower（模拟拖拽），再移动 leader 的父节点，
+    /// 验证 follower 使用新的场景坐标偏移。
+    void testFollowBindingDragUpdatesOffsetNested()
+    {
+        QGraphicsScene scene;
+        auto* leaderParent = new TestObservableObject();
+        auto* followerParent = new TestObservableObject();
+        auto* leader = new TestObservableObject(leaderParent);
+        auto* follower = new TestObservableObject(followerParent);
+        scene.addItem(leaderParent);
+        scene.addItem(followerParent);
+
+        leader->setPos(10.0, 20.0);
+        follower->setPos(30.0, 40.0);
+
+        auto* binding = BroadItem::FollowBinding::create(
+            leader, follower, QPointF());
+        QVERIFY(binding != nullptr);
+
+        // 拖动 follower 到 (200, 300)，偏移应更新
+        follower->setPos(200.0, 300.0);
+        QCoreApplication::processEvents();
+
+        const QPointF newOffset = follower->scenePos() - leader->scenePos();
+        QCOMPARE(binding->offset(), newOffset);
+
+        // 移动 leader 的父节点，follower 应保持新偏移
+        leaderParent->setPos(100.0, 0.0);
+        QCoreApplication::processEvents();
+
+        QCOMPARE(follower->scenePos(), leader->scenePos() + newOffset);
+
+        binding->destroy();
+        delete binding;
+        delete leader;
+        delete follower;
+        delete leaderParent;
+        delete followerParent;
+    }
+
+    /// @brief 测试祖先重新父级化后 ScenePosObserver 继续正确工作。
+    ///
+    /// 创建 grandParent -> parentA -> child 链；创建 observer；
+    /// 将 parentA 重新父级化到新的 parentB（不销毁 parentA）；
+    /// 移动 parentB，验证 callback 得到正确 scenePos。
+    void testScenePosObserverAncestorReparent()
+    {
+        QGraphicsScene scene;
+        auto* grandParent = new TestObservableObject();
+        auto* parentA = new TestObservableObject(grandParent);
+        auto* parentB = new TestObservableObject(grandParent);
+        auto* child = new TestObservableObject(parentA);
+        scene.addItem(grandParent);
+
+        child->setPos(10.0, 10.0);
+
+        QPointF observedPos;
+        auto* binding = BroadItem::ReactiveBinding::createScenePosObserver(
+            child,
+            [&observedPos](const QVariant& v) -> QVariant {
+                observedPos = v.toPointF();
+                return {};
+            });
+        QVERIFY(binding != nullptr);
+        QVERIFY(binding->isEnabled());
+
+        // 将 parentA 重新父级化到 parentB，不销毁 parentA
+        parentA->setParentItem(parentB);
+        QVERIFY(binding->isEnabled());
+
+        // 移动新的父链 parentB
+        parentB->setPos(100.0, 100.0);
+        QCOMPARE(observedPos, QPointF(110.0, 110.0));
+
+        binding->destroy();
+        delete binding;
+        delete child;
+        delete parentA;
+        delete parentB;
+        delete grandParent;
     }
 
     // NOLINTEND(readability-convert-member-functions-to-static)
