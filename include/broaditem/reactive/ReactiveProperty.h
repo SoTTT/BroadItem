@@ -4,9 +4,9 @@
 
 namespace BroadItem {
 
-/// @brief 响应式属性键常量，用于将属性名映射到 QGraphicsObject 的 getter/setter。
+/// @brief 响应式属性键常量，用于将常用属性名映射到 QGraphicsObject 的 getter/setter。
 ///
-/// ReactiveBinding 使用这些常量将 XML 中的属性绑定到对应图形对象的属性上。
+/// ReactiveBinding 使用这些常量识别需要特殊处理或频繁使用的属性（如 pos、scale 等）。
 struct Property
 {
     /// @brief 位置属性键。

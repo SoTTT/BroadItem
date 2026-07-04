@@ -33,7 +33,7 @@ public:
     [[nodiscard]] qreal diameter() const;
 
     /// @brief 设置锚点直径，触发重绘。
-    /// @param d 新的直径值（像素），负值会被取绝对值处理。
+    /// @param d 新的直径值（像素）。负值会被取绝对值，且最终结果不会小于 1。
     void setDiameter(qreal d);
 
     /// @brief 获取锚点填充颜色。
@@ -56,7 +56,7 @@ public:
     /// @return QRectF(-d/2, -d/2, d, d)，其中 d 为当前直径。
     [[nodiscard]] QRectF boundingRect() const override;
 
-    /// @brief 绘制锚点：实心椭圆 + 可选 1px 黑色描边。
+    /// @brief 绘制锚点：实心椭圆 + 1px 黑色描边。
     /// @param painter QPainter 实例。
     /// @param option 样式选项（未使用）。
     /// @param widget 目标 widget（未使用）。

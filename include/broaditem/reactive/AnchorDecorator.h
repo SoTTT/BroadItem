@@ -184,13 +184,14 @@ private:
     ///
     /// 执行步骤：
     /// 1. 守卫：m_decorated 为空则直接返回
-    /// 2. 获取 m_decorated->sceneBoundingRect() 作为轴对齐包围盒
-    /// 3. 设置装饰器自身位置，使其包围盒外扩 margin 后包住 decorated 的 AABB；
+    /// 2. 记录 decorated 当前 scenePos，作为后续保持其场景位置不变的基准
+    /// 3. 获取 m_decorated->sceneBoundingRect() 作为轴对齐包围盒
+    /// 4. 设置装饰器自身位置，使其包围盒外扩 margin 后包住 decorated 的 AABB；
     ///    若装饰器自身有父节点，则将目标场景坐标映射为父节点局部坐标
-    /// 4. 调整 decorated 在装饰器内的局部坐标，保持其 scenePos 不变
-    /// 5. 更新 m_width/m_height，仅在变化时发射 widthChanged/heightChanged
-    /// 6. 调用 updateAnchorPositions()
-    /// 7. prepareGeometryChange() + update()
+    /// 5. 调整 decorated 在装饰器内的局部坐标，保持其 scenePos 不变
+    /// 6. 更新 m_width/m_height，仅在变化时发射 widthChanged/heightChanged
+    /// 7. 调用 updateAnchorPositions()
+    /// 8. prepareGeometryChange() + update()
     void computeAndApplyGeometry();
 
     /// @brief 根据当前 m_width/m_height 重新计算 8 个锚点的位置。
@@ -214,7 +215,7 @@ private:
     qreal m_height;                              ///< 装饰器高度。
     bool m_anchorVisible;                        ///< 锚点可见性标记。
     bool m_inGeometryUpdate;                     ///< 防止 computeAndApplyGeometry 重入标志。
-    bool m_originalParentDestroyed;              ///< 原父节点是否已被移出/销毁场景。
+    bool m_originalParentDestroyed;              ///< 原父节点是否已被销毁。
 
     ReactiveBinding* m_posObserver;              ///< 监听 decorated pos 变化的 observer。
     ReactiveBinding* m_widthObserver;            ///< 监听 decorated width 变化的 observer（可选）。

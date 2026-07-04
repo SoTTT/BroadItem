@@ -45,7 +45,7 @@ qreal AnchorPoint::diameter() const
 
 void AnchorPoint::setDiameter(qreal d)
 {
-    // 杜绝零值：取绝对值并使用 1 作为最小兜底
+    // 取绝对值并确保最小值为 1，避免零或极小尺寸
     if (d < 0) d = -d;
     if (d < 1.0) d = 1.0;
 
