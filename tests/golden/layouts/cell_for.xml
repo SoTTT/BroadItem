@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root xmlns:b="urn:broaditem:binding">
+    <grid columns="1" rows="1">
+        <cell padding="8" background-color="#eef2ff" background-radius="6">
+            <column space="4" b:of="lines" b:as="ln">
+                <text font-size="12" color="#333" b:content="ln"/>
+            </column>
+        </cell>
+    </grid>
+</root>

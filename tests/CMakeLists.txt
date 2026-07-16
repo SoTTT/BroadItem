@@ -35,6 +35,10 @@ target_link_libraries(test_connection_line PRIVATE BroadItem Qt5::Core Qt5::Widg
 add_executable(test_anchor_decorator test_anchor_decorator.cpp)
 target_link_libraries(test_anchor_decorator PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml Qt5::Test)
 
+# 黄金镜像采集/校验工具（P0 阶段不注册 ctest，P4 再注册）
+add_executable(golden_render golden/golden_render.cpp)
+target_link_libraries(golden_render PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)
+
 add_test(NAME test_parser COMMAND test_parser WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME test_property_context COMMAND test_property_context WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME test_sized_element COMMAND test_sized_element WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
