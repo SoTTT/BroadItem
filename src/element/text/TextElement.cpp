@@ -70,23 +70,35 @@ void TextElement::parse(const QDomElement& xml)
         m_color = parseColor(xml.attribute("color"));
 }
 
-/// @brief 解析显示的文本：字面量内容、绑定的 b:content 属性或解析的 XML 文本。
+/// @brief 按优先级解析文本：content 字面量 > b:content 绑定 > 标签文本。
+///
+/// 绑定值统一经 QVariant::toString() 转换（沿用旧 for 克隆路径的语义，
+/// 黄金镜像基线即以此采集；旧静态路径的 "expected QString" qCritical
+/// 随双模式删除一并移除）。
+///
 /// @param ctx The layout context for property lookup.
 /// @return The resolved text string.
-QString TextElement::resolvedText(const LayoutContext& ctx) const
+QString TextElement::resolveText(const LayoutContext& ctx) const
 {
     if (m_hasContentLiteral)
         return m_contentLiteral;
-    if (m_bindingsResolved)
-        return m_text;
     if (m_binding.isValid() && ctx.hasProperty(m_binding.path())) {
         QVariant v = ctx.property(m_binding.path());
-        if (v.userType() == QMetaType::QString)
+        if (v.isValid())
             return v.toString();
-        qCritical() << "TextElement: property" << m_binding.path()
-                     << "expected QString, got" << v.typeName();
     }
     return m_text;
+}
+
+/// @brief 物化：解析文本写入 TextNode。
+/// @param ctx 布局上下文。
+/// @return 新创建的 TextNode 实例节点。
+std::unique_ptr<Node> TextElement::materialize(const LayoutContext& ctx) const
+{
+    auto node = std::make_unique<TextNode>();
+    node->element = this;
+    node->text = resolveText(ctx);
+    return node;
 }
 
 /// @brief 计算给定文本的渲染尺寸，考虑字体、换行和 max-width 约束。
@@ -133,13 +145,15 @@ QSizeF TextElement::computeTextSize(const QString& text, const LayoutConstraints
     }
 }
 
-/// @brief 测量文本元素：解析文本、计算尺寸、应用显式宽度/高度。
+/// @brief 测量文本元素：读取节点文本、计算尺寸、应用显式宽度/高度。
 /// @param ctx The layout context.
 /// @param constraints Available width/height constraints.
+/// @param node 实例节点（TextNode）。
 /// @return The measured size including box model decoration.
-MeasureResult TextElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
+MeasureResult TextElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const
 {
-    QString text = resolvedText(ctx);
+    Q_UNUSED(ctx)
+    const QString& text = static_cast<const TextNode&>(node).text;
     QSizeF sz = computeTextSize(text, constraints);
     double w = sz.width();
     double h = sz.height();
@@ -155,24 +169,28 @@ MeasureResult TextElement::measure(const LayoutContext& ctx, const LayoutConstra
     return MeasureResult{QSizeF(w, h)};
 }
 
-/// @brief 存储分配的矩形并计算文本渲染的内容区域。
+/// @brief 存储分配的矩形并计算文本渲染的内容区域（缓存进 TextNode）。
 /// @param ctx The layout context (unused).
 /// @param rect The bounding rectangle assigned to this text element.
-void TextElement::layout(const LayoutContext& ctx, const QRectF& rect)
+/// @param node 实例节点（TextNode）。
+void TextElement::layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const
 {
     Q_UNUSED(ctx)
-    m_rect = rect;
-    m_contentRect = contentRect(rect);
+    node.rect = rect;
+    static_cast<TextNode&>(node).contentRect = contentRect(rect);
 }
 
-/// @brief 渲染文本元素：盒模型装饰，然后使用字体、对齐和换行渲染文本。
+/// @brief 渲染文本元素：盒模型装饰，然后使用字体、对齐和换行渲染节点文本。
 /// @param painter The QPainter to render onto.
-/// @param ctx The layout context for property resolution.
-void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
+/// @param ctx The layout context (unused; 文本已在物化时解析)。
+/// @param node 实例节点（TextNode）。
+void TextElement::render(QPainter* painter, const LayoutContext& ctx, const Node& node) const
 {
-    renderBoxModel(painter, m_rect);
+    Q_UNUSED(ctx)
+    renderBoxModel(painter, node.rect);
 
-    QString text = resolvedText(ctx);
+    const auto& textNode = static_cast<const TextNode&>(node);
+    const QString& text = textNode.text;
     if (text.isEmpty())
         return;
 
@@ -187,7 +205,7 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
     painter->setFont(font);
     painter->setPen(m_color);
 
-    const QRectF& textRect = m_contentRect;
+    const QRectF& textRect = textNode.contentRect;
 
     bool needClip = hasWidth() || hasHeight();
     if (needClip) {
@@ -268,49 +286,6 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx) const
 bool TextElement::bindsProperty(const QString& name) const
 {
     return m_binding.bindsProperty(name);
-}
-
-/// @brief 创建此文本元素的深拷贝，包含所有属性。
-/// @return A new TextElement with identical settings.
-ElementPtr TextElement::clone() const
-{
-    auto copy = std::make_shared<TextElement>();
-    copy->m_text = m_text;
-    copy->m_contentLiteral = m_contentLiteral;
-    copy->m_hasContentLiteral = m_hasContentLiteral;
-    copy->m_bindingsResolved = false;  // Clones must resolve bindings fresh
-    copy->m_binding = m_binding;
-    copy->m_font = m_font;
-    copy->m_vAlign = m_vAlign;
-    copy->m_hAlign = m_hAlign;
-    copy->m_bold = m_bold;
-    copy->m_underLine = m_underLine;
-    copy->m_wrap = m_wrap;
-    copy->m_maxWidth = m_maxWidth;
-    copy->m_fontSize = m_fontSize;
-    copy->m_fontFamily = m_fontFamily;
-    copy->m_color = m_color;
-    copy->m_width = m_width;
-    copy->m_height = m_height;
-    copy->m_margin = m_margin;
-    copy->m_border = m_border;
-    copy->m_background = m_background;
-    copy->m_padding = m_padding;
-    copy->m_rect = m_rect;
-    copy->m_contentRect = m_contentRect;
-    return copy;
-}
-
-void TextElement::resolveBindings(const LayoutContext& ctx)
-{
-    if (m_binding.isValid()) {
-        QVariant v = ctx.property(m_binding.path());
-        if (v.isValid())
-            m_text = v.toString();
-        else
-            m_text.clear();
-        m_bindingsResolved = true;
-    }
 }
 
 } // namespace BroadItem

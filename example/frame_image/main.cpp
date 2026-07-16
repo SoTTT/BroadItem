@@ -12,10 +12,10 @@ int main(int argc, char* argv[]) {
     QString xmlPath = argc > 1 ? QString::fromLocal8Bit(argv[1]) : "frame_image.xml";
     QString outputPath = argc > 2 ? QString::fromLocal8Bit(argv[2]) : "output.png";
 
-    BroadItem::Frame frame = BroadItem::Frame::fromFile(xmlPath);
-    frame.performLayout(400, -1);
+    auto frame = BroadItem::Frame::fromFile(xmlPath);
+    frame->performLayout(400, -1);
 
-    QImage image = frame.toImage(2.0);
+    QImage image = frame->toImage(2.0);
     if (image.isNull()) {
         qCritical() << "Failed to render image";
         return 1;

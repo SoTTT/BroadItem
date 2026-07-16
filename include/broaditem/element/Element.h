@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 #include <broaditem/context/LayoutContext.h>
+#include <broaditem/core/Node.h>
 
 namespace BroadItem {
 
@@ -28,39 +29,47 @@ bool isBindingAttribute(const QDomAttr& attr);
 class Element;
 using ElementPtr = std::shared_ptr<Element>;
 
-/// @brief 所有布局元素的基类，用于三阶段流水线（测量、布局、渲染）。
+/// @brief 所有布局元素的基类（模板层）。
+///
+/// 模板/实例分离架构：Element 树在 parse 后不可变，可安全共享
+/// （LayoutRegistry 原样返回 ElementPtr）。三阶段流水线（测量、布局、渲染）
+/// 只作用于由 materialize() 生成的实例层 Node 树，每实例状态经 Node& 进出。
 class Element {
 public:
     virtual ~Element() = default;
 
-    /// @brief 从 XML 元素解析属性。
+    /// @brief 从 XML 元素解析属性。仅在初始化期调用。
     virtual void parse(const QDomElement& xml);
 
-    /// @brief 测量阶段：计算元素的固有尺寸。
-    virtual MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints) = 0;
+    /// @brief 物化：以给定上下文创建该元素的实例节点。
+    /// 普通元素返回 1 个节点；控制元素不产生节点（ControlElement 中 qFatal）。
+    /// @param ctx 布局上下文，用于解析数据绑定。
+    /// @return 新创建的实例节点。
+    virtual std::unique_ptr<Node> materialize(const LayoutContext& ctx) const = 0;
 
-    /// @brief 布局阶段：分配最终位置和尺寸。
-    virtual void layout(const LayoutContext& ctx, const QRectF& rect) = 0;
+    /// @brief 物化子节点序列：默认实现将 materialize() 包装为单元素向量。
+    /// 控制元素（for、if-has）覆盖此方法，展开为 0..N 个节点。
+    /// @param ctx 布局上下文。
+    /// @return 物化后的节点向量。
+    virtual std::vector<std::unique_ptr<Node>> materializeChildren(const LayoutContext& ctx) const;
 
-    /// @brief 使用给定 painter 渲染该元素。
-    virtual void render(QPainter* painter, const LayoutContext& ctx) const = 0;
+    /// @brief 测量阶段：计算元素的固有尺寸，状态经 node 进出。
+    /// 基类默认实现为 qFatal——控制元素永不出现在实例树中。
+    virtual MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const;
+
+    /// @brief 布局阶段：在 rect 内分配最终位置和尺寸，结果写入 node。
+    /// 基类默认实现为 qFatal——控制元素永不出现在实例树中。
+    virtual void layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const;
+
+    /// @brief 使用给定 painter 渲染 node 对应的实例子树。
+    /// 基类默认实现为 qFatal——控制元素永不出现在实例树中。
+    virtual void render(QPainter* painter, const LayoutContext& ctx, const Node& node) const;
 
     /// @brief 数据绑定：如果该元素使用了指定属性名，返回 true。
     virtual bool bindsProperty(const QString& name) const { Q_UNUSED(name) return false; }
 
     /// @brief 检查名称是否与 bindPath 匹配（精确匹配或作为点号/括号路径的前缀）。
     static bool matchesProperty(const QString& bindPath, const QString& propName);
-
-    /// @brief 克隆该元素（深拷贝）。所有具体元素类型必须实现。
-    virtual ElementPtr clone() const = 0;
-
-    /// @brief 根据给定 context 解析并绑定属性值。expand() 对每个克隆调用此方法。
-    virtual void resolveBindings(const LayoutContext& ctx);
-
-    /// @brief 返回该元素的包围矩形。
-    const QRectF& rect() const { return m_rect; }
-    /// @brief 设置该元素的包围矩形。
-    void setRect(const QRectF& r) { m_rect = r; }
 
     /// @brief 返回该元素支持的属性名集合。
     virtual const QSet<QString>& supportedAttributes() const {
@@ -101,8 +110,6 @@ public:
     }
 
 protected:
-    QRectF m_rect;  ///< The bounding rectangle of this element.
-
     /// @brief 从字符串解析 double，失败时返回默认值。
     static double parseDouble(const QString& value, double defaultVal = 0);
     /// @brief 从字符串解析 QColor（名称或十六进制）。

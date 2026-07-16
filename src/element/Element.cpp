@@ -1,5 +1,6 @@
 #include <broaditem/element/Element.h>
 #include <QDomElement>
+#include <QDebug>
 
 namespace BroadItem {
 
@@ -29,6 +30,44 @@ void Element::parse(const QDomElement& xml)
     Q_UNUSED(xml)
 }
 
+/// @brief 默认物化子节点实现：将 materialize() 包装为单元素向量。
+/// @param ctx 布局上下文。
+/// @return 仅含 materialize() 结果的向量。
+std::vector<std::unique_ptr<Node>> Element::materializeChildren(const LayoutContext& ctx) const
+{
+    std::vector<std::unique_ptr<Node>> result;
+    result.push_back(materialize(ctx));
+    return result;
+}
+
+/// @brief 基类测量默认实现：不可达（控制元素永不出现在实例树中）。
+MeasureResult Element::measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const
+{
+    Q_UNUSED(ctx)
+    Q_UNUSED(constraints)
+    Q_UNUSED(node)
+    qFatal("Element::measure: control elements must not appear in node trees");
+    return MeasureResult{QSizeF(0, 0)};  // unreachable
+}
+
+/// @brief 基类布局默认实现：不可达（控制元素永不出现在实例树中）。
+void Element::layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const
+{
+    Q_UNUSED(ctx)
+    Q_UNUSED(rect)
+    Q_UNUSED(node)
+    qFatal("Element::layout: control elements must not appear in node trees");
+}
+
+/// @brief 基类渲染默认实现：不可达（控制元素永不出现在实例树中）。
+void Element::render(QPainter* painter, const LayoutContext& ctx, const Node& node) const
+{
+    Q_UNUSED(painter)
+    Q_UNUSED(ctx)
+    Q_UNUSED(node)
+    qFatal("Element::render: control elements must not appear in node trees");
+}
+
 /// @brief 安全地将字符串解析为 double。
 /// @param value The string to parse.
 /// @param defaultVal Value returned if parsing fails.
@@ -54,12 +93,6 @@ QColor Element::parseColor(const QString& value)
 bool Element::parseBool(const QString& value)
 {
     return value.compare("true", Qt::CaseInsensitive) == 0 || value == "1";
-}
-
-/// @brief 默认实现：空操作。TextElement 等子类覆盖以从 context 解析绑定。
-void Element::resolveBindings(const LayoutContext& ctx)
-{
-    Q_UNUSED(ctx)
 }
 
 /// @brief 检查属性名是否匹配绑定路径（支持点和括号子路径）。

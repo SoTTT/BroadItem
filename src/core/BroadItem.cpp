@@ -42,12 +42,13 @@ BroadItem::~BroadItem() = default;
 /// 以确保 QGraphicsScene 正确反映几何变更。
 void BroadItem::setupPropertyContext()
 {
-    auto ctx = m_frame.propertyContext();
+    auto ctx = m_frame->propertyContext();
     if (ctx) {
         ctx->setOnChanged([this](const QString& name, const QVariant&) {
-            if (m_frame.bindsProperty(name)) {
+            if (m_frame->bindsProperty(name)) {
+                m_frame->invalidate();
                 prepareGeometryChange();
-                m_frame.performLayout();
+                m_frame->performLayout();
                 update();
             }
         });
@@ -58,7 +59,7 @@ void BroadItem::setupPropertyContext()
 /// @param ctx The new property context.
 void BroadItem::setPropertyContext(std::shared_ptr<PropertyContext> ctx)
 {
-    m_frame.setPropertyContext(std::move(ctx));
+    m_frame->setPropertyContext(std::move(ctx));
     setupPropertyContext();
 }
 
@@ -67,7 +68,7 @@ void BroadItem::setPropertyContext(std::shared_ptr<PropertyContext> ctx)
 /// @param value Property value.
 void BroadItem::setDynamicProperty(const QString& name, const QVariant& value)
 {
-    m_frame.setDynamicProperty(name, value);
+    m_frame->setDynamicProperty(name, value);
 }
 
 /// @brief 返回动态属性值。
@@ -75,7 +76,7 @@ void BroadItem::setDynamicProperty(const QString& name, const QVariant& value)
 /// @return The property value, or invalid QVariant if not found.
 QVariant BroadItem::dynamicProperty(const QString& name) const
 {
-    return m_frame.dynamicProperty(name);
+    return m_frame->dynamicProperty(name);
 }
 
 /// @brief 检查动态属性是否存在。
@@ -83,21 +84,21 @@ QVariant BroadItem::dynamicProperty(const QString& name) const
 /// @return True if the property context has the property.
 bool BroadItem::hasDynamicProperty(const QString& name) const
 {
-    return m_frame.hasDynamicProperty(name);
+    return m_frame->hasDynamicProperty(name);
 }
 
 /// @brief 通过通知几何变化并重新运行管线来触发完整布局更新。
 void BroadItem::updateLayout()
 {
     prepareGeometryChange();
-    m_frame.performLayout();
+    m_frame->performLayout();
 }
 
 /// @brief 返回项目的边界矩形。
 /// @return The computed bounding rect from the layout phase.
 QRectF BroadItem::boundingRect() const
 {
-    return QRectF(QPointF(), m_frame.size());
+    return QRectF(QPointF(), m_frame->size());
 }
 
 /// @brief 将元素树绘制到指定的 painter 上。
@@ -108,7 +109,7 @@ void BroadItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
 {
     Q_UNUSED(option)
     Q_UNUSED(widget)
-    m_frame.paint(painter);
+    m_frame->paint(painter);
 }
 
 } // namespace BroadItem

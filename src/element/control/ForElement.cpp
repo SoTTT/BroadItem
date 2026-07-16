@@ -37,36 +37,25 @@ void ForElement::setBindProperty(const QString& bind)
         m_binding = Binding("b:of", bind);
 }
 
-/// @brief 设置要每次迭代克隆的模板元素。
+/// @brief 设置每次迭代要物化的模板元素。
 /// @param templ The template element.
 void ForElement::setTemplate(ElementPtr templ)
 {
     m_template = std::move(templ);
 }
 
-/// @brief 创建此 ForElement 的深拷贝，包括模板。
-/// @return A new ForElement with cloned template.
-ElementPtr ForElement::clone() const
-{
-    auto copy = std::make_shared<ForElement>();
-    copy->m_binding = m_binding;
-    copy->m_asVariable = m_asVariable;
-    if (m_template)
-        copy->m_template = m_template->clone();
-    return copy;
-}
-
-/// @brief 通过遍历绑定的列表将此控制元素展开为具体元素。
+/// @brief 通过遍历绑定的列表将此控制元素物化为实例节点序列。
 ///
 /// 支持 b:of 为 QStringList 或 QVariantList。为每个迭代项创建 per-item
 /// MapPropertyContext（含层次和平铺键），通过 ItemPropertyContext 链到全局 context，
-/// 克隆模板并调用 resolveBindings() 解析每个克隆的属性绑定。
+/// 并以 itemCtx 递归调用模板的 materializeChildren() 后拼接——嵌套 for 由此
+/// 能拿到外层的 as 变量。
 ///
 /// @param ctx The layout context providing the data property.
-/// @return A vector of cloned and resolved element instances.
-std::vector<ElementPtr> ForElement::expand(const LayoutContext& ctx) const
+/// @return 物化后的实例节点向量。
+std::vector<std::unique_ptr<Node>> ForElement::materializeChildren(const LayoutContext& ctx) const
 {
-    std::vector<ElementPtr> result;
+    std::vector<std::unique_ptr<Node>> result;
     if (!m_template || m_binding.path().isEmpty())
         return result;
 
@@ -87,9 +76,9 @@ std::vector<ElementPtr> ForElement::expand(const LayoutContext& ctx) const
             ItemPropertyContext chainedCtx(itemCtx.get(), ctx.ctx, m_asVariable);
             LayoutContext itemLayoutCtx{&chainedCtx};
 
-            auto instance = m_template->clone();
-            instance->resolveBindings(itemLayoutCtx);
-            result.push_back(instance);
+            auto nodes = m_template->materializeChildren(itemLayoutCtx);
+            for (auto& n : nodes)
+                result.push_back(std::move(n));
         }
     } else if (v.userType() == QMetaType::QVariantList) {
         QVariantList list = v.toList();
@@ -108,9 +97,9 @@ std::vector<ElementPtr> ForElement::expand(const LayoutContext& ctx) const
             ItemPropertyContext chainedCtx(itemCtx.get(), ctx.ctx, m_asVariable);
             LayoutContext itemLayoutCtx{&chainedCtx};
 
-            auto instance = m_template->clone();
-            instance->resolveBindings(itemLayoutCtx);
-            result.push_back(instance);
+            auto nodes = m_template->materializeChildren(itemLayoutCtx);
+            for (auto& n : nodes)
+                result.push_back(std::move(n));
         }
     } else {
         qCritical() << "ForElement: property" << m_binding.path()
@@ -118,41 +107,6 @@ std::vector<ElementPtr> ForElement::expand(const LayoutContext& ctx) const
     }
 
     return result;
-}
-
-/// @brief 测量第一个展开的实例（控制元素将测量委托给展开的内容）。
-/// @param ctx The layout context.
-/// @param constraints Available width/height constraints.
-/// @return The measured size of the first expanded element, or zero if empty.
-MeasureResult ForElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
-{
-    auto expanded = expand(ctx);
-    if (expanded.empty())
-        return MeasureResult{QSizeF(0, 0)};
-    return expanded[0]->measure(ctx, constraints);
-}
-
-/// @brief 在给定矩形内布局第一个展开的实例。
-/// @param ctx The layout context.
-/// @param rect The bounding rectangle for the first expanded element.
-void ForElement::layout(const LayoutContext& ctx, const QRectF& rect)
-{
-    m_rect = rect;
-    auto expanded = expand(ctx);
-    if (!expanded.empty()) {
-        expanded[0]->layout(ctx, rect);
-    }
-}
-
-/// @brief 渲染第一个展开的实例。
-/// @param painter The QPainter to render onto.
-/// @param ctx The layout context.
-void ForElement::render(QPainter* painter, const LayoutContext& ctx) const
-{
-    auto expanded = expand(ctx);
-    if (!expanded.empty()) {
-        expanded[0]->render(painter, ctx);
-    }
 }
 
 /// @brief 检查此元素是否绑定指定属性（通过 b:of 或在模板中）。

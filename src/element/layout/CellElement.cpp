@@ -24,79 +24,53 @@ void CellElement::parse(const QDomElement& xml)
         m_hAlign = xml.attribute("h-align");
 }
 
-/// @brief 创建此单元格元素的深拷贝。
-/// @return A new CellElement with copied properties and cloned content.
-ElementPtr CellElement::clone() const
-{
-    auto copy = std::make_shared<CellElement>();
-    copy->m_margin = m_margin;
-    copy->m_border = m_border;
-    copy->m_background = m_background;
-    copy->m_padding = m_padding;
-    copy->m_rect = m_rect;
-    copy->m_vAlign = m_vAlign;
-    copy->m_hAlign = m_hAlign;
-    if (content())
-        copy->setContent(content()->clone());
-    return copy;
-}
-
-/// @brief 通过委托 ContainerElement::measure() 测量单元格。
-/// @param ctx The layout context.
-/// @param constraints Available width/height constraints.
-/// @return The measured size of the cell.
-MeasureResult CellElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
-{
-    return ContainerElement::measure(ctx, constraints);
-}
-
-/// @brief 在单元格内布局内容元素，应用水平和垂直对齐。
+/// @brief 在单元格内布局子节点：多节点视为垂直堆叠块，块整体按对齐配置定位，
+///        块内各子节点自上而下依次分配。
 /// @param ctx The layout context.
 /// @param rect The bounding rectangle assigned to this cell.
-void CellElement::layout(const LayoutContext& ctx, const QRectF& rect)
+/// @param node 实例节点，rect 写入 node.rect。
+void CellElement::layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const
 {
-    ContainerElement::layout(ctx, rect);
-
-    if (!content())
+    node.rect = rect;
+    if (node.children.empty())
         return;
 
     QRectF contentArea = contentRect(rect);
+    LayoutConstraints childConstraints{contentArea.width(), contentArea.height()};
 
-    auto result = content()->measure(ctx, LayoutConstraints{contentArea.width(), contentArea.height()});
-    double cw = result.intrinsicSize.width();
-    double ch = result.intrinsicSize.height();
+    // 测量堆叠块：总高为各子节点之和，宽为最大宽度。
+    std::vector<QSizeF> childSizes;
+    childSizes.reserve(node.children.size());
+    double blockW = 0;
+    double blockH = 0;
+    for (const auto& child : node.children) {
+        auto result = child->element->measure(ctx, childConstraints, *child);
+        childSizes.push_back(result.intrinsicSize);
+        blockW = std::max(blockW, result.intrinsicSize.width());
+        blockH += result.intrinsicSize.height();
+    }
 
     double cx = contentArea.x();
     double cy = contentArea.y();
 
     if (m_hAlign == "center")
-        cx = contentArea.x() + (contentArea.width() - cw) / 2.0;
+        cx = contentArea.x() + (contentArea.width() - blockW) / 2.0;
     else if (m_hAlign == "right")
-        cx = contentArea.x() + contentArea.width() - cw;
+        cx = contentArea.x() + contentArea.width() - blockW;
 
     if (m_vAlign == "center")
-        cy = contentArea.y() + (contentArea.height() - ch) / 2.0;
+        cy = contentArea.y() + (contentArea.height() - blockH) / 2.0;
     else if (m_vAlign == "bottom")
-        cy = contentArea.y() + contentArea.height() - ch;
+        cy = contentArea.y() + contentArea.height() - blockH;
 
-    QRectF childRect(cx, cy, std::min(cw, contentArea.width()), std::min(ch, contentArea.height()));
-    content()->layout(ctx, childRect);
-}
-
-/// @brief 通过 ContainerElement::render() 渲染单元格及其内容。
-/// @param painter The QPainter to render onto.
-/// @param ctx The layout context.
-void CellElement::render(QPainter* painter, const LayoutContext& ctx) const
-{
-    ContainerElement::render(painter, ctx);
-}
-
-/// @brief 检查此单元格或其内容是否绑定指定属性。
-/// @param name The property name to check.
-/// @return True if the property is bound.
-bool CellElement::bindsProperty(const QString& name) const
-{
-    return ContainerElement::bindsProperty(name);
+    double y = cy;
+    for (size_t i = 0; i < node.children.size(); ++i) {
+        double cw = childSizes[i].width();
+        double ch = childSizes[i].height();
+        QRectF childRect(cx, y, std::min(cw, contentArea.width()), std::min(ch, contentArea.height()));
+        node.children[i]->element->layout(ctx, childRect, *node.children[i]);
+        y += ch;
+    }
 }
 
 } // namespace BroadItem

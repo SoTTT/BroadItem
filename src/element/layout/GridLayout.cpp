@@ -60,34 +60,26 @@ void GridLayout::addChild(ElementPtr child)
     }
 }
 
-/// @brief 创建此网格布局的深拷贝，包括所有子元素。
-/// @return A new GridLayout with cloned properties and children.
-ElementPtr GridLayout::clone() const
+/// @brief 物化：创建 GridNode 并拼接所有模板子元素的物化结果。
+/// @param ctx 布局上下文。
+/// @return 新创建的 GridNode 实例节点。
+std::unique_ptr<Node> GridLayout::materialize(const LayoutContext& ctx) const
 {
-    auto copy = std::make_shared<GridLayout>();
-    copy->m_margin = m_margin;
-    copy->m_border = m_border;
-    copy->m_background = m_background;
-    copy->m_padding = m_padding;
-    copy->m_rect = m_rect;
-    copy->m_columns = m_columns;
-    copy->m_rows = m_rows;
-    copy->m_space = m_space;
-    copy->m_rowSpace = m_rowSpace;
-    copy->m_columnSpace = m_columnSpace;
-    for (const auto& child : m_children) {
-        if (child)
-            copy->m_children.push_back(child->clone());
-    }
-    return copy;
+    auto node = std::make_unique<GridNode>();
+    node->element = this;
+    materializeChildrenInto(ctx, *node);
+    return node;
 }
 
-/// @brief 测量网格：从子元素尺寸计算列宽和行高。
+/// @brief 测量网格：从子节点尺寸计算列宽和行高，缓存进 GridNode。
 /// @param ctx The layout context.
 /// @param constraints Available width/height constraints.
+/// @param node 实例节点（GridNode）。
 /// @return The measured grid size including box model decoration.
-MeasureResult GridLayout::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
+MeasureResult GridLayout::measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const
 {
+    auto& gridNode = static_cast<GridNode&>(node);
+
     double decoW = boxModelWidth();
     double decoH = boxModelHeight();
 
@@ -97,29 +89,29 @@ MeasureResult GridLayout::measure(const LayoutContext& ctx, const LayoutConstrai
     if (constraints.availableHeight > 0)
         childConstraints.availableHeight = std::max(0.0, constraints.availableHeight - decoH);
 
-    m_colWidths.assign(m_columns, 0.0);
-    m_rowHeights.assign(m_rows, 0.0);
-    m_cellMeasures.clear();
+    gridNode.colWidths.assign(m_columns, 0.0);
+    gridNode.rowHeights.assign(m_rows, 0.0);
+    gridNode.cellMeasures.clear();
 
-    m_flattened = flattenChildren(ctx);
-    for (size_t i = 0; i < m_flattened.size(); ++i) {
-        auto result = m_flattened[i]->measure(ctx, childConstraints);
-        m_cellMeasures.push_back({result.intrinsicSize.width(), result.intrinsicSize.height()});
+    const auto& children = node.children;
+    for (size_t i = 0; i < children.size(); ++i) {
+        auto result = children[i]->element->measure(ctx, childConstraints, *children[i]);
+        gridNode.cellMeasures.push_back({result.intrinsicSize.width(), result.intrinsicSize.height()});
         int col = static_cast<int>(i) % m_columns;
         int row = static_cast<int>(i) / m_columns;
         if (col < m_columns)
-            m_colWidths[col] = std::max(m_colWidths[col], result.intrinsicSize.width());
+            gridNode.colWidths[col] = std::max(gridNode.colWidths[col], result.intrinsicSize.width());
         if (row < m_rows)
-            m_rowHeights[row] = std::max(m_rowHeights[row], result.intrinsicSize.height());
+            gridNode.rowHeights[row] = std::max(gridNode.rowHeights[row], result.intrinsicSize.height());
     }
 
     double totalWidth = 0;
-    for (double w : m_colWidths)
+    for (double w : gridNode.colWidths)
         totalWidth += w;
     totalWidth += (m_columns - 1) * m_columnSpace.value_or(m_space);
 
     double totalHeight = 0;
-    for (double h : m_rowHeights)
+    for (double h : gridNode.rowHeights)
         totalHeight += h;
     totalHeight += (m_rows - 1) * m_rowSpace.value_or(m_space);
 
@@ -127,22 +119,25 @@ MeasureResult GridLayout::measure(const LayoutContext& ctx, const LayoutConstrai
     return MeasureResult{sz};
 }
 
-/// @brief 以网格模式定位子元素，均匀分配额外空间。
+/// @brief 以网格模式定位子节点，均匀分配额外空间。
 /// @param ctx The layout context.
 /// @param rect The bounding rectangle assigned to this grid.
-void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect)
+/// @param node 实例节点（GridNode，列宽/行高已在测量阶段缓存）。
+void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const
 {
-    ContainerElement::layout(ctx, rect);
+    auto& gridNode = static_cast<GridNode&>(node);
+
+    node.rect = rect;
 
     QRectF cr = contentRect(rect);
 
     double measuredWidth = 0;
-    for (double w : m_colWidths)
+    for (double w : gridNode.colWidths)
         measuredWidth += w;
     measuredWidth += (m_columns - 1) * m_columnSpace.value_or(m_space);
 
     double measuredHeight = 0;
-    for (double h : m_rowHeights)
+    for (double h : gridNode.rowHeights)
         measuredHeight += h;
     measuredHeight += (m_rows - 1) * m_rowSpace.value_or(m_space);
 
@@ -151,28 +146,29 @@ void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect)
 
     if (extraW > 0 && m_columns > 0) {
         double add = extraW / m_columns;
-        for (double& w : m_colWidths)
+        for (double& w : gridNode.colWidths)
             w += add;
     }
     if (extraH > 0 && m_rows > 0) {
         double add = extraH / m_rows;
-        for (double& h : m_rowHeights)
+        for (double& h : gridNode.rowHeights)
             h += add;
     }
 
+    const auto& children = node.children;
     double y = cr.y();
     for (int row = 0; row < m_rows; ++row) {
         double x = cr.x();
         for (int col = 0; col < m_columns; ++col) {
             int idx = row * m_columns + col;
-            if (idx >= static_cast<int>(m_flattened.size()))
+            if (idx >= static_cast<int>(children.size()))
                 break;
 
-            QRectF cellRect(x, y, m_colWidths[col], m_rowHeights[row]);
-            m_flattened[idx]->layout(ctx, cellRect);
-            x += m_colWidths[col] + m_columnSpace.value_or(m_space);
+            QRectF cellRect(x, y, gridNode.colWidths[col], gridNode.rowHeights[row]);
+            children[idx]->element->layout(ctx, cellRect, *children[idx]);
+            x += gridNode.colWidths[col] + m_columnSpace.value_or(m_space);
         }
-        y += m_rowHeights[row] + m_rowSpace.value_or(m_space);
+        y += gridNode.rowHeights[row] + m_rowSpace.value_or(m_space);
     }
 }
 

@@ -5,26 +5,29 @@
 
 namespace BroadItem {
 
+/// @brief TextElement 的实例节点，持有物化时解析的文本与布局缓存。
+struct TextNode : Node {
+    QString text;        ///< 物化时解析后的文本。
+    QRectF contentRect;  ///< 布局阶段缓存的内容区域。
+};
+
 /// @brief 文本渲染元素，支持数据绑定、字体样式、对齐和自动换行。
 class TextElement : public SizedElement {
 public:
     void parse(const QDomElement& xml) override;
-    MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints) override;
-    void layout(const LayoutContext& ctx, const QRectF& rect) override;
-    void render(QPainter* painter, const LayoutContext& ctx) const override;
+    std::unique_ptr<Node> materialize(const LayoutContext& ctx) const override;
+    MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const override;
+    void layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const override;
+    void render(QPainter* painter, const LayoutContext& ctx, const Node& node) const override;
     bool bindsProperty(const QString& name) const override;
-
-    ElementPtr clone() const override;
-    void resolveBindings(const LayoutContext& ctx) override;
 
     const QSet<QString>& supportedAttributes() const override;
     bool canHaveChildren() const override { return false; }
 
 private:
-    QString m_text;              ///< Static text content.
+    QString m_text;              ///< Static text content from the XML tag body.
     QString m_contentLiteral;    ///< Literal content from XML (before binding interpolation).
     bool m_hasContentLiteral = false; ///< Whether literal content was provided.
-    bool m_bindingsResolved = false; ///< Set after resolveBindings() to skip live lookup.
     Binding m_binding{"b:content", QString{}}; ///< Binding for the b:content attribute.
     QFont m_font;                ///< Font used for rendering.
     QString m_vAlign = "baseline"; ///< Vertical alignment ("baseline", "top", "center", "bottom").
@@ -36,10 +39,9 @@ private:
     double m_fontSize = 12;      ///< Font size in points.
     QString m_fontFamily;        ///< Font family name.
     QColor m_color = Qt::black;  ///< Text color.
-    QRectF m_contentRect;        ///< Cached content rectangle after layout.
 
-    /// @brief 解析有效的文本内容，如果配置了数据绑定则应用。
-    QString resolvedText(const LayoutContext& ctx) const;
+    /// @brief 按优先级解析文本：content 字面量 > b:content 绑定 > 标签文本。
+    QString resolveText(const LayoutContext& ctx) const;
     /// @brief 计算给定约束下的渲染文本尺寸。
     QSizeF computeTextSize(const QString& text, const LayoutConstraints& constraints) const;
 };

@@ -18,6 +18,7 @@ add_library(BroadItem STATIC
     include/broaditem/core/BroadItem.h
     include/broaditem/core/LayoutEngine.h
     include/broaditem/core/Frame.h
+    include/broaditem/core/Node.h
 
     # context — property context hierarchy
     src/context/QPropertyContext.cpp

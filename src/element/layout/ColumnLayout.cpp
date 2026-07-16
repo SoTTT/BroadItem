@@ -37,32 +37,12 @@ void ColumnLayout::parse(const QDomElement& xml)
     }
 }
 
-/// @brief 创建此列布局的深拷贝，包括所有子元素。
-/// @return A new ColumnLayout with cloned properties and children.
-ElementPtr ColumnLayout::clone() const
-{
-    auto copy = std::make_shared<ColumnLayout>();
-    copy->m_margin = m_margin;
-    copy->m_border = m_border;
-    copy->m_background = m_background;
-    copy->m_padding = m_padding;
-    copy->m_rect = m_rect;
-    copy->m_mainAlign = m_mainAlign;
-    copy->m_crossAlign = m_crossAlign;
-    copy->m_space = m_space;
-    copy->m_mainStretch = m_mainStretch;
-    for (const auto& child : m_children) {
-        if (child)
-            copy->m_children.push_back(child->clone());
-    }
-    return copy;
-}
-
-/// @brief 测量列：累加子元素高度，跟踪最大子元素宽度。
+/// @brief 测量列：累加子节点高度，跟踪最大子节点宽度。
 /// @param ctx The layout context.
 /// @param constraints Available width/height constraints.
+/// @param node 实例节点（children 已物化）。
 /// @return The measured size including box model decoration.
-MeasureResult ColumnLayout::measure(const LayoutContext& ctx, const LayoutConstraints& constraints)
+MeasureResult ColumnLayout::measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const
 {
     double totalHeight = 0;
     double maxWidth = 0;
@@ -76,23 +56,23 @@ MeasureResult ColumnLayout::measure(const LayoutContext& ctx, const LayoutConstr
     if (constraints.availableHeight > 0)
         childConstraints.availableHeight = std::max(0.0, constraints.availableHeight - decoH);
 
-    m_flattened = flattenChildren(ctx);
+    const auto& children = node.children;
 
-    if (m_mainStretch && !m_flattened.empty()) {
+    if (m_mainStretch && !children.empty()) {
         double maxChildHeight = 0;
-        for (size_t i = 0; i < m_flattened.size(); ++i) {
-            auto result = m_flattened[i]->measure(ctx, childConstraints);
+        for (size_t i = 0; i < children.size(); ++i) {
+            auto result = children[i]->element->measure(ctx, childConstraints, *children[i]);
             maxChildHeight = std::max(maxChildHeight, result.intrinsicSize.height());
             maxWidth = std::max(maxWidth, result.intrinsicSize.width());
         }
-        totalHeight = maxChildHeight * static_cast<double>(m_flattened.size())
-                      + m_space * static_cast<double>(m_flattened.size() - 1);
+        totalHeight = maxChildHeight * static_cast<double>(children.size())
+                      + m_space * static_cast<double>(children.size() - 1);
     } else {
-        for (size_t i = 0; i < m_flattened.size(); ++i) {
-            auto result = m_flattened[i]->measure(ctx, childConstraints);
+        for (size_t i = 0; i < children.size(); ++i) {
+            auto result = children[i]->element->measure(ctx, childConstraints, *children[i]);
             totalHeight += result.intrinsicSize.height();
             maxWidth = std::max(maxWidth, result.intrinsicSize.width());
-            if (i + 1 < m_flattened.size())
+            if (i + 1 < children.size())
                 totalHeight += m_space;
         }
     }
@@ -101,25 +81,27 @@ MeasureResult ColumnLayout::measure(const LayoutContext& ctx, const LayoutConstr
     return MeasureResult{sz};
 }
 
-/// @brief 在给定矩形内垂直布局子元素，应用对齐和间距。
+/// @brief 在给定矩形内垂直布局子节点，应用对齐和间距。
 /// @param ctx The layout context.
 /// @param rect The bounding rectangle assigned to this column.
-void ColumnLayout::layout(const LayoutContext& ctx, const QRectF& rect)
+/// @param node 实例节点，rect 写入 node.rect。
+void ColumnLayout::layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const
 {
-    ContainerElement::layout(ctx, rect);
+    node.rect = rect;
 
     QRectF cr = contentRect(rect);
 
-    m_flattened = flattenChildren(ctx);
-    layoutChildren(ctx, cr);
+    layoutChildren(ctx, cr, node);
 }
 
-/// @brief 在内容区域内定位子元素，处理主轴和交叉轴对齐。
+/// @brief 在内容区域内定位子节点，处理主轴和交叉轴对齐。
 /// @param ctx The layout context.
 /// @param contentRect The content area rect (excluding box model decoration).
-void ColumnLayout::layoutChildren(const LayoutContext& ctx, const QRectF& contentRect)
+/// @param node 实例节点。
+void ColumnLayout::layoutChildren(const LayoutContext& ctx, const QRectF& contentRect, Node& node) const
 {
-    if (m_flattened.empty())
+    auto& children = node.children;
+    if (children.empty())
         return;
 
     std::vector<QSizeF> childSizes;
@@ -131,34 +113,34 @@ void ColumnLayout::layoutChildren(const LayoutContext& ctx, const QRectF& conten
     if (m_mainStretch) {
         double maxChildHeight = 0;
         std::vector<bool> hasExplicitHeight;
-        for (size_t i = 0; i < m_flattened.size(); ++i) {
-            auto result = m_flattened[i]->measure(ctx, childConstraints);
+        for (size_t i = 0; i < children.size(); ++i) {
+            auto result = children[i]->element->measure(ctx, childConstraints, *children[i]);
             childSizes.push_back(result.intrinsicSize);
             maxChildHeight = std::max(maxChildHeight, result.intrinsicSize.height());
-            auto* sized = dynamic_cast<SizedElement*>(m_flattened[i].get());
+            auto* sized = dynamic_cast<const SizedElement*>(children[i]->element);
             hasExplicitHeight.push_back(sized && sized->hasHeight());
         }
         childConstraints.availableHeight = maxChildHeight;
         childSizes.clear();
-        for (size_t i = 0; i < m_flattened.size(); ++i) {
+        for (size_t i = 0; i < children.size(); ++i) {
             if (!hasExplicitHeight[i]) {
                 LayoutConstraints stretchedConstraints = childConstraints;
                 stretchedConstraints.availableHeight = maxChildHeight;
-                auto result = m_flattened[i]->measure(ctx, stretchedConstraints);
+                auto result = children[i]->element->measure(ctx, stretchedConstraints, *children[i]);
                 childSizes.push_back(QSizeF(result.intrinsicSize.width(), maxChildHeight));
             } else {
-                auto result = m_flattened[i]->measure(ctx, childConstraints);
+                auto result = children[i]->element->measure(ctx, childConstraints, *children[i]);
                 childSizes.push_back(result.intrinsicSize);
             }
         }
-        totalIntrinsicHeight = maxChildHeight * static_cast<double>(m_flattened.size())
-                               + m_space * static_cast<double>(m_flattened.size() - 1);
+        totalIntrinsicHeight = maxChildHeight * static_cast<double>(children.size())
+                               + m_space * static_cast<double>(children.size() - 1);
     } else {
-        for (size_t i = 0; i < m_flattened.size(); ++i) {
-            auto result = m_flattened[i]->measure(ctx, childConstraints);
+        for (size_t i = 0; i < children.size(); ++i) {
+            auto result = children[i]->element->measure(ctx, childConstraints, *children[i]);
             childSizes.push_back(result.intrinsicSize);
             totalIntrinsicHeight += result.intrinsicSize.height();
-            if (i + 1 < m_flattened.size())
+            if (i + 1 < children.size())
                 totalIntrinsicHeight += m_space;
         }
     }
@@ -171,24 +153,24 @@ void ColumnLayout::layoutChildren(const LayoutContext& ctx, const QRectF& conten
         offsetY += extraSpace / 2.0;
     } else if (m_mainAlign == "end") {
         offsetY += extraSpace;
-    } else if (m_mainAlign == "space-between" && m_flattened.size() > 1) {
-        spacing = m_space + extraSpace / (static_cast<double>(m_flattened.size()) - 1);
-    } else if (m_mainAlign == "space-around" && !m_flattened.empty()) {
-        double perItem = extraSpace / static_cast<double>(m_flattened.size());
+    } else if (m_mainAlign == "space-between" && children.size() > 1) {
+        spacing = m_space + extraSpace / (static_cast<double>(children.size()) - 1);
+    } else if (m_mainAlign == "space-around" && !children.empty()) {
+        double perItem = extraSpace / static_cast<double>(children.size());
         offsetY += perItem / 2.0;
         spacing = m_space + perItem;
-    } else if (m_mainAlign == "space-evenly" && !m_flattened.empty()) {
-        double perGap = extraSpace / static_cast<double>(m_flattened.size() + 1);
+    } else if (m_mainAlign == "space-evenly" && !children.empty()) {
+        double perGap = extraSpace / static_cast<double>(children.size() + 1);
         offsetY += perGap;
         spacing = m_space + perGap;
     }
 
-    for (size_t i = 0; i < m_flattened.size(); ++i) {
+    for (size_t i = 0; i < children.size(); ++i) {
         double childHeight = childSizes[i].height();
         double childWidth = childSizes[i].width();
 
         if (m_crossAlign == "stretch") {
-            auto* sized = dynamic_cast<SizedElement*>(m_flattened[i].get());
+            auto* sized = dynamic_cast<const SizedElement*>(children[i]->element);
             if (!sized || !sized->hasWidth())
                 childWidth = contentRect.width();
         }
@@ -201,7 +183,7 @@ void ColumnLayout::layoutChildren(const LayoutContext& ctx, const QRectF& conten
         }
 
         QRectF childRect(childX, offsetY, childWidth, childHeight);
-        m_flattened[i]->layout(ctx, childRect);
+        children[i]->element->layout(ctx, childRect, *children[i]);
         offsetY += childHeight + spacing;
     }
 }

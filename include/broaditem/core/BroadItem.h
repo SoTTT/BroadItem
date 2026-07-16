@@ -41,12 +41,12 @@ public:
     /// @brief 通过上下文访问属性的方括号运算符语法糖。
     PropertyProxy operator[](const QString& key)
     {
-        auto ctx = m_frame.propertyContext();
+        auto ctx = m_frame->propertyContext();
         return ctx ? (*ctx)[key] : PropertyProxy(nullptr, QString());
     }
 
 private:
-    Frame m_frame;                  ///< 内部布局引擎，持有元素树、上下文和布局逻辑。
+    std::unique_ptr<Frame> m_frame;     ///< 内部布局引擎，持有模板树、实例节点树、上下文和布局逻辑。
 
     /// @brief 设置属性上下文变更回调，连接 Frame 布局与 QGraphicsItem 重绘。
     void setupPropertyContext();

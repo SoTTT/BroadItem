@@ -5,11 +5,12 @@
 
 namespace BroadItem {
 
-/// @brief 控制元素，根据属性是否存在/是否为真值有条件地渲染子元素。
+/// @brief 控制元素，根据属性是否存在/是否为真值有条件地物化子元素。
 class IfHasElement : public ControlElement {
 public:
     void parse(const QDomElement& xml) override;
     bool bindsProperty(const QString& name) const override;
+    std::vector<std::unique_ptr<Node>> materializeChildren(const LayoutContext& ctx) const override;
 
     const QSet<QString>& supportedAttributes() const override;
     bool canHaveChildren() const override { return true; }
@@ -20,18 +21,6 @@ public:
     void setNot(bool notValue);
     /// @brief 设置要有条件渲染的子元素。
     void setChild(ElementPtr child);
-
-    ElementPtr clone() const override;
-
-    /// @brief 根据条件展开为 {克隆的子元素} 或 {}。
-    std::vector<ElementPtr> expand(const LayoutContext& ctx) const override;
-
-    /// @brief 测量委托给子元素（当此元素为根元素时使用）。
-    MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints) override;
-    /// @brief 布局委托给子元素（当此元素为根元素时使用）。
-    void layout(const LayoutContext& ctx, const QRectF& rect) override;
-    /// @brief 渲染委托给子元素（当此元素为根元素时使用）。
-    void render(QPainter* painter, const LayoutContext& ctx) const override;
 
 private:
     Binding m_binding{"b:prop", QString{}};  ///< Binding for the b:prop attribute.

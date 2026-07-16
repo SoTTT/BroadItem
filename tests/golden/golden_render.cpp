@@ -127,8 +127,8 @@ static QVector<GoldenCase> manifest()
         { QStringLiteral("playground"), QStringLiteral("example/playground/layout.xml"), playgroundProps, false, false },
         { QStringLiteral("main_stretch_with"), QStringLiteral("example/main_stretch/main_stretch_with.xml"), {}, false, false },
         { QStringLiteral("main_stretch_without"), QStringLiteral("example/main_stretch/main_stretch_without.xml"), {}, false, false },
-        { QStringLiteral("control_show"), QStringLiteral("tests/golden/layouts/control.xml"), makeControlProps(true), false, false },
-        { QStringLiteral("control_hide"), QStringLiteral("tests/golden/layouts/control.xml"), makeControlProps(false), false, false },
+        { QStringLiteral("control_show"), QStringLiteral("tests/golden/layouts/control.xml"), makeControlProps(true), true, false },
+        { QStringLiteral("control_hide"), QStringLiteral("tests/golden/layouts/control.xml"), makeControlProps(false), true, false },
         { QStringLiteral("cell_for"), QStringLiteral("tests/golden/layouts/cell_for.xml"), cellForProps, true, false },
         { QStringLiteral("broaditem_basic"), QStringLiteral("example/basic/layout.xml"), makeBasicProps(), false, true },
     };
@@ -139,10 +139,10 @@ static QVector<GoldenCase> manifest()
 /// @return 渲染结果；失败返回空 QImage。
 static QImage renderWithFrame(const GoldenCase& c)
 {
-    BroadItem::Frame frame = BroadItem::Frame::fromFile(c.xmlPath);
+    auto frame = BroadItem::Frame::fromFile(c.xmlPath);
     for (auto it = c.props.constBegin(); it != c.props.constEnd(); ++it)
-        frame.setDynamicProperty(it.key(), it.value());
-    return frame.toImage(1.0);
+        frame->setDynamicProperty(it.key(), it.value());
+    return frame->toImage(1.0);
 }
 
 /// @brief 通过 QGraphicsScene + BroadItem 路径渲染条目为 QImage。

@@ -1,7 +1,4 @@
 #include <broaditem/element/layout/MultiChildContainer.h>
-#include <broaditem/element/control/ForElement.h>
-#include <broaditem/element/control/IfHasElement.h>
-#include <QPainter>
 #include <algorithm>
 
 namespace BroadItem {
@@ -13,49 +10,29 @@ void MultiChildContainer::addChild(ElementPtr child)
     m_children.push_back(std::move(child));
 }
 
-/// @brief 将绑定解析递归传播到所有子元素。
-/// @param ctx 布局上下文，包含属性值。
-void MultiChildContainer::resolveBindings(const LayoutContext& ctx)
+/// @brief 物化：对每个模板子元素调 materializeChildren() 拼接进 node->children。
+///   ForElement 每个迭代值产生一组节点；IfHasElement 根据条件产生节点或跳过。
+/// @param ctx 布局上下文。
+/// @return 新创建的实例节点。
+std::unique_ptr<Node> MultiChildContainer::materialize(const LayoutContext& ctx) const
 {
-    ContainerElement::resolveBindings(ctx);
-    for (const auto& child : m_children) {
-        if (child)
-            child->resolveBindings(ctx);
-    }
+    auto node = std::make_unique<Node>();
+    node->element = this;
+    materializeChildrenInto(ctx, *node);
+    return node;
 }
 
-/// @brief 展开控制元素（ForElement、IfHasElement）为具体子元素。
-///   ForElement 每个迭代值生成一个克隆实例；
-///   IfHasElement 根据条件生成克隆实例或跳过。
-/// @param ctx 布局上下文，用于展开控制元素。
-/// @return 扁平化后的具体子元素向量。
-std::vector<ElementPtr> MultiChildContainer::flattenChildren(const LayoutContext& ctx) const
+/// @brief 将所有模板子元素物化并拼接进 node.children。
+/// @param ctx 布局上下文。
+/// @param node 目标实例节点。
+void MultiChildContainer::materializeChildrenInto(const LayoutContext& ctx, Node& node) const
 {
-    std::vector<ElementPtr> flat;
     for (const auto& child : m_children) {
         if (!child)
             continue;
-        if (auto forEl = std::dynamic_pointer_cast<ForElement>(child)) {
-            auto expanded = forEl->expand(ctx);
-            flat.insert(flat.end(), expanded.begin(), expanded.end());
-        } else if (auto ifEl = std::dynamic_pointer_cast<IfHasElement>(child)) {
-            auto expanded = ifEl->expand(ctx);
-            flat.insert(flat.end(), expanded.begin(), expanded.end());
-        } else {
-            flat.push_back(child);
-        }
-    }
-    return flat;
-}
-
-/// @brief 渲染盒模型装饰器，然后依次渲染所有展开后的子元素。
-/// @param painter 用于渲染的 QPainter。
-/// @param ctx 布局上下文。
-void MultiChildContainer::render(QPainter* painter, const LayoutContext& ctx) const
-{
-    ContainerElement::render(painter, ctx);
-    for (const auto& child : m_flattened) {
-        child->render(painter, ctx);
+        auto nodes = child->materializeChildren(ctx);
+        for (auto& n : nodes)
+            node.children.push_back(std::move(n));
     }
 }
 

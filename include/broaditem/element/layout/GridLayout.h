@@ -5,12 +5,24 @@
 
 namespace BroadItem {
 
+/// @brief GridLayout 的实例节点，缓存测量阶段的列宽/行高供布局阶段使用。
+struct GridNode : Node {
+    struct CellMeasure {
+        double width = 0;
+        double height = 0;
+    };
+    std::vector<CellMeasure> cellMeasures;  ///< Per-cell measure results.
+    std::vector<double> colWidths;          ///< Computed column widths.
+    std::vector<double> rowHeights;         ///< Computed row heights.
+};
+
 /// @brief 网格布局，在固定的行列网格中排列子元素。
 class GridLayout : public MultiChildContainer {
 public:
     void parse(const QDomElement& xml) override;
-    MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints) override;
-    void layout(const LayoutContext& ctx, const QRectF& rect) override;
+    std::unique_ptr<Node> materialize(const LayoutContext& ctx) const override;
+    MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const override;
+    void layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const override;
 
     /// @brief 向此网格添加子元素，并验证单元格数量。
     void addChild(ElementPtr child);
@@ -28,22 +40,12 @@ public:
 
     const QSet<QString>& supportedAttributes() const override;
 
-    ElementPtr clone() const override;
-
 private:
     int m_columns = 1;                    ///< Number of columns in the grid.
     int m_rows = 1;                       ///< Number of rows in the grid.
     double m_space = 0;                   ///< Default spacing between all cells.
     std::optional<double> m_rowSpace;     ///< Spacing between rows (overrides m_space if set).
     std::optional<double> m_columnSpace;  ///< Spacing between columns (overrides m_space if set).
-
-    struct CellMeasure {
-        double width = 0;
-        double height = 0;
-    };
-    std::vector<CellMeasure> m_cellMeasures;  ///< Per-cell measure results.
-    std::vector<double> m_colWidths;           ///< Computed column widths.
-    std::vector<double> m_rowHeights;          ///< Computed row heights.
 };
 
 } // namespace BroadItem

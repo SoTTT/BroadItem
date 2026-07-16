@@ -10,13 +10,13 @@ namespace BroadItem {
 /// @param xmlPath XML 布局文件路径。
 /// @param ctx 属性上下文，为 nullptr 时自动创建 MapPropertyContext。
 /// @return 解析并布局完成的 Frame 实例。
-Frame Frame::fromFile(const QString& xmlPath, std::shared_ptr<PropertyContext> ctx)
+std::unique_ptr<Frame> Frame::fromFile(const QString& xmlPath, std::shared_ptr<PropertyContext> ctx)
 {
-    Frame frame;
-    frame.m_propertyContext = ctx ? std::move(ctx) : std::make_shared<MapPropertyContext>();
-    frame.setupPropertyContext();
-    frame.m_rootElement = XmlLayoutParser::parseFile(xmlPath);
-    frame.performLayout();
+    auto frame = std::unique_ptr<Frame>(new Frame());
+    frame->m_propertyContext = ctx ? std::move(ctx) : std::make_shared<MapPropertyContext>();
+    frame->setupPropertyContext();
+    frame->m_rootTemplate = XmlLayoutParser::parseFile(xmlPath);
+    frame->performLayout();
     return frame;
 }
 
@@ -24,39 +24,40 @@ Frame Frame::fromFile(const QString& xmlPath, std::shared_ptr<PropertyContext> c
 /// @param layoutId 布局注册 ID。
 /// @param ctx 属性上下文，为 nullptr 时自动创建 MapPropertyContext。
 /// @return 加载并布局完成的 Frame 实例。
-Frame Frame::fromRegistry(int layoutId, std::shared_ptr<PropertyContext> ctx)
+std::unique_ptr<Frame> Frame::fromRegistry(int layoutId, std::shared_ptr<PropertyContext> ctx)
 {
-    Frame frame;
-    frame.m_propertyContext = ctx ? std::move(ctx) : std::make_shared<MapPropertyContext>();
-    frame.setupPropertyContext();
+    auto frame = std::unique_ptr<Frame>(new Frame());
+    frame->m_propertyContext = ctx ? std::move(ctx) : std::make_shared<MapPropertyContext>();
+    frame->setupPropertyContext();
     auto root = LayoutRegistry::instance().getLayout(layoutId);
     if (root) {
-        frame.m_rootElement = root;
+        frame->m_rootTemplate = root;
     }
-    frame.performLayout();
+    frame->performLayout();
     return frame;
 }
 
-/// @brief 连接属性上下文变更回调，在绑定的属性变化时触发重新布局。
+/// @brief 连接属性上下文变更回调：绑定的属性变化时标脏并触发重新布局。
+///
+/// Frame 由工厂以 unique_ptr 堆分配返回，[this] 捕获在 Frame 生命周期内安全。
 void Frame::setupPropertyContext()
 {
     if (m_propertyContext) {
-        /// @note 通过 [this] 捕获确保回调可访问 m_rootElement 和 performLayout。
-        ///       调用者应通过 RVO 接收 fromFile/fromRegistry 的返回值，避免移动
-        ///       导致 this 悬空指针。
         m_propertyContext->setOnChanged([this](const QString& name, const QVariant&) {
-            if (m_rootElement && m_rootElement->bindsProperty(name)) {
+            if (m_rootTemplate && m_rootTemplate->bindsProperty(name)) {
+                m_dirty = true;
                 performLayout();
             }
         });
     }
 }
 
-/// @brief 替换属性上下文并重新连接变更通知。
+/// @brief 替换属性上下文并重新连接变更通知；实例树标脏以待下次重新物化。
 /// @param ctx 新的属性上下文。
 void Frame::setPropertyContext(std::shared_ptr<PropertyContext> ctx)
 {
     m_propertyContext = std::move(ctx);
+    m_dirty = true;
     setupPropertyContext();
 }
 
@@ -85,45 +86,57 @@ bool Frame::hasDynamicProperty(const QString& name) const
     return m_propertyContext && m_propertyContext->hasProperty(name);
 }
 
-/// @brief 运行完整的测量→布局管线，返回计算后的尺寸。
+/// @brief 运行完整的物化（标脏时）→测量→布局管线，返回计算后的尺寸。
 ///
-/// 设置上下文、运行根元素的 measure()，将 intrinsicSize 存入 m_boundingRect，
-/// 然后运行 layout() 分配最终几何。
+/// 数据经 setProperty 变更必然触发 onChanged 标脏，因此仅当 m_dirty
+/// 或节点树尚不存在时才重新物化，语义与旧版逐次展开等价。
+/// 根模板为控制元素时取物化结果的第一个节点（保持旧版"只取第一项"行为）。
 ///
 /// @param availableWidth  可用宽度，-1 表示无限制。
 /// @param availableHeight 可用高度，-1 表示无限制。
 /// @return 布局后的帧尺寸。
 QSizeF Frame::performLayout(double availableWidth, double availableHeight)
 {
-    if (!m_rootElement)
+    if (!m_rootTemplate)
         return QSizeF();
 
     m_context.ctx = m_propertyContext.get();
+
+    if (m_dirty || !m_rootNode) {
+        auto nodes = m_rootTemplate->materializeChildren(m_context);
+        m_rootNode = nodes.empty() ? nullptr : std::move(nodes[0]);
+        m_dirty = false;
+    }
+
+    if (!m_rootNode) {
+        m_boundingRect = QRectF();
+        return QSizeF();
+    }
 
     LayoutConstraints constraints;
     constraints.availableWidth = availableWidth;
     constraints.availableHeight = availableHeight;
 
-    auto result = m_rootElement->measure(m_context, constraints);
+    auto result = m_rootNode->element->measure(m_context, constraints, *m_rootNode);
     m_boundingRect = QRectF(0, 0, result.intrinsicSize.width(), result.intrinsicSize.height());
 
     QRectF rootRect(0, 0, result.intrinsicSize.width(), result.intrinsicSize.height());
-    m_rootElement->layout(m_context, rootRect);
+    m_rootNode->element->layout(m_context, rootRect, *m_rootNode);
 
     return m_boundingRect.size();
 }
 
-/// @brief 使用给定的 painter 将元素树绘制到目标设备。
+/// @brief 使用给定的 painter 将实例节点树绘制到目标设备。
 ///
-/// 同步 m_context.ctx（因该成员为 mutable）后调用根元素的 render()。
+/// 同步 m_context.ctx（因该成员为 mutable）后调用根节点模板的 render()。
 /// 调用者有责任确保 QPainter 已正确初始化且处于活动状态。
 ///
 /// @param painter 目标 QPainter，不可为 nullptr。
 void Frame::paint(QPainter* painter) const
 {
-    if (m_rootElement) {
+    if (m_rootNode) {
         m_context.ctx = m_propertyContext.get();
-        m_rootElement->render(painter, m_context);
+        m_rootNode->element->render(painter, m_context, *m_rootNode);
     }
 }
 
@@ -140,10 +153,10 @@ QSizeF Frame::size() const
 /// 元素以逻辑坐标绘制，缩放变换确保在 dpr > 1 时保持清晰。
 ///
 /// @param dpr 设备像素比，默认 1.0。
-/// @return 渲染后的图像。m_rootElement 为 nullptr 或 boundingRect 为空时返回空的 QImage。
+/// @return 渲染后的图像。实例树为空或 boundingRect 为空时返回空的 QImage。
 QImage Frame::toImage(double dpr) const
 {
-    if (!m_rootElement || m_boundingRect.isEmpty())
+    if (!m_rootNode || m_boundingRect.isEmpty())
         return QImage();
 
     QSizeF scaled = m_boundingRect.size() * dpr;
@@ -169,12 +182,12 @@ std::shared_ptr<PropertyContext> Frame::propertyContext() const
     return m_propertyContext;
 }
 
-/// @brief 检查指定属性是否被元素树中的元素绑定。
+/// @brief 检查指定属性是否被模板元素树中的元素绑定。
 /// @param name 属性名。
 /// @return 绑定返回 true，否则 false。
 bool Frame::bindsProperty(const QString& name) const
 {
-    return m_rootElement && m_rootElement->bindsProperty(name);
+    return m_rootTemplate && m_rootTemplate->bindsProperty(name);
 }
 
 } // namespace BroadItem
