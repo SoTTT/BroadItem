@@ -35,6 +35,9 @@ target_link_libraries(test_connection_line PRIVATE BroadItem Qt5::Core Qt5::Widg
 add_executable(test_anchor_decorator test_anchor_decorator.cpp)
 target_link_libraries(test_anchor_decorator PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml Qt5::Test)
 
+add_executable(test_regression test_regression.cpp)
+target_link_libraries(test_regression PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml Qt5::Test)
+
 # 黄金镜像采集/校验工具（P4 起注册 ctest：--verify 等价组逐像素比对）
 add_executable(golden_render golden/golden_render.cpp)
 target_link_libraries(golden_render PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)
@@ -50,4 +53,5 @@ add_test(NAME test_expression COMMAND test_expression WORKING_DIRECTORY ${CMAKE_
 add_test(NAME test_reactive_binding COMMAND test_reactive_binding WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME test_connection_line COMMAND test_connection_line WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME test_anchor_decorator COMMAND test_anchor_decorator WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+add_test(NAME test_regression COMMAND test_regression WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME test_golden_render COMMAND golden_render --verify ${CMAKE_SOURCE_DIR}/tests/golden/golden WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})

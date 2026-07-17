@@ -90,25 +90,6 @@ public:
     /// @brief 验证属性值是否为 bool，有效返回 true。
     static bool validateBool(const QString& value, const QString& attrName, bool& out);
 
-    /// @brief BroadItem 数据绑定属性的 XML 命名空间 URI。
-    inline static const QString BINDING_NS = QStringLiteral("urn:broaditem:binding");
-
-    /// @brief 判断属性是否属于 BINDING_NS 命名空间。
-    /// @param attr A DOM attribute node.
-    /// @return True if attr.namespaceURI() == BINDING_NS.
-    static bool isBindingAttribute(const QDomAttr& attr)
-    {
-        return attr.namespaceURI() == BINDING_NS;
-    }
-
-    /// @brief 判断属性是否为命名空间声明（xmlns 或 xmlns:prefix）。
-    /// @param attr A DOM attribute node.
-    /// @return True if attr.name() starts with "xmlns".
-    static bool isNamespaceDeclaration(const QDomAttr& attr)
-    {
-        return attr.name().startsWith(QLatin1String("xmlns"));
-    }
-
 protected:
     /// @brief 从字符串解析 double，失败时返回默认值。
     static double parseDouble(const QString& value, double defaultVal = 0);
