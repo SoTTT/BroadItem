@@ -3,8 +3,8 @@
 #include <broaditem/context/LayoutContext.h>
 #include <broaditem/context/MapPropertyContext.h>
 #include <broaditem/core/LayoutEngine.h>
+#include <broaditem/core/Node.h>
 #include <broaditem/element/Element.h>
-#include <broaditem/element/SizedElement.h>
 #include <broaditem/element/layout/RowLayout.h>
 #include <broaditem/element/layout/ColumnLayout.h>
 #include <broaditem/element/layout/GridLayout.h>
@@ -59,19 +59,45 @@ private slots:
     void testGridRejectsNonCellChild();
 };
 
-// Helper: parse, measure, layout in one step
-static BroadItem::ElementPtr parseAndLayout(const QString& xmlStr, QRectF layoutRect = QRectF(0, 0, 300, 200))
+/// @brief 一次性格式的布局结果包：模板树 + 属性上下文 + 物化实例节点树。
+///
+/// 模板/实例分离架构下，Node::element 为指向模板的非拥有指针，
+/// 因此模板树（root）必须与节点树（node）同生命周期持有。
+struct LayoutResult {
+    BroadItem::ElementPtr root;              ///< 模板树（持有以保 Node::element 指针有效）。
+    BroadItem::MapPropertyContext propCtx;   ///< 属性上下文（LayoutContext 指向它）。
+    std::unique_ptr<BroadItem::Node> node;   ///< 物化后的实例节点树根（控制元素已展开）。
+};
+
+/// @brief 解析、物化、测量、布局一体化辅助。
+/// @param xmlStr XML 布局字符串。
+/// @param layoutRect 布局矩形；传入 null 矩形时以测量结果作为布局矩形。
+/// @return 布局结果包；解析或物化失败时返回 nullptr。
+static std::unique_ptr<LayoutResult> parseAndLayout(const QString& xmlStr, QRectF layoutRect = QRectF(0, 0, 300, 200))
 {
-    auto root = BroadItem::XmlLayoutParser::parseString(xmlStr);
-    if (!root)
+    auto result = std::make_unique<LayoutResult>();
+    result->root = BroadItem::XmlLayoutParser::parseString(xmlStr);
+    if (!result->root)
         return nullptr;
 
-    BroadItem::LayoutContext lctx;
-    auto result = BroadItem::LayoutEngine::measure(root, lctx, BroadItem::LayoutConstraints{});
+    BroadItem::LayoutContext lctx{&result->propCtx};
+    result->node = BroadItem::LayoutEngine::materialize(result->root, lctx);
+    if (!result->node)
+        return nullptr;
+
+    auto measured = BroadItem::LayoutEngine::measure(result->root, lctx, BroadItem::LayoutConstraints{}, *result->node);
     if (layoutRect.isNull())
-        layoutRect = QRectF(0, 0, result.width(), result.height());
-    BroadItem::LayoutEngine::layout(root, lctx, layoutRect);
-    return root;
+        layoutRect = QRectF(0, 0, measured.width(), measured.height());
+    BroadItem::LayoutEngine::layout(result->root, lctx, layoutRect, *result->node);
+    return result;
+}
+
+/// @brief 判定实例节点是否由 TextElement 物化而来。
+/// @param node 实例节点（可为 nullptr）。
+/// @return 指向产生该节点的 TextElement 模板；类型不符时返回 nullptr。
+static const BroadItem::TextElement* asText(const BroadItem::Node* node)
+{
+    return node ? dynamic_cast<const BroadItem::TextElement*>(node->element) : nullptr;
 }
 
 // ── RowLayout stretch tests ──
@@ -88,23 +114,22 @@ void TestLayoutBehavior::testRowDoesNotStretchSpecifiedHeight()
     )";
 
     QRectF bigRect(0, 0, 300, 100); // Row gets height 100
-    auto root = parseAndLayout(xml, bigRect);
-    QVERIFY(root != nullptr);
+    auto result = parseAndLayout(xml, bigRect);
+    QVERIFY(result != nullptr);
 
-    auto row = std::dynamic_pointer_cast<BroadItem::RowLayout>(root);
+    auto row = std::dynamic_pointer_cast<BroadItem::RowLayout>(result->root);
     QVERIFY(row != nullptr);
 
-    // Flattened children should include the text
-    const auto& flat = row->flattenedChildren();
-    QVERIFY(!flat.empty());
-
-    auto text = std::dynamic_pointer_cast<BroadItem::TextElement>(flat[0]);
-    QVERIFY(text != nullptr);
+    // 物化后的子节点即展平结果，应包含该文本节点
+    const auto& children = result->node->children;
+    QVERIFY(!children.empty());
+    QVERIFY(asText(children[0].get()) != nullptr);
 
     // Text has specified height=20; row should NOT stretch it to 100
     // Allow for decorator height (default 0) — just check it's not 100
-    QVERIFY2(text->rect().height() < 50,
-             QString("Text with height=20 should not be stretched, got %1").arg(text->rect().height()).toUtf8());
+    double h = children[0]->rect.height();
+    QVERIFY2(h < 50,
+             QString("Text with height=20 should not be stretched, got %1").arg(h).toUtf8());
 }
 
 /// @brief RowLayout 拉伸未指定 height 的子元素
@@ -119,22 +144,21 @@ void TestLayoutBehavior::testRowStretchesUnspecifiedHeight()
     )";
 
     QRectF bigRect(0, 0, 300, 100);
-    auto root = parseAndLayout(xml, bigRect);
-    QVERIFY(root != nullptr);
+    auto result = parseAndLayout(xml, bigRect);
+    QVERIFY(result != nullptr);
 
-    auto row = std::dynamic_pointer_cast<BroadItem::RowLayout>(root);
+    auto row = std::dynamic_pointer_cast<BroadItem::RowLayout>(result->root);
     QVERIFY(row != nullptr);
 
-    const auto& flat = row->flattenedChildren();
-    QVERIFY(!flat.empty());
-
-    auto text = std::dynamic_pointer_cast<BroadItem::TextElement>(flat[0]);
-    QVERIFY(text != nullptr);
+    const auto& children = result->node->children;
+    QVERIFY(!children.empty());
+    QVERIFY(asText(children[0].get()) != nullptr);
 
     // Text has no specified height; row should stretch it
     // It should be close to the content area height (100 - decorators)
-    QVERIFY2(text->rect().height() > text->rect().height() * 0.3 || text->rect().height() >= 50,
-             QString("Text without height should be stretched, got %1").arg(text->rect().height()).toUtf8());
+    double h = children[0]->rect.height();
+    QVERIFY2(h > h * 0.3 || h >= 50,
+             QString("Text without height should be stretched, got %1").arg(h).toUtf8());
 }
 
 // ── ColumnLayout stretch tests ──
@@ -151,21 +175,20 @@ void TestLayoutBehavior::testColumnDoesNotStretchSpecifiedWidth()
     )";
 
     QRectF bigRect(0, 0, 300, 200); // Column gets width 300
-    auto root = parseAndLayout(xml, bigRect);
-    QVERIFY(root != nullptr);
+    auto result = parseAndLayout(xml, bigRect);
+    QVERIFY(result != nullptr);
 
-    auto col = std::dynamic_pointer_cast<BroadItem::ColumnLayout>(root);
+    auto col = std::dynamic_pointer_cast<BroadItem::ColumnLayout>(result->root);
     QVERIFY(col != nullptr);
 
-    const auto& flat = col->flattenedChildren();
-    QVERIFY(!flat.empty());
-
-    auto text = std::dynamic_pointer_cast<BroadItem::TextElement>(flat[0]);
-    QVERIFY(text != nullptr);
+    const auto& children = result->node->children;
+    QVERIFY(!children.empty());
+    QVERIFY(asText(children[0].get()) != nullptr);
 
     // Text has specified width=50; column should NOT stretch it to 300
-    QVERIFY2(text->rect().width() < 200,
-             QString("Text with width=50 should not be stretched, got %1").arg(text->rect().width()).toUtf8());
+    double w = children[0]->rect.width();
+    QVERIFY2(w < 200,
+             QString("Text with width=50 should not be stretched, got %1").arg(w).toUtf8());
 }
 
 /// @brief ColumnLayout 拉伸未指定 width 的子元素
@@ -180,21 +203,20 @@ void TestLayoutBehavior::testColumnStretchesUnspecifiedWidth()
     )";
 
     QRectF bigRect(0, 0, 300, 200);
-    auto root = parseAndLayout(xml, bigRect);
-    QVERIFY(root != nullptr);
+    auto result = parseAndLayout(xml, bigRect);
+    QVERIFY(result != nullptr);
 
-    auto col = std::dynamic_pointer_cast<BroadItem::ColumnLayout>(root);
+    auto col = std::dynamic_pointer_cast<BroadItem::ColumnLayout>(result->root);
     QVERIFY(col != nullptr);
 
-    const auto& flat = col->flattenedChildren();
-    QVERIFY(!flat.empty());
-
-    auto text = std::dynamic_pointer_cast<BroadItem::TextElement>(flat[0]);
-    QVERIFY(text != nullptr);
+    const auto& children = result->node->children;
+    QVERIFY(!children.empty());
+    QVERIFY(asText(children[0].get()) != nullptr);
 
     // Text has no specified width; column should stretch it
-    QVERIFY2(text->rect().width() > 50,
-             QString("Text without width should be stretched, got %1").arg(text->rect().width()).toUtf8());
+    double w = children[0]->rect.width();
+    QVERIFY2(w > 50,
+             QString("Text without width should be stretched, got %1").arg(w).toUtf8());
 }
 
 // ── Grid cell count validation ──
@@ -270,27 +292,27 @@ void TestLayoutBehavior::testBackgroundOpacityRendersTransparent()
         </root>
     )";
 
-    auto opaqueRoot = parseAndLayout(xmlFull);
-    QVERIFY(opaqueRoot != nullptr);
+    auto opaqueResult = parseAndLayout(xmlFull);
+    QVERIFY(opaqueResult != nullptr);
 
-    auto transparentRoot = parseAndLayout(xmlTransparent);
-    QVERIFY(transparentRoot != nullptr);
+    auto transparentResult = parseAndLayout(xmlTransparent);
+    QVERIFY(transparentResult != nullptr);
 
     // Render to images and sample background pixel
     QImage opaqueImg(200, 60, QImage::Format_ARGB32);
     opaqueImg.fill(Qt::white);
     {
         QPainter painter(&opaqueImg);
-        BroadItem::LayoutContext lctx;
-        BroadItem::LayoutEngine::render(opaqueRoot, &painter, lctx);
+        BroadItem::LayoutContext lctx{&opaqueResult->propCtx};
+        BroadItem::LayoutEngine::render(opaqueResult->root, &painter, lctx, *opaqueResult->node);
     }
 
     QImage transparentImg(200, 60, QImage::Format_ARGB32);
     transparentImg.fill(Qt::white);
     {
         QPainter painter(&transparentImg);
-        BroadItem::LayoutContext lctx;
-        BroadItem::LayoutEngine::render(transparentRoot, &painter, lctx);
+        BroadItem::LayoutContext lctx{&transparentResult->propCtx};
+        BroadItem::LayoutEngine::render(transparentResult->root, &painter, lctx, *transparentResult->node);
     }
 
     // Sample center pixel (inside the text background area)
@@ -321,16 +343,16 @@ void TestLayoutBehavior::testFontSizeIsPixels()
         </root>
     )";
 
-    auto root = parseAndLayout(xml);
-    QVERIFY(root != nullptr);
+    auto result = parseAndLayout(xml);
+    QVERIFY(result != nullptr);
 
     // Render to a tall image so nothing clips
     QImage img(200, 80, QImage::Format_ARGB32);
     img.fill(Qt::white);
     {
         QPainter painter(&img);
-        BroadItem::LayoutContext lctx;
-        BroadItem::LayoutEngine::render(root, &painter, lctx);
+        BroadItem::LayoutContext lctx{&result->propCtx};
+        BroadItem::LayoutEngine::render(result->root, &painter, lctx, *result->node);
     }
 
     // Scan a column near the left edge (x=15) vertically for non-white pixels.
@@ -485,19 +507,19 @@ void TestLayoutBehavior::testRowMainStretchEqualWidths()
         </root>
     )";
 
-    auto root = parseAndLayout(xml);
-    QVERIFY(root != nullptr);
+    auto result = parseAndLayout(xml);
+    QVERIFY(result != nullptr);
 
-    auto row = std::dynamic_pointer_cast<BroadItem::RowLayout>(root);
+    auto row = std::dynamic_pointer_cast<BroadItem::RowLayout>(result->root);
     QVERIFY(row != nullptr);
 
-    const auto& flat = row->flattenedChildren();
-    QCOMPARE(flat.size(), size_t(3));
+    const auto& children = result->node->children;
+    QCOMPARE(children.size(), size_t(3));
 
     // All three children should have the same width (max among them = "BBBB")
-    double w0 = flat[0]->rect().width();
-    double w1 = flat[1]->rect().width();
-    double w2 = flat[2]->rect().width();
+    double w0 = children[0]->rect.width();
+    double w1 = children[1]->rect.width();
+    double w2 = children[2]->rect.width();
 
     QVERIFY2(qFuzzyCompare(w0, w1) && qFuzzyCompare(w1, w2),
              QString("Main-stretch row children should have equal widths, got %1, %2, %3")
@@ -518,17 +540,17 @@ void TestLayoutBehavior::testRowMainStretchRespectsExplicitWidth()
         </root>
     )";
 
-    auto root = parseAndLayout(xml);
-    QVERIFY(root != nullptr);
+    auto result = parseAndLayout(xml);
+    QVERIFY(result != nullptr);
 
-    auto row = std::dynamic_pointer_cast<BroadItem::RowLayout>(root);
+    auto row = std::dynamic_pointer_cast<BroadItem::RowLayout>(result->root);
     QVERIFY(row != nullptr);
 
-    const auto& flat = row->flattenedChildren();
-    QCOMPARE(flat.size(), size_t(2));
+    const auto& children = result->node->children;
+    QCOMPARE(children.size(), size_t(2));
 
-    double w0 = flat[0]->rect().width();
-    double w1 = flat[1]->rect().width();
+    double w0 = children[0]->rect.width();
+    double w1 = children[1]->rect.width();
 
     // First child has explicit width=50; it should keep its width
     QVERIFY2(w0 > 0 && w0 < 60,
@@ -552,19 +574,19 @@ void TestLayoutBehavior::testColumnMainStretchEqualHeights()
         </root>
     )";
 
-    auto root = parseAndLayout(xml);
-    QVERIFY(root != nullptr);
+    auto result = parseAndLayout(xml);
+    QVERIFY(result != nullptr);
 
-    auto col = std::dynamic_pointer_cast<BroadItem::ColumnLayout>(root);
+    auto col = std::dynamic_pointer_cast<BroadItem::ColumnLayout>(result->root);
     QVERIFY(col != nullptr);
 
-    const auto& flat = col->flattenedChildren();
-    QCOMPARE(flat.size(), size_t(3));
+    const auto& children = result->node->children;
+    QCOMPARE(children.size(), size_t(3));
 
     // All three children should have the same height (max among them = font-size 24)
-    double h0 = flat[0]->rect().height();
-    double h1 = flat[1]->rect().height();
-    double h2 = flat[2]->rect().height();
+    double h0 = children[0]->rect.height();
+    double h1 = children[1]->rect.height();
+    double h2 = children[2]->rect.height();
 
     QVERIFY2(qFuzzyCompare(h0, h1) && qFuzzyCompare(h1, h2),
              QString("Main-stretch column children should have equal heights, got %1, %2, %3")
@@ -584,17 +606,17 @@ void TestLayoutBehavior::testColumnMainStretchRespectsExplicitHeight()
         </root>
     )";
 
-    auto root = parseAndLayout(xml);
-    QVERIFY(root != nullptr);
+    auto result = parseAndLayout(xml);
+    QVERIFY(result != nullptr);
 
-    auto col = std::dynamic_pointer_cast<BroadItem::ColumnLayout>(root);
+    auto col = std::dynamic_pointer_cast<BroadItem::ColumnLayout>(result->root);
     QVERIFY(col != nullptr);
 
-    const auto& flat = col->flattenedChildren();
-    QCOMPARE(flat.size(), size_t(2));
+    const auto& children = result->node->children;
+    QCOMPARE(children.size(), size_t(2));
 
-    double h0 = flat[0]->rect().height();
-    double h1 = flat[1]->rect().height();
+    double h0 = children[0]->rect.height();
+    double h1 = children[1]->rect.height();
 
     // First child has explicit height=30; it should keep roughly that height
     QVERIFY2(h0 > 0 && h0 < 40,
@@ -616,17 +638,17 @@ void TestLayoutBehavior::testRowWithoutMainStretchKeepsOriginalBehavior()
         </root>
     )";
 
-    auto root = parseAndLayout(xml);
-    QVERIFY(root != nullptr);
+    auto result = parseAndLayout(xml);
+    QVERIFY(result != nullptr);
 
-    auto row = std::dynamic_pointer_cast<BroadItem::RowLayout>(root);
+    auto row = std::dynamic_pointer_cast<BroadItem::RowLayout>(result->root);
     QVERIFY(row != nullptr);
 
-    const auto& flat = row->flattenedChildren();
-    QCOMPARE(flat.size(), size_t(2));
+    const auto& children = result->node->children;
+    QCOMPARE(children.size(), size_t(2));
 
-    double w0 = flat[0]->rect().width();
-    double w1 = flat[1]->rect().width();
+    double w0 = children[0]->rect.width();
+    double w1 = children[1]->rect.width();
 
     // Without main-stretch, children should NOT have equal widths (different text)
     QVERIFY2(!qFuzzyCompare(w0, w1),
@@ -645,17 +667,17 @@ void TestLayoutBehavior::testColumnWithoutMainStretchKeepsOriginalBehavior()
         </root>
     )";
 
-    auto root = parseAndLayout(xml);
-    QVERIFY(root != nullptr);
+    auto result = parseAndLayout(xml);
+    QVERIFY(result != nullptr);
 
-    auto col = std::dynamic_pointer_cast<BroadItem::ColumnLayout>(root);
+    auto col = std::dynamic_pointer_cast<BroadItem::ColumnLayout>(result->root);
     QVERIFY(col != nullptr);
 
-    const auto& flat = col->flattenedChildren();
-    QCOMPARE(flat.size(), size_t(2));
+    const auto& children = result->node->children;
+    QCOMPARE(children.size(), size_t(2));
 
-    double h0 = flat[0]->rect().height();
-    double h1 = flat[1]->rect().height();
+    double h0 = children[0]->rect.height();
+    double h1 = children[1]->rect.height();
 
     // Without main-stretch, children should NOT have equal heights (different font sizes)
     QVERIFY2(!qFuzzyCompare(h0, h1),

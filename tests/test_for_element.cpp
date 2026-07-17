@@ -9,9 +9,11 @@
 #include <broaditem/context/MapPropertyContext.h>
 #include <QDomDocument>
 #include <QDomElement>
-#include <QDebug>
 
-// Helper to create TextElement with b:content binding programmatically
+/// @brief 以编程方式创建带 b:content 绑定的 TextElement 模板。
+/// @param binding 绑定路径（如 "n"、"p.name"）。
+/// @param fontSize 字体大小（点）。
+/// @return 解析完成的 TextElement 共享指针。
 static std::shared_ptr<BroadItem::TextElement> makeBoundText(const QString& binding, const QString& fontSize = QStringLiteral("11"))
 {
     QDomDocument doc;
@@ -23,47 +25,25 @@ static std::shared_ptr<BroadItem::TextElement> makeBoundText(const QString& bind
     return te;
 }
 
-// ============================================================
-// 测试用 Mock 元素 — 用作 ForElement 的模板
-// ============================================================
-class ForTestElement : public BroadItem::Element {
-public:
-    explicit ForTestElement() = default;
+/// @brief 提取实例节点的解析文本。
+/// @param n 由 TextElement 物化的节点（实际类型为 TextNode）。
+/// @return 物化时解析后的文本。
+static QString nodeText(const std::unique_ptr<BroadItem::Node>& n)
+{
+    return static_cast<const BroadItem::TextNode&>(*n).text;
+}
 
-    BroadItem::MeasureResult measure(const BroadItem::LayoutContext&,
-                                     const BroadItem::LayoutConstraints&) override
-    {
-        return {QSizeF(100, 20)};
-    }
-    void layout(const BroadItem::LayoutContext&, const QRectF& rect) override { m_rect = rect; }
-    void render(QPainter*, const BroadItem::LayoutContext&) const override {}
-
-    BroadItem::ElementPtr clone() const override
-    {
-        auto c = std::make_shared<ForTestElement>();
-        c->m_boundNames = m_boundNames;
-        return c;
-    }
-
-    bool bindsProperty(const QString& name) const override
-    {
-        return m_boundNames.contains(name);
-    }
-
-    /// @brief 覆写 resolveBindings 以从 context 解析所有绑定属性
-    void resolveBindings(const BroadItem::LayoutContext& ctx) override
-    {
-        m_resolvedValues.clear();
-        for (const auto& name : m_boundNames) {
-            m_resolvedValues[name] = ctx.property(name);
-        }
-    }
-
-    /// @brief 模拟此元素绑定到的属性名集合。
-    QSet<QString> m_boundNames;
-    /// @brief resolveBindings() 后每个绑定属性的解析值。
-    QHash<QString, QVariant> m_resolvedValues;
-};
+/// @brief 经实例节点派发测量：node->element->measure(ctx, constraints, *node)。
+/// @param n 实例节点。
+/// @param ctx 布局上下文。
+/// @param constraints 测量约束。
+/// @return 测量结果。
+static BroadItem::MeasureResult measureNode(const std::unique_ptr<BroadItem::Node>& n,
+                                            const BroadItem::LayoutContext& ctx,
+                                            const BroadItem::LayoutConstraints& constraints)
+{
+    return n->element->measure(ctx, constraints, *n);
+}
 
 // ============================================================
 // 测试类
@@ -87,25 +67,19 @@ private slots:
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("names");
         forEl->setAsVariable("n");
+        forEl->setTemplate(makeBoundText("n"));
 
-        auto tmpl = std::make_shared<ForTestElement>();
-        tmpl->m_boundNames.insert("n");  // 模板绑定变量 "n" (as)
-        forEl->setTemplate(tmpl);
+        // 执行 materializeChildren()
+        auto nodes = forEl->materializeChildren(ctx);
 
-        // 执行 expand()
-        auto result = forEl->expand(ctx);
-
-        // 验证：3 个元素，每个 "n" 绑定到对应名字
-        QCOMPARE(result.size(), 3);
+        // 验证：3 个节点，每个的文本绑定到对应名字
+        QCOMPARE(nodes.size(), size_t(3));
         QStringList expected{"Alice", "Bob", "Carol"};
-        for (int i = 0; i < 3; ++i) {
-            auto* clone = dynamic_cast<ForTestElement*>(result[i].get());
-            QVERIFY(clone != nullptr);
-            QCOMPARE(clone->m_resolvedValues["n"].toString(), expected[i]);
-        }
+        for (int i = 0; i < 3; ++i)
+            QCOMPARE(nodeText(nodes[i]), expected[i]);
     }
 
-    /// @brief testVariantListIteration: QVariantList (map) 迭代，2 个元素 + 嵌套路径
+    /// @brief testVariantListIteration: QVariantList (map) 迭代，2 个元素 + 嵌套路径 + map 键平铺
     void testVariantListIteration()
     {
         // 准备数据 context: "people" = QVariantList of maps
@@ -127,27 +101,30 @@ private slots:
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("people");
         forEl->setAsVariable("p");
+        forEl->setTemplate(makeBoundText("p.name"));
 
-        auto tmpl = std::make_shared<ForTestElement>();
-        tmpl->m_boundNames.insert("p.name");  // 模板绑定 "p.name"
-        forEl->setTemplate(tmpl);
+        // 执行 materializeChildren()
+        auto nodes = forEl->materializeChildren(ctx);
 
-        // 执行 expand()
-        auto result = forEl->expand(ctx);
+        // 验证：返回 2 个节点，每个通过 per-item context 绑定 "p" → 当前 map
+        QCOMPARE(nodes.size(), size_t(2));
+        QCOMPARE(nodeText(nodes[0]), QString("Alice"));
+        QCOMPARE(nodeText(nodes[1]), QString("Bob"));
 
-        // 验证：返回 2 个元素，每个通过 per-item context 绑定 "p" → 当前 map
-        QCOMPARE(result.size(), 2);
+        // 附加验证：map 键平铺 —— 不带 "p." 前缀的 "name" 直接从 per-item context 的
+        // 平铺键解析（ForElement::materializeChildren 会把 map 键平铺进 itemCtx）。
+        auto flatFor = std::make_shared<BroadItem::ForElement>();
+        flatFor->setBindProperty("people");
+        flatFor->setAsVariable("p");
+        flatFor->setTemplate(makeBoundText("name"));  // 无前缀 → 平铺键
 
-        auto* clone0 = dynamic_cast<ForTestElement*>(result[0].get());
-        QVERIFY(clone0 != nullptr);
-        QCOMPARE(clone0->m_resolvedValues["p.name"].toString(), QString("Alice"));
-
-        auto* clone1 = dynamic_cast<ForTestElement*>(result[1].get());
-        QVERIFY(clone1 != nullptr);
-        QCOMPARE(clone1->m_resolvedValues["p.name"].toString(), QString("Bob"));
+        auto flatNodes = flatFor->materializeChildren(ctx);
+        QCOMPARE(flatNodes.size(), size_t(2));
+        QCOMPARE(nodeText(flatNodes[0]), QString("Alice"));
+        QCOMPARE(nodeText(flatNodes[1]), QString("Bob"));
     }
 
-    /// @brief testNullPathWarning: 嵌套路径中缺键 → qCritical + 解析返回无效值
+    /// @brief testNullPathWarning: 嵌套路径中缺键 → 该项解析失败并静默回退为空文本
     void testNullPathWarning()
     {
         // 准备数据: "users" = QVariantList, 第2个元素没有 address 键
@@ -167,27 +144,17 @@ private slots:
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("users");
         forEl->setAsVariable("u");
+        forEl->setTemplate(makeBoundText("u.address.city"));
 
-        auto tmpl = std::make_shared<ForTestElement>();
-        tmpl->m_boundNames.insert("u.address.city");
-        forEl->setTemplate(tmpl);
+        // 执行 materializeChildren()
+        auto nodes = forEl->materializeChildren(ctx);
 
-        // 期望 qt 消息：address 不在 map 中 → MapPropertyContext 报告 not found
-        QTest::ignoreMessage(QtCriticalMsg, QRegularExpression(".*address.*not found.*"));
-
-        // 执行 expand()
-        auto result = forEl->expand(ctx);
-
-        // 验证：返回 2 个元素；第2个元素的 "u.address.city" 解析为无效 QVariant
-        QCOMPARE(result.size(), 2);
-
-        auto* clone0 = dynamic_cast<ForTestElement*>(result[0].get());
-        QVERIFY(clone0 != nullptr);
-        QCOMPARE(clone0->m_resolvedValues["u.address.city"].toString(), QString("NYC"));
-
-        auto* clone1 = dynamic_cast<ForTestElement*>(result[1].get());
-        QVERIFY(clone1 != nullptr);
-        QVERIFY(!clone1->m_resolvedValues["u.address.city"].isValid());
+        // 验证：返回 2 个节点；第2个节点的 "u.address.city" 解析失败。
+        // 新架构中 TextElement::resolveText 先经 hasProperty 短路：缺键时不再产生
+        // qCritical，而是静默回退为空文本（标签无静态文本）。
+        QCOMPARE(nodes.size(), size_t(2));
+        QCOMPARE(nodeText(nodes[0]), QString("NYC"));
+        QVERIFY(nodeText(nodes[1]).isEmpty());
     }
 
     /// @brief testGlobalFallback: 非 b:as 前缀属性回退到全局 context
@@ -213,21 +180,16 @@ private slots:
         forEl->setBindProperty("items");
         forEl->setAsVariable("item");
 
-        auto tmpl = std::make_shared<ForTestElement>();
         // 模板绑定 "title" — 应从全局 context fallback 解析
-        tmpl->m_boundNames.insert("title");
-        forEl->setTemplate(tmpl);
+        forEl->setTemplate(makeBoundText("title"));
 
-        // 执行 expand()
-        auto result = forEl->expand(ctx);
+        // 执行 materializeChildren()
+        auto nodes = forEl->materializeChildren(ctx);
 
-        // 验证：2 个元素，"title" 从全局 context 解析为 "Hello"
-        QCOMPARE(result.size(), 2);
-        for (int i = 0; i < 2; ++i) {
-            auto* clone = dynamic_cast<ForTestElement*>(result[i].get());
-            QVERIFY(clone != nullptr);
-            QCOMPARE(clone->m_resolvedValues["title"].toString(), QString("Hello"));
-        }
+        // 验证：2 个节点，"title" 从全局 context 解析为 "Hello"
+        QCOMPARE(nodes.size(), size_t(2));
+        for (int i = 0; i < 2; ++i)
+            QCOMPARE(nodeText(nodes[i]), QString("Hello"));
     }
 
     /// @brief testBindsPropertyStripsAs: bindsProperty 应剥离 b:as 前缀
@@ -239,9 +201,7 @@ private slots:
         forEl->setAsVariable("u");
 
         // 模板绑定 "name"（不带 "u." 前缀 — 纯全局绑定）
-        auto tmpl = std::make_shared<ForTestElement>();
-        tmpl->m_boundNames.insert("name");
-        forEl->setTemplate(tmpl);
+        forEl->setTemplate(makeBoundText("name"));
 
         // b:as="u" 剥离逻辑：per-item 变量和路径不触发全局 relayout
         QVERIFY(forEl->bindsProperty("users"));      // m_ofProperty 匹配
@@ -250,7 +210,7 @@ private slots:
         QVERIFY(!forEl->bindsProperty("u.name"));    // per-item 路径，不是全局属性
     }
 
-    /// @brief testEmptyListZeroElements: 空列表 → expand() 返回 0 个元素
+    /// @brief testEmptyListZeroElements: 空列表 → materializeChildren() 返回 0 个节点
     void testEmptyListZeroElements()
     {
         // 准备数据: "empty" = 空 QStringList
@@ -263,16 +223,13 @@ private slots:
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("empty");
         forEl->setAsVariable("e");
+        forEl->setTemplate(makeBoundText("e"));
 
-        auto tmpl = std::make_shared<ForTestElement>();
-        tmpl->m_boundNames.insert("e");
-        forEl->setTemplate(tmpl);
-
-        // 执行 expand()
-        auto result = forEl->expand(ctx);
+        // 执行 materializeChildren()
+        auto nodes = forEl->materializeChildren(ctx);
 
         // 验证：空列表 → 返回空 vector
-        QCOMPARE(result.size(), 0);
+        QCOMPARE(nodes.size(), size_t(0));
     }
 
     /// @brief testMissingAsError: 缺少 b:as 属性时 qCritical + 返回空
@@ -287,18 +244,16 @@ private slots:
         // 构造 ForElement: b:of="items" 但 **没有** b:as
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("items");
-
-        auto tmpl = std::make_shared<ForTestElement>();
-        forEl->setTemplate(tmpl);
+        forEl->setTemplate(makeBoundText("x"));
 
         // 期望：缺少 b:as 时 qCritical 并返回空
         QTest::ignoreMessage(QtCriticalMsg, QRegularExpression(".*b:as.*required.*"));
 
-        // 执行 expand()
-        auto result = forEl->expand(ctx);
+        // 执行 materializeChildren()
+        auto nodes = forEl->materializeChildren(ctx);
 
         // 验证：缺少 b:as → 返回空 vector
-        QCOMPARE(result.size(), 0);
+        QCOMPARE(nodes.size(), size_t(0));
     }
 
     /// @brief testStepAttributeRejected: step 属性被拒绝 + qWarning
@@ -323,16 +278,16 @@ private slots:
         QTest::ignoreMessage(QtWarningMsg, QRegularExpression(".*step.*"));
 
         forEl->parse(el);
+        forEl->setTemplate(makeBoundText("x"));
 
-        auto tmpl = std::make_shared<ForTestElement>();
-        tmpl->m_boundNames.insert("x");
-        forEl->setTemplate(tmpl);
-
-        // 执行 expand() — step 属性被忽略，默认遍历全部 4 个元素
-        auto result = forEl->expand(ctx);
+        // 执行 materializeChildren() — step 属性被忽略，默认遍历全部 4 个元素
+        auto nodes = forEl->materializeChildren(ctx);
 
         // 验证：step 被忽略 → 遍历所有 4 个元素
-        QCOMPARE(result.size(), 4);
+        QCOMPARE(nodes.size(), size_t(4));
+        QStringList expected{"a", "b", "c", "d"};
+        for (int i = 0; i < 4; ++i)
+            QCOMPARE(nodeText(nodes[i]), expected[i]);
     }
 
     /// @brief testNullItemSkipped: QVariantList 中 null 项被跳过 + qWarning
@@ -356,27 +311,18 @@ private slots:
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("items");
         forEl->setAsVariable("item");
-
-        auto tmpl = std::make_shared<ForTestElement>();
-        tmpl->m_boundNames.insert("item.name");
-        forEl->setTemplate(tmpl);
+        forEl->setTemplate(makeBoundText("item.name"));
 
         // 期望：跳过 null 项时 qWarning
         QTest::ignoreMessage(QtWarningMsg, QRegularExpression(".*skipping null item.*"));
 
-        // 执行 expand()
-        auto result = forEl->expand(ctx);
+        // 执行 materializeChildren()
+        auto nodes = forEl->materializeChildren(ctx);
 
-        // 验证：null 项被跳过 → 只返回 2 个有效元素
-        QCOMPARE(result.size(), 2);
-
-        auto* clone0 = dynamic_cast<ForTestElement*>(result[0].get());
-        QVERIFY(clone0 != nullptr);
-        QCOMPARE(clone0->m_resolvedValues["item.name"].toString(), QString("Alice"));
-
-        auto* clone1 = dynamic_cast<ForTestElement*>(result[1].get());
-        QVERIFY(clone1 != nullptr);
-        QCOMPARE(clone1->m_resolvedValues["item.name"].toString(), QString("Carol"));
+        // 验证：null 项被跳过 → 只返回 2 个有效节点
+        QCOMPARE(nodes.size(), size_t(2));
+        QCOMPARE(nodeText(nodes[0]), QString("Alice"));
+        QCOMPARE(nodeText(nodes[1]), QString("Carol"));
     }
 
     /// @brief testDeepNestedPath: 深层嵌套路径 item.address.city
@@ -399,24 +345,15 @@ private slots:
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("people");
         forEl->setAsVariable("item");
+        forEl->setTemplate(makeBoundText("item.address.city"));  // 深层嵌套路径
 
-        auto tmpl = std::make_shared<ForTestElement>();
-        tmpl->m_boundNames.insert("item.address.city");  // 深层嵌套路径
-        forEl->setTemplate(tmpl);
+        // 执行 materializeChildren()
+        auto nodes = forEl->materializeChildren(ctx);
 
-        // 执行 expand()
-        auto result = forEl->expand(ctx);
-
-        // 验证：2 个元素，每个的 "item.address.city" 解析为对应城市
-        QCOMPARE(result.size(), 2);
-
-        auto* clone0 = dynamic_cast<ForTestElement*>(result[0].get());
-        QVERIFY(clone0 != nullptr);
-        QCOMPARE(clone0->m_resolvedValues["item.address.city"].toString(), QString("NYC"));
-
-        auto* clone1 = dynamic_cast<ForTestElement*>(result[1].get());
-        QVERIFY(clone1 != nullptr);
-        QCOMPARE(clone1->m_resolvedValues["item.address.city"].toString(), QString("Tokyo"));
+        // 验证：2 个节点，每个的 "item.address.city" 解析为对应城市
+        QCOMPARE(nodes.size(), size_t(2));
+        QCOMPARE(nodeText(nodes[0]), QString("NYC"));
+        QCOMPARE(nodeText(nodes[1]), QString("Tokyo"));
     }
 
     /// @brief testMixedScalarVariantList: 标量值 QVariantList 元素迭代
@@ -436,31 +373,19 @@ private slots:
         auto forEl = std::make_shared<BroadItem::ForElement>();
         forEl->setBindProperty("data");
         forEl->setAsVariable("x");
+        forEl->setTemplate(makeBoundText("x"));  // 绑定标量 asVariable
 
-        auto tmpl = std::make_shared<ForTestElement>();
-        tmpl->m_boundNames.insert("x");  // 绑定标量 asVariable
-        forEl->setTemplate(tmpl);
+        // 执行 materializeChildren()
+        auto nodes = forEl->materializeChildren(ctx);
 
-        // 执行 expand()
-        auto result = forEl->expand(ctx);
-
-        // 验证：3 个标量元素全部迭代
-        QCOMPARE(result.size(), 3);
-
-        auto* clone0 = dynamic_cast<ForTestElement*>(result[0].get());
-        QVERIFY(clone0 != nullptr);
-        QCOMPARE(clone0->m_resolvedValues["x"].toString(), QString("hello"));
-
-        auto* clone1 = dynamic_cast<ForTestElement*>(result[1].get());
-        QVERIFY(clone1 != nullptr);
-        QCOMPARE(clone1->m_resolvedValues["x"].toInt(), 42);
-
-        auto* clone2 = dynamic_cast<ForTestElement*>(result[2].get());
-        QVERIFY(clone2 != nullptr);
-        QCOMPARE(clone2->m_resolvedValues["x"].toString(), QString("world"));
+        // 验证：3 个标量元素全部迭代；标量值经 QVariant::toString 解析为文本
+        QCOMPARE(nodes.size(), size_t(3));
+        QCOMPARE(nodeText(nodes[0]), QString("hello"));
+        QCOMPARE(nodeText(nodes[1]), QString("42"));   // int 42 → "42"
+        QCOMPARE(nodeText(nodes[2]), QString("world"));
     }
 
-    /// @brief testRowLayoutResolvesBindingsInFor: ForElement+RowLayout → TextElements resolve per-item data
+    /// @brief testRowLayoutResolvesBindingsInFor: ForElement+RowLayout → TextNodes resolve per-item data
     void testRowLayoutResolvesBindingsInFor()
     {
         BroadItem::MapPropertyContext mapCtx;
@@ -482,29 +407,32 @@ private slots:
         row->addChild(makeBoundText("p.cpu", "11"));
         forEl->setTemplate(row);
 
-        auto result = forEl->expand(ctx);
-        QCOMPARE(result.size(), 3);
+        auto nodes = forEl->materializeChildren(ctx);
+        QCOMPARE(nodes.size(), size_t(3));
 
         QStringList expectedNames{"nginx", "redis", "mysql"};
         QStringList expectedPids{"1234", "5678", "9012"};
         QStringList expectedCpus{"2.1%", "1.3%", "5.7%"};
         for (int i = 0; i < 3; ++i) {
-            auto* cloneRow = dynamic_cast<BroadItem::RowLayout*>(result[i].get());
-            QVERIFY(cloneRow != nullptr);
-            // Trigger flatten + measure to verify text resolution cascaded
-            auto mr = cloneRow->measure(ctx, {500, 500});
+            // 物化节点的模板应为 RowLayout
+            QVERIFY(dynamic_cast<const BroadItem::RowLayout*>(nodes[i]->element) != nullptr);
+            // 触发行布局测量，验证文本解析已级联
+            auto mr = measureNode(nodes[i], ctx, {500, 500});
             QVERIFY(mr.intrinsicSize.width() > 10);
-            // Access flattened children to verify individual TextElement measurements
-            const auto& children = cloneRow->flattenedChildren();
-            QCOMPARE(children.size(), 3);
+            // 物化后的子节点（TextNode）验证逐项文本与各自测量
+            const auto& children = nodes[i]->children;
+            QCOMPARE(children.size(), size_t(3));
+            QCOMPARE(nodeText(children[0]), expectedNames[i]);
+            QCOMPARE(nodeText(children[1]), expectedPids[i]);
+            QCOMPARE(nodeText(children[2]), expectedCpus[i]);
             for (size_t j = 0; j < 3; ++j) {
-                auto childMr = children[j]->measure(ctx, {500, 500});
+                auto childMr = measureNode(children[j], ctx, {500, 500});
                 QVERIFY(childMr.intrinsicSize.width() > 1);
             }
         }
     }
 
-    /// @brief testColumnLayoutResolvesBindingsInFor: ForElement+ColumnLayout → TextElements resolve per-item data
+    /// @brief testColumnLayoutResolvesBindingsInFor: ForElement+ColumnLayout → TextNodes resolve per-item data
     void testColumnLayoutResolvesBindingsInFor()
     {
         BroadItem::MapPropertyContext mapCtx;
@@ -524,25 +452,28 @@ private slots:
         col->addChild(makeBoundText("p.value", "11"));
         forEl->setTemplate(col);
 
-        auto result = forEl->expand(ctx);
-        QCOMPARE(result.size(), 2);
+        auto nodes = forEl->materializeChildren(ctx);
+        QCOMPARE(nodes.size(), size_t(2));
 
+        QStringList expectedLabels{"CPU", "MEM"};
+        QStringList expectedValues{"45%", "8.2G"};
         for (int i = 0; i < 2; ++i) {
-            auto* cloneCol = dynamic_cast<BroadItem::ColumnLayout*>(result[i].get());
-            QVERIFY(cloneCol != nullptr);
-            auto mr = cloneCol->measure(ctx, {500, 500});
+            QVERIFY(dynamic_cast<const BroadItem::ColumnLayout*>(nodes[i]->element) != nullptr);
+            auto mr = measureNode(nodes[i], ctx, {500, 500});
             QVERIFY(mr.intrinsicSize.width() > 10);
-            const auto& children = cloneCol->flattenedChildren();
-            QCOMPARE(children.size(), 2);
-            QVERIFY(children[0]->measure(ctx, {500, 500}).intrinsicSize.width() > 1);
-            QVERIFY(children[1]->measure(ctx, {500, 500}).intrinsicSize.width() > 1);
+            const auto& children = nodes[i]->children;
+            QCOMPARE(children.size(), size_t(2));
+            QCOMPARE(nodeText(children[0]), expectedLabels[i]);
+            QCOMPARE(nodeText(children[1]), expectedValues[i]);
+            QVERIFY(measureNode(children[0], ctx, {500, 500}).intrinsicSize.width() > 1);
+            QVERIFY(measureNode(children[1], ctx, {500, 500}).intrinsicSize.width() > 1);
         }
     }
 
     /// @brief testIfHasResolvesBindingsInClonedChild: positive + negative cases for IfHasElement with TextElement
     void testIfHasResolvesBindingsInClonedChild()
     {
-        // Positive: warning property exists → TextElement resolves "System alert"
+        // Positive: warning property exists → TextNode resolves "System alert"
         {
             BroadItem::MapPropertyContext mapCtx;
             mapCtx.setProperty("warning", QString("System alert"));
@@ -552,13 +483,14 @@ private slots:
             ifEl->setBindProperty("warning");
             ifEl->setChild(makeBoundText("warning", "11"));
 
-            auto result = ifEl->expand(ctx);
-            QCOMPARE(result.size(), 1);
-            auto mr = result[0]->measure(ctx, {500, 500});
+            auto nodes = ifEl->materializeChildren(ctx);
+            QCOMPARE(nodes.size(), size_t(1));
+            QCOMPARE(nodeText(nodes[0]), QString("System alert"));
+            auto mr = measureNode(nodes[0], ctx, {500, 500});
             QVERIFY(mr.intrinsicSize.width() > 10);
         }
 
-        // Negative: no warning property → expand returns empty
+        // Negative: no warning property → materializeChildren returns empty
         {
             BroadItem::MapPropertyContext mapCtx;
             BroadItem::LayoutContext ctx{&mapCtx};
@@ -567,8 +499,8 @@ private slots:
             ifEl->setBindProperty("warning");
             ifEl->setChild(makeBoundText("warning", "11"));
 
-            auto result = ifEl->expand(ctx);
-            QCOMPARE(result.size(), 0);
+            auto nodes = ifEl->materializeChildren(ctx);
+            QCOMPARE(nodes.size(), size_t(0));
         }
     }
 
@@ -594,21 +526,24 @@ private slots:
         grid->addChild(innerCol);
         forEl->setTemplate(grid);
 
-        auto result = forEl->expand(ctx);
-        QCOMPARE(result.size(), 2);
+        auto nodes = forEl->materializeChildren(ctx);
+        QCOMPARE(nodes.size(), size_t(2));
 
+        QStringList expectedNames{"Alice", "Bob"};
         for (int i = 0; i < 2; ++i) {
-            auto* cloneGrid = dynamic_cast<BroadItem::GridLayout*>(result[i].get());
-            QVERIFY(cloneGrid != nullptr);
-            auto mr = cloneGrid->measure(ctx, {500, 500});
+            QVERIFY(dynamic_cast<const BroadItem::GridLayout*>(nodes[i]->element) != nullptr);
+            auto mr = measureNode(nodes[i], ctx, {500, 500});
             QVERIFY(mr.intrinsicSize.width() > 10);
-            // GridLayout exposes children() publicly; verify depth=2 resolved
-            const auto& gridChildren = cloneGrid->children();
-            QCOMPARE(gridChildren.size(), 1);
-            auto* nestedCol = dynamic_cast<BroadItem::ColumnLayout*>(gridChildren[0].get());
-            QVERIFY(nestedCol != nullptr);
-            auto colMr = nestedCol->measure(ctx, {500, 500});
+            // 实例节点的物化子节点：GridLayout 下应只有 1 个 ColumnLayout 节点
+            const auto& gridChildren = nodes[i]->children;
+            QCOMPARE(gridChildren.size(), size_t(1));
+            QVERIFY(dynamic_cast<const BroadItem::ColumnLayout*>(gridChildren[0]->element) != nullptr);
+            auto colMr = measureNode(gridChildren[0], ctx, {500, 500});
             QVERIFY(colMr.intrinsicSize.width() > 1);
+            // 验证 depth=2 的文本已解析
+            const auto& colChildren = gridChildren[0]->children;
+            QCOMPARE(colChildren.size(), size_t(1));
+            QCOMPARE(nodeText(colChildren[0]), expectedNames[i]);
         }
     }
 
@@ -622,11 +557,14 @@ private slots:
         auto row = std::make_shared<BroadItem::RowLayout>();
         row->addChild(makeBoundText("cpu", "11"));
 
-        // Call ContainerElement::resolveBindings directly on the RowLayout
-        row->resolveBindings(ctx);
+        // 物化：文本在物化时从全局 context 解析
+        auto node = row->materialize(ctx);
+        QVERIFY(node != nullptr);
+        QCOMPARE(node->children.size(), size_t(1));
+        QCOMPARE(nodeText(node->children[0]), QString("45%"));
 
         // Verify text resolved: measure must return non-zero width
-        auto mr = row->measure(ctx, {500, 500});
+        auto mr = row->measure(ctx, {500, 500}, *node);
         QVERIFY2(mr.intrinsicSize.width() > 10,
                  qPrintable(QString("Expected non-zero width for resolved '45%', got %1")
                             .arg(mr.intrinsicSize.width())));

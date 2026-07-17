@@ -10,17 +10,23 @@
 #include <broaditem/element/control/ForElement.h>
 #include <QDebug>
 
-// Minimal element for IfHasElement null value test
+/// @brief 供 IfHasElement 空值测试使用的最小可渲染元素（模板/实例分离版）。
 class NullTestElement : public BroadItem::Element {
 public:
+    std::unique_ptr<BroadItem::Node> materialize(const BroadItem::LayoutContext&) const override
+    {
+        auto node = std::make_unique<BroadItem::Node>();
+        node->element = this;
+        return node;
+    }
     BroadItem::MeasureResult measure(const BroadItem::LayoutContext&,
-                                     const BroadItem::LayoutConstraints&) override
+                                     const BroadItem::LayoutConstraints&,
+                                     BroadItem::Node&) const override
     {
         return {QSizeF(100, 20)};
     }
-    void layout(const BroadItem::LayoutContext&, const QRectF& rect) override { m_rect = rect; }
-    void render(QPainter*, const BroadItem::LayoutContext&) const override {}
-    BroadItem::ElementPtr clone() const override { return std::make_shared<NullTestElement>(); }
+    void layout(const BroadItem::LayoutContext&, const QRectF&, BroadItem::Node&) const override {}
+    void render(QPainter*, const BroadItem::LayoutContext&, const BroadItem::Node&) const override {}
     bool bindsProperty(const QString&) const override { return false; }
 };
 
@@ -129,7 +135,9 @@ void TestParser::testMeasureText()
 
     BroadItem::LayoutContext ctx;
     BroadItem::LayoutConstraints constraints;
-    auto result = root->measure(ctx, constraints);
+    auto node = BroadItem::LayoutEngine::materialize(root, ctx);
+    QVERIFY(node != nullptr);
+    auto result = node->element->measure(ctx, constraints, *node);
     QVERIFY(result.intrinsicSize.width() > 0);
     QVERIFY(result.intrinsicSize.height() > 0);
 }
@@ -150,7 +158,9 @@ void TestParser::testColumnMeasure()
 
     BroadItem::LayoutContext ctx;
     BroadItem::LayoutConstraints constraints;
-    auto result = root->measure(ctx, constraints);
+    auto node = BroadItem::LayoutEngine::materialize(root, ctx);
+    QVERIFY(node != nullptr);
+    auto result = node->element->measure(ctx, constraints, *node);
     QVERIFY(result.intrinsicSize.width() > 0);
     QVERIFY(result.intrinsicSize.height() > 0);
 }
@@ -169,7 +179,7 @@ void TestParser::testBindProperty()
     QVERIFY(!root->bindsProperty("other"));
 }
 
-/// @brief 验证 <if-has> 条件控制元素：属性不存在时隐藏（尺寸为零），存在时显示
+/// @brief 验证 <if-has> 条件控制元素：属性不存在时不物化（无实例节点），存在时正常物化测量
 void TestParser::testIfHas()
 {
     QString xml = R"(
@@ -186,13 +196,17 @@ void TestParser::testIfHas()
     BroadItem::MapPropertyContext mapCtx;
     ctx.ctx = &mapCtx;
 
-    // Property not set -> should not show
-    auto result = root->measure(ctx, BroadItem::LayoutConstraints{});
-    QCOMPARE(result.intrinsicSize.width(), 0.0);
-    QCOMPARE(result.intrinsicSize.height(), 0.0);
+    /// 属性不存在 → 物化结果为空（新架构下"尺寸为零"的等价语义：
+    /// 控制元素透明，不产生任何实例节点）
+    auto node = BroadItem::LayoutEngine::materialize(root, ctx);
+    QVERIFY(node == nullptr);
 
     mapCtx.setProperty("show", "yes");
-    result = root->measure(ctx, BroadItem::LayoutConstraints{});
+    node = BroadItem::LayoutEngine::materialize(root, ctx);
+    QVERIFY(node != nullptr);
+    /// 根为控制元素（if-has），三阶段须经 node->element（物化后的可渲染模板）驱动，
+    /// 直接对控制元素模板调 measure 会命中 Element 基类的 qFatal
+    auto result = node->element->measure(ctx, BroadItem::LayoutConstraints{}, *node);
     QVERIFY(result.intrinsicSize.width() > 0);
 }
 
@@ -209,14 +223,14 @@ void TestParser::testIfHasNullWithQPropertyContext()
     BroadItem::LayoutContext ctx;
     ctx.ctx = &propCtx;
 
-    // Default QString() is null -> expand returns empty
-    auto result = ifEl->expand(ctx);
-    QCOMPARE(result.size(), 0);
+    // Default QString() is null -> materializeChildren returns empty
+    auto result = ifEl->materializeChildren(ctx);
+    QCOMPARE(result.size(), size_t(0));
 
-    // Set to non-null value -> expand returns cloned child
+    // Set to non-null value -> materializeChildren returns 1 child node
     item.setWarning("alert");
-    result = ifEl->expand(ctx);
-    QCOMPARE(result.size(), 1);
+    result = ifEl->materializeChildren(ctx);
+    QCOMPARE(result.size(), size_t(1));
 }
 
 /// @brief 验证从目录加载布局注册表，至少加载到 test_layout.xml
@@ -290,7 +304,7 @@ void TestParser::testAutoWrapFor()
     BroadItem::LayoutContext ctx;
     ctx.ctx = &mapCtx;
 
-    auto expanded = forEl->expand(ctx);
+    auto expanded = forEl->materializeChildren(ctx);
     QCOMPARE(expanded.size(), size_t(2));
 }
 
@@ -313,13 +327,13 @@ void TestParser::testAutoWrapIfHas()
     BroadItem::LayoutContext ctx;
     ctx.ctx = &mapCtx;
 
-    // 属性不存在 → expand 返回 0 个子元素
-    auto result = ifEl->expand(ctx);
+    // 属性不存在 → materializeChildren 返回 0 个节点
+    auto result = ifEl->materializeChildren(ctx);
     QCOMPARE(result.size(), size_t(0));
 
-    // 属性存在 → expand 返回 1 个克隆子元素
+    // 属性存在 → materializeChildren 返回 1 个实例节点
     mapCtx.setProperty("show", "yes");
-    result = ifEl->expand(ctx);
+    result = ifEl->materializeChildren(ctx);
     QCOMPARE(result.size(), size_t(1));
 }
 
