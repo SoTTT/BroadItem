@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root xmlns:b="urn:broaditem:binding">
+    <column space="8" padding="16" background-color="#1e1e2e" background-radius="12">
+        <!-- 标题 -->
+        <text font-size="13" bold="true" color="#cdd6f4" margin-bottom="4" b:content="title">活跃进程</text>
+
+        <!-- 进程行列表：for 展开路径持续验证（每次刷新列表长度可变化） -->
+        <for b:of="processes" b:as="p">
+            <row space="8" cross-align="center" padding="8" background-color="#313244" background-radius="6">
+                <text font-size="11" color="#cdd6f4" width="110" b:content="p.name"/>
+                <text font-size="11" color="#a6e3a1" h-align="right" padding-left="8" b:content="p.cpu"/>
+            </row>
+        </for>
+    </column>
+</root>

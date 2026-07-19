@@ -7,6 +7,8 @@ configure_file(main_stretch/main_stretch_without.xml ${CMAKE_CURRENT_BINARY_DIR}
 configure_file(main_stretch/main_stretch_with.xml ${CMAKE_CURRENT_BINARY_DIR}/main_stretch_with.xml COPYONLY)
 configure_file(basic/layout.xml ${CMAKE_CURRENT_BINARY_DIR}/frame_widget.xml COPYONLY)
 configure_file(basic/layout.xml ${CMAKE_CURRENT_BINARY_DIR}/frame_image.xml COPYONLY)
+configure_file(multi_instance/status_card.xml ${CMAKE_CURRENT_BINARY_DIR}/status_card.xml COPYONLY)
+configure_file(multi_instance/process_list.xml ${CMAKE_CURRENT_BINARY_DIR}/process_list.xml COPYONLY)
 
 add_executable(basic basic/main.cpp)
 target_link_libraries(basic PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)
@@ -31,3 +33,7 @@ target_link_libraries(frame_image PRIVATE BroadItem Qt5::Core Qt5::Gui Qt5::Widg
 # Reactive binding follow example
 add_executable(reactive_follow reactive_follow/main.cpp)
 target_link_libraries(reactive_follow PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)
+
+# Multi-instance isolation example (same layoutId x2 + another layout x1)
+add_executable(multi_instance multi_instance/main.cpp)
+target_link_libraries(multi_instance PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)
