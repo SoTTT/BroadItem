@@ -5,11 +5,13 @@
 #include <QDomAttr>
 #include <QStringList>
 #include <QSet>
+#include <QHash>
 #include <QRectF>
 #include <memory>
 #include <vector>
 #include <broaditem/context/LayoutContext.h>
 #include <broaditem/core/Node.h>
+#include <broaditem/expression/Binding.h>
 
 namespace BroadItem {
 
@@ -66,7 +68,22 @@ public:
     virtual void render(QPainter* painter, const LayoutContext& ctx, const Node& node) const;
 
     /// @brief 数据绑定：如果该元素使用了指定属性名，返回 true。
-    virtual bool bindsProperty(const QString& name) const { Q_UNUSED(name) return false; }
+    /// 基类实现遍历通用绑定表 m_bindings（见 parseBindings）。
+    virtual bool bindsProperty(const QString& name) const;
+
+    /// @brief 解析 XML 元素上的通用绑定属性（b:attr 形式）存入 m_bindings。
+    ///
+    /// 遍历 xml.attributes()，命中绑定命名空间的属性取局部名（命名空间处理
+    /// 开启时 QDomAttr::name() 返回不带前缀的局部名）。保留名 of/prop/as/content
+    /// 与控制元素语义耦合，跳过；局部名不在 supportedAttributes() 中警告并跳过；
+    /// 与字面量同名属性互斥（qCritical 并忽略该绑定）。
+    /// @param xml The DOM element whose binding attributes to parse.
+    void parseBindings(const QDomElement& xml);
+
+    /// @brief 按局部属性名查找通用绑定。
+    /// @param attribute 局部属性名（如 "color"，不带 "b:" 前缀）。
+    /// @return 命中的 Binding 指针；未命中返回 nullptr。
+    const Binding* bindingFor(const QString& attribute) const;
 
     /// @brief 检查名称是否与 bindPath 匹配（精确匹配或作为点号/括号路径的前缀）。
     static bool matchesProperty(const QString& bindPath, const QString& propName);
@@ -97,6 +114,26 @@ protected:
     static QColor parseColor(const QString& value);
     /// @brief 从字符串解析布尔值。
     static bool parseBool(const QString& value);
+
+    /// @brief 求值通用绑定：返回绑定路径在上下文中的属性值。
+    /// 无绑定、绑定无效或上下文无此属性时返回无效 QVariant（静默回退）。
+    /// @param attribute 局部属性名（如 "color"）。
+    /// @param ctx 布局上下文。
+    /// @return 绑定值；不可解析时为无效 QVariant。
+    QVariant boundValue(const QString& attribute, const LayoutContext& ctx) const;
+
+    /// @brief 求值绑定为 double，失败返回 fallback。
+    double resolveDouble(const QString& attribute, const LayoutContext& ctx, double fallback) const;
+    /// @brief 求值绑定为 QColor，失败返回 fallback。
+    QColor resolveColor(const QString& attribute, const LayoutContext& ctx, const QColor& fallback) const;
+    /// @brief 求值绑定为 bool，失败返回 fallback。
+    bool resolveBool(const QString& attribute, const LayoutContext& ctx, bool fallback) const;
+    /// @brief 求值绑定为 QString，失败返回 fallback。
+    QString resolveString(const QString& attribute, const LayoutContext& ctx, const QString& fallback) const;
+
+    /// @brief 通用绑定表：局部属性名 → Binding。
+    /// Binding 无默认构造函数，只允许 insert/constFind 访问。
+    QHash<QString, Binding> m_bindings;
 };
 
 } // namespace BroadItem

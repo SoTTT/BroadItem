@@ -98,22 +98,35 @@ std::unique_ptr<Node> TextElement::materialize(const LayoutContext& ctx) const
     auto node = std::make_unique<TextNode>();
     node->element = this;
     node->text = resolveText(ctx);
+    resolveStyle(ctx, node->style);
+    resolveSize(ctx, node->style);
+    node->color = resolveColor("color", ctx, m_color);
+    node->fontSize = resolveDouble("font-size", ctx, m_fontSize);
+    if (node->fontSize <= 0) {
+        // 与 parse 行为对齐：非正字号回退为 12 并告警。
+        qWarning() << "TextElement: font-size must be positive, got" << node->fontSize;
+        node->fontSize = 12;
+    }
+    node->bold = resolveBool("bold", ctx, m_bold);
+    node->underLine = resolveBool("under-line", ctx, m_underLine);
+    node->fontFamily = resolveString("font-family", ctx, m_fontFamily);
     return node;
 }
 
 /// @brief 计算给定文本的渲染尺寸，考虑字体、换行和 max-width 约束。
 /// @param text The text to measure.
 /// @param constraints Available width/height constraints.
+/// @param node 实例节点，读取物化时求值的字体属性（fontSize/fontFamily/bold/underLine）。
 /// @return The computed text size.
-QSizeF TextElement::computeTextSize(const QString& text, const LayoutConstraints& constraints) const
+QSizeF TextElement::computeTextSize(const QString& text, const LayoutConstraints& constraints, const TextNode& node) const
 {
     QFont font = m_font;
-    if (m_fontSize > 0)
-        font.setPixelSize(static_cast<int>(m_fontSize));
-    if (!m_fontFamily.isEmpty())
-        font.setFamily(m_fontFamily);
-    font.setBold(m_bold);
-    font.setUnderline(m_underLine);
+    if (node.fontSize > 0)
+        font.setPixelSize(static_cast<int>(node.fontSize));
+    if (!node.fontFamily.isEmpty())
+        font.setFamily(node.fontFamily);
+    font.setBold(node.bold);
+    font.setUnderline(node.underLine);
 
     QFontMetricsF fm(font);
 
@@ -153,18 +166,18 @@ QSizeF TextElement::computeTextSize(const QString& text, const LayoutConstraints
 MeasureResult TextElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const
 {
     Q_UNUSED(ctx)
-    const QString& text = static_cast<const TextNode&>(node).text;
-    QSizeF sz = computeTextSize(text, constraints);
+    const auto& textNode = static_cast<const TextNode&>(node);
+    QSizeF sz = computeTextSize(textNode.text, constraints, textNode);
     double w = sz.width();
     double h = sz.height();
 
-    if (hasWidth())
-        w = width();
-    if (hasHeight())
-        h = height();
+    if (node.style.width >= 0)
+        w = node.style.width;
+    if (node.style.height >= 0)
+        h = node.style.height;
 
-    w += boxModelWidth();
-    h += boxModelHeight();
+    w += boxModelWidth(node.style);
+    h += boxModelHeight(node.style);
 
     return MeasureResult{QSizeF(w, h)};
 }
@@ -177,7 +190,7 @@ void TextElement::layout(const LayoutContext& ctx, const QRectF& rect, Node& nod
 {
     Q_UNUSED(ctx)
     node.rect = rect;
-    static_cast<TextNode&>(node).contentRect = contentRect(rect);
+    static_cast<TextNode&>(node).contentRect = contentRect(rect, node.style);
 }
 
 /// @brief 渲染文本元素：盒模型装饰，然后使用字体、对齐和换行渲染节点文本。
@@ -187,7 +200,7 @@ void TextElement::layout(const LayoutContext& ctx, const QRectF& rect, Node& nod
 void TextElement::render(QPainter* painter, const LayoutContext& ctx, const Node& node) const
 {
     Q_UNUSED(ctx)
-    renderBoxModel(painter, node.rect);
+    renderBoxModel(painter, node.rect, node.style);
 
     const auto& textNode = static_cast<const TextNode&>(node);
     const QString& text = textNode.text;
@@ -195,19 +208,19 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx, const Node
         return;
 
     QFont font = m_font;
-    if (m_fontSize > 0)
-        font.setPixelSize(static_cast<int>(m_fontSize));
-    if (!m_fontFamily.isEmpty())
-        font.setFamily(m_fontFamily);
-    font.setBold(m_bold);
-    font.setUnderline(m_underLine);
+    if (textNode.fontSize > 0)
+        font.setPixelSize(static_cast<int>(textNode.fontSize));
+    if (!textNode.fontFamily.isEmpty())
+        font.setFamily(textNode.fontFamily);
+    font.setBold(textNode.bold);
+    font.setUnderline(textNode.underLine);
 
     painter->setFont(font);
-    painter->setPen(m_color);
+    painter->setPen(textNode.color);
 
     const QRectF& textRect = textNode.contentRect;
 
-    bool needClip = hasWidth() || hasHeight();
+    bool needClip = node.style.width >= 0 || node.style.height >= 0;
     if (needClip) {
         painter->save();
         painter->setClipRect(textRect);
@@ -280,12 +293,12 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx, const Node
     }
 }
 
-/// @brief 检查此文本元素是否通过 b:content 绑定指定属性。
+/// @brief 检查此文本元素是否通过通用绑定或 b:content 绑定指定属性。
 /// @param name The property name to check.
-/// @return True if the property matches the b:content binding.
+/// @return True if the property matches a generic binding or the b:content binding.
 bool TextElement::bindsProperty(const QString& name) const
 {
-    return m_binding.bindsProperty(name);
+    return Element::bindsProperty(name) || m_binding.bindsProperty(name);
 }
 
 } // namespace BroadItem

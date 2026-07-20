@@ -35,7 +35,7 @@ void CellElement::layout(const LayoutContext& ctx, const QRectF& rect, Node& nod
     if (node.children.empty())
         return;
 
-    QRectF contentArea = contentRect(rect);
+    QRectF contentArea = contentRect(rect, node.style);
     LayoutConstraints childConstraints{contentArea.width(), contentArea.height()};
 
     // 测量堆叠块：总高为各子节点之和，宽为最大宽度。

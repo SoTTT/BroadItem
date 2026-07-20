@@ -21,6 +21,7 @@ std::unique_ptr<Node> ContainerElement::materialize(const LayoutContext& ctx) co
 {
     auto node = std::make_unique<Node>();
     node->element = this;
+    resolveStyle(ctx, node->style);
     if (m_content)
         node->children = m_content->materializeChildren(ctx);
     return node;
@@ -34,8 +35,8 @@ std::unique_ptr<Node> ContainerElement::materialize(const LayoutContext& ctx) co
 MeasureResult ContainerElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const
 {
     LayoutConstraints childConstraints = constraints;
-    double decoW = boxModelWidth();
-    double decoH = boxModelHeight();
+    double decoW = boxModelWidth(node.style);
+    double decoH = boxModelHeight(node.style);
 
     if (constraints.availableWidth > 0)
         childConstraints.availableWidth = std::max(0.0, constraints.availableWidth - decoW);
@@ -64,7 +65,7 @@ void ContainerElement::layout(const LayoutContext& ctx, const QRectF& rect, Node
     if (node.children.empty())
         return;
 
-    QRectF cr = contentRect(rect);
+    QRectF cr = contentRect(rect, node.style);
     LayoutConstraints childConstraints;
     childConstraints.availableWidth = cr.width();
     childConstraints.availableHeight = -1;
@@ -84,17 +85,17 @@ void ContainerElement::layout(const LayoutContext& ctx, const QRectF& rect, Node
 /// @param node 实例节点。
 void ContainerElement::render(QPainter* painter, const LayoutContext& ctx, const Node& node) const
 {
-    renderBoxModel(painter, node.rect);
+    renderBoxModel(painter, node.rect, node.style);
     for (const auto& child : node.children)
         child->element->render(painter, ctx, *child);
 }
 
-/// @brief 检查内容元素是否绑定指定属性。
+/// @brief 检查自身通用绑定或内容元素是否绑定指定属性。
 /// @param name The property name to check.
-/// @return True if content exists and binds the property.
+/// @return True if this element's generic bindings or content binds the property.
 bool ContainerElement::bindsProperty(const QString& name) const
 {
-    return m_content && m_content->bindsProperty(name);
+    return Element::bindsProperty(name) || (m_content && m_content->bindsProperty(name));
 }
 
 /// @brief 设置此容器的单一内容子元素。

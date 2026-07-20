@@ -28,6 +28,13 @@ public:
         return attrs;
     }
 
+    /// @brief 将宽度/高度求值进 ResolvedStyle 快照。
+    /// @details 先以模板成员值（字面量）填充快照，再应用 b:width/b:height 绑定；
+    ///          绑定失配或未绑定时回退为成员值，-1 哨兵语义保持不变。
+    /// @param ctx 布局上下文，用于查找绑定属性值。
+    /// @param out 输出快照，width/height 为唯一被写入的字段。
+    void resolveSize(const LayoutContext& ctx, ResolvedStyle& out) const;
+
 protected:
     double m_width = -1;   ///< Explicit width in pixels, -1 means not specified.
     double m_height = -1;  ///< Explicit height in pixels, -1 means not specified.

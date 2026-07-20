@@ -9,6 +9,11 @@ namespace BroadItem {
 struct TextNode : Node {
     QString text;        ///< 物化时解析后的文本。
     QRectF contentRect;  ///< 布局阶段缓存的内容区域。
+    QColor color = Qt::black;   ///< 物化时求值的文字颜色。
+    double fontSize = 12;       ///< 物化时求值的字体大小。
+    bool bold = false;          ///< 物化时求值的加粗。
+    bool underLine = false;     ///< 物化时求值的下划线。
+    QString fontFamily;         ///< 物化时求值的字体族。
 };
 
 /// @brief 文本渲染元素，支持数据绑定、字体样式、对齐和自动换行。
@@ -42,8 +47,12 @@ private:
 
     /// @brief 按优先级解析文本：content 字面量 > b:content 绑定 > 标签文本。
     QString resolveText(const LayoutContext& ctx) const;
-    /// @brief 计算给定约束下的渲染文本尺寸。
-    QSizeF computeTextSize(const QString& text, const LayoutConstraints& constraints) const;
+    /// @brief 计算给定约束下的渲染文本尺寸，字体取自 TextNode 快照。
+    /// @param text The text to measure.
+    /// @param constraints Available width/height constraints.
+    /// @param node 实例节点，读取物化时求值的字体属性。
+    /// @return The computed text size.
+    QSizeF computeTextSize(const QString& text, const LayoutConstraints& constraints, const TextNode& node) const;
 };
 
 } // namespace BroadItem

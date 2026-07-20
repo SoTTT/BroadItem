@@ -66,15 +66,72 @@ void RenderableElement::parseBoxModel(const QDomElement& xml)
     }
 }
 
+/// @brief 物化时求值全部盒模型属性，写入样式快照。
+///
+/// 先整体拷贝模板成员到 out，再按绑定逐项覆盖：
+/// - margin/padding：简写绑定有效时四边同值，随后单边绑定逐项覆盖；
+/// - border：radius/width 走 resolveDouble，style 走 resolveString，color 走 resolveColor；
+/// - background：color/radius/opacity 任一绑定有效时求值写入并置 enabled = true。
+/// @param ctx 布局上下文，用于解析数据绑定。
+/// @param out 输出参数，求值结果的唯一写入通道。
+void RenderableElement::resolveStyle(const LayoutContext& ctx, ResolvedStyle& out) const
+{
+    out.margin = m_margin;
+    out.border = m_border;
+    out.background = m_background;
+    out.padding = m_padding;
+
+    // margin：简写先应用，单边后应用
+    if (boundValue("margin", ctx).isValid()) {
+        double v = resolveDouble("margin", ctx, 0);
+        out.margin.left = out.margin.right = out.margin.top = out.margin.bottom = v;
+    }
+    out.margin.left = resolveDouble("margin-left", ctx, out.margin.left);
+    out.margin.right = resolveDouble("margin-right", ctx, out.margin.right);
+    out.margin.top = resolveDouble("margin-top", ctx, out.margin.top);
+    out.margin.bottom = resolveDouble("margin-bottom", ctx, out.margin.bottom);
+
+    // padding：同构
+    if (boundValue("padding", ctx).isValid()) {
+        double v = resolveDouble("padding", ctx, 0);
+        out.padding.left = out.padding.right = out.padding.top = out.padding.bottom = v;
+    }
+    out.padding.left = resolveDouble("padding-left", ctx, out.padding.left);
+    out.padding.right = resolveDouble("padding-right", ctx, out.padding.right);
+    out.padding.top = resolveDouble("padding-top", ctx, out.padding.top);
+    out.padding.bottom = resolveDouble("padding-bottom", ctx, out.padding.bottom);
+
+    // border
+    out.border.radius = resolveDouble("border-radius", ctx, out.border.radius);
+    out.border.width = resolveDouble("border-width", ctx, out.border.width);
+    out.border.style = resolveString("border-style", ctx, out.border.style);
+    out.border.color = resolveColor("border-color", ctx, out.border.color);
+
+    // background：任一子属性绑定有效时求值并启用（与字面量 parse 语义对齐）
+    if (boundValue("background-color", ctx).isValid()) {
+        out.background.color = resolveColor("background-color", ctx, out.background.color);
+        out.background.enabled = true;
+    }
+    if (boundValue("background-radius", ctx).isValid()) {
+        out.background.radius = resolveDouble("background-radius", ctx, out.background.radius);
+        out.background.enabled = true;
+    }
+    if (boundValue("background-opacity", ctx).isValid()) {
+        out.background.opacity = resolveDouble("background-opacity", ctx, out.background.opacity);
+        out.background.enabled = true;
+    }
+}
+
 /// @brief 在给定矩形内渲染背景填充和边框描边。
 /// @param painter The QPainter to render onto.
 /// @param rect The outer rectangle (including margin).
-void RenderableElement::renderBoxModel(QPainter* painter, const QRectF& rect) const
+/// @param style 物化时求值得到的盒模型样式快照。
+void RenderableElement::renderBoxModel(QPainter* painter, const QRectF& rect, const ResolvedStyle& style) const
 {
-    double mLeft = m_margin.left;
-    double mTop = m_margin.top;
-    double mRight = m_margin.right;
-    double mBottom = m_margin.bottom;
+    double mLeft = style.margin.left;
+    double mTop = style.margin.top;
+    double mRight = style.margin.right;
+    double mBottom = style.margin.bottom;
 
     QRectF borderRect(rect.x() + mLeft, rect.y() + mTop,
                       std::max(0.0, rect.width() - mLeft - mRight),
@@ -82,30 +139,30 @@ void RenderableElement::renderBoxModel(QPainter* painter, const QRectF& rect) co
 
     QRectF bgRect = borderRect;
 
-    if (m_background.visible()) {
-        QColor c = m_background.color;
-        c.setAlphaF(m_background.opacity);
+    if (style.background.visible()) {
+        QColor c = style.background.color;
+        c.setAlphaF(style.background.opacity);
         painter->setBrush(c);
         painter->setPen(Qt::NoPen);
 
-        double radius = m_background.radius;
+        double radius = style.background.radius;
         if (radius > 0)
             painter->drawRoundedRect(bgRect, radius, radius);
         else
             painter->drawRect(bgRect);
     }
 
-    if (m_border.visible()) {
-        QPen pen(m_border.color);
-        pen.setWidthF(m_border.width);
+    if (style.border.visible()) {
+        QPen pen(style.border.color);
+        pen.setWidthF(style.border.width);
         painter->setPen(pen);
         painter->setBrush(Qt::NoBrush);
 
-        double radius = m_border.radius;
-        double halfW = m_border.width / 2.0;
+        double radius = style.border.radius;
+        double halfW = style.border.width / 2.0;
         QRectF adjusted(borderRect.x() + halfW, borderRect.y() + halfW,
-                        std::max(0.0, borderRect.width() - m_border.width),
-                        std::max(0.0, borderRect.height() - m_border.width));
+                        std::max(0.0, borderRect.width() - style.border.width),
+                        std::max(0.0, borderRect.height() - style.border.width));
 
         if (radius > 0)
             painter->drawRoundedRect(adjusted, radius, radius);
@@ -116,13 +173,14 @@ void RenderableElement::renderBoxModel(QPainter* painter, const QRectF& rect) co
 
 /// @brief 通过减去 margin、border 和 padding 计算内容区域矩形。
 /// @param outerRect The outer bounding rect.
+/// @param style 物化时求值得到的盒模型样式快照。
 /// @return The inner content rect.
-QRectF RenderableElement::contentRect(const QRectF& outerRect) const
+QRectF RenderableElement::contentRect(const QRectF& outerRect, const ResolvedStyle& style) const
 {
-    return QRectF(outerRect.x() + m_margin.left + m_border.width + m_padding.left,
-                  outerRect.y() + m_margin.top + m_border.width + m_padding.top,
-                  std::max(0.0, outerRect.width() - boxModelWidth()),
-                  std::max(0.0, outerRect.height() - boxModelHeight()));
+    return QRectF(outerRect.x() + style.margin.left + style.border.width + style.padding.left,
+                  outerRect.y() + style.margin.top + style.border.width + style.padding.top,
+                  std::max(0.0, outerRect.width() - boxModelWidth(style)),
+                  std::max(0.0, outerRect.height() - boxModelHeight(style)));
 }
 
 } // namespace BroadItem

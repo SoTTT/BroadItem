@@ -112,6 +112,9 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
         return nullptr;
 
     element->parse(xml);
+    // parseBindings 对控制元素同样调用；保留名 {of,prop,as,content} 在 parseBindings 内部豁免，
+    // 上方与下方的伪属性包装逻辑（wrapFor/wrapIfHas）不受影响
+    element->parseBindings(xml);
 
     if (!element->canHaveChildren() && !xml.firstChildElement().isNull()) {
         qCritical() << "<" << tag << "> should not have child elements";

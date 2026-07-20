@@ -183,4 +183,135 @@ bool Element::validateBool(const QString& value, const QString& attrName, bool& 
     return false;
 }
 
+/// @brief 解析 XML 元素上的通用绑定属性（b:attr 形式）存入 m_bindings。
+///
+/// 保留名 {"of","prop","as","content"} 与控制元素/文本语义耦合，不纳入通用
+/// 绑定——参见设计.md 记载的伪属性双重包装陷阱：XmlLayoutParser.cpp:107-108
+/// 会把携带 b:of/b:prop 的普通元素再包一层 for/if-has，若这些名字也进通用表，
+/// 同一属性将被两套机制重复解析。
+///
+/// @param xml The DOM element whose binding attributes to parse.
+void Element::parseBindings(const QDomElement& xml)
+{
+    static const QSet<QString> reserved{QStringLiteral("of"), QStringLiteral("prop"),
+                                        QStringLiteral("as"), QStringLiteral("content")};
+    const QSet<QString>& known = supportedAttributes();
+    QDomNamedNodeMap attrs = xml.attributes();
+    for (int i = 0; i < attrs.size(); ++i) {
+        QDomAttr attr = attrs.item(i).toAttr();
+        if (!isBindingAttribute(attr))
+            continue;
+        // 命名空间处理开启时 name() 返回局部名（无前缀），nodeName() 返回限定名（如 "b:color"）。
+        const QString local = attr.name();
+        if (reserved.contains(local))
+            continue;
+        if (!known.contains(local)) {
+            qWarning() << xml.tagName() << ": unknown binding attribute" << attr.nodeName()
+                       << "=\"" << attr.value() << "\"";
+            continue;
+        }
+        if (xml.hasAttribute(local)) {
+            qCritical() << xml.tagName() << ":" << local << "and" << attr.nodeName()
+                        << "are mutually exclusive; ignoring the binding";
+            continue;
+        }
+        m_bindings.insert(local, Binding(attr.nodeName(), attr.value()));
+    }
+}
+
+/// @brief 按局部属性名查找通用绑定。
+/// @param attribute 局部属性名（如 "color"）。
+/// @return 命中的 Binding 指针；未命中返回 nullptr。
+const Binding* Element::bindingFor(const QString& attribute) const
+{
+    auto it = m_bindings.constFind(attribute);
+    return it == m_bindings.constEnd() ? nullptr : &it.value();
+}
+
+/// @brief 基类 bindsProperty：遍历通用绑定表，任一绑定匹配即返回 true。
+/// @param name The property name to check.
+/// @return True if any generic binding matches the property.
+bool Element::bindsProperty(const QString& name) const
+{
+    for (const Binding& b : m_bindings) {
+        if (b.bindsProperty(name))
+            return true;
+    }
+    return false;
+}
+
+/// @brief 求值通用绑定：返回绑定路径在上下文中的属性值。
+/// @param attribute 局部属性名。
+/// @param ctx 布局上下文。
+/// @return 绑定值；无绑定/绑定无效/上下文无此属性时返回无效 QVariant。
+QVariant Element::boundValue(const QString& attribute, const LayoutContext& ctx) const
+{
+    const Binding* b = bindingFor(attribute);
+    if (!b || !b->isValid())
+        return {};
+    if (!ctx.hasProperty(b->path()))
+        return {};  // 静默回退：属性尚未注入上下文属正常状态
+    return ctx.property(b->path());
+}
+
+/// @brief 求值绑定为 double：无效绑定或转换失败返回 fallback。
+double Element::resolveDouble(const QString& attribute, const LayoutContext& ctx, double fallback) const
+{
+    QVariant v = boundValue(attribute, ctx);
+    if (!v.isValid())
+        return fallback;
+    double out = fallback;
+    if (!validateDouble(v.toString(), bindingFor(attribute)->attributeName(), out))
+        return fallback;
+    return out;
+}
+
+/// @brief 求值绑定为 QColor：非字符串或颜色无效时记录错误并返回 fallback。
+QColor Element::resolveColor(const QString& attribute, const LayoutContext& ctx, const QColor& fallback) const
+{
+    QVariant v = boundValue(attribute, ctx);
+    if (!v.isValid())
+        return fallback;
+    if (v.userType() != QMetaType::QString) {
+        qCritical() << "Attribute" << bindingFor(attribute)->attributeName()
+                    << "expects a color string, got type" << v.typeName();
+        return fallback;
+    }
+    QColor color(v.toString());
+    if (!color.isValid()) {
+        qCritical() << "Attribute" << bindingFor(attribute)->attributeName()
+                    << "expects a valid color, got \"" << v.toString() << "\"";
+        return fallback;
+    }
+    return color;
+}
+
+/// @brief 求值绑定为 bool：Bool 型直接取值，否则按字符串验证，失败返回 fallback。
+bool Element::resolveBool(const QString& attribute, const LayoutContext& ctx, bool fallback) const
+{
+    QVariant v = boundValue(attribute, ctx);
+    if (!v.isValid())
+        return fallback;
+    if (v.userType() == QMetaType::Bool)
+        return v.toBool();
+    bool out = fallback;
+    if (!validateBool(v.toString(), bindingFor(attribute)->attributeName(), out))
+        return fallback;
+    return out;
+}
+
+/// @brief 求值绑定为 QString：非字符串型记录错误并返回 fallback。
+QString Element::resolveString(const QString& attribute, const LayoutContext& ctx, const QString& fallback) const
+{
+    QVariant v = boundValue(attribute, ctx);
+    if (!v.isValid())
+        return fallback;
+    if (v.userType() != QMetaType::QString) {
+        qCritical() << "Attribute" << bindingFor(attribute)->attributeName()
+                    << "expects a string, got type" << v.typeName();
+        return fallback;
+    }
+    return v.toString();
+}
+
 } // namespace BroadItem

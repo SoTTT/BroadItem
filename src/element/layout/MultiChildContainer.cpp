@@ -18,6 +18,7 @@ std::unique_ptr<Node> MultiChildContainer::materialize(const LayoutContext& ctx)
 {
     auto node = std::make_unique<Node>();
     node->element = this;
+    resolveStyle(ctx, node->style);
     materializeChildrenInto(ctx, *node);
     return node;
 }

@@ -13,4 +13,12 @@ void SizedElement::parse(const QDomElement& xml)
         m_height = parseDouble(xml.attribute("height"), -1);
 }
 
+void SizedElement::resolveSize(const LayoutContext& ctx, ResolvedStyle& out) const
+{
+    out.width = m_width;
+    out.height = m_height;
+    out.width = resolveDouble("width", ctx, out.width);
+    out.height = resolveDouble("height", ctx, out.height);
+}
+
 } // namespace BroadItem

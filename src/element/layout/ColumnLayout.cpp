@@ -1,5 +1,4 @@
 #include <broaditem/element/layout/ColumnLayout.h>
-#include <broaditem/element/SizedElement.h>
 #include <QPainter>
 #include <QDomElement>
 #include <QDebug>
@@ -48,8 +47,8 @@ MeasureResult ColumnLayout::measure(const LayoutContext& ctx, const LayoutConstr
     double maxWidth = 0;
 
     LayoutConstraints childConstraints = constraints;
-    double decoH = boxModelHeight();
-    double decoW = boxModelWidth();
+    double decoH = boxModelHeight(node.style);
+    double decoW = boxModelWidth(node.style);
 
     if (constraints.availableWidth > 0)
         childConstraints.availableWidth = std::max(0.0, constraints.availableWidth - decoW);
@@ -89,7 +88,7 @@ void ColumnLayout::layout(const LayoutContext& ctx, const QRectF& rect, Node& no
 {
     node.rect = rect;
 
-    QRectF cr = contentRect(rect);
+    QRectF cr = contentRect(rect, node.style);
 
     layoutChildren(ctx, cr, node);
 }
@@ -117,8 +116,7 @@ void ColumnLayout::layoutChildren(const LayoutContext& ctx, const QRectF& conten
             auto result = children[i]->element->measure(ctx, childConstraints, *children[i]);
             childSizes.push_back(result.intrinsicSize);
             maxChildHeight = std::max(maxChildHeight, result.intrinsicSize.height());
-            auto* sized = dynamic_cast<const SizedElement*>(children[i]->element);
-            hasExplicitHeight.push_back(sized && sized->hasHeight());
+            hasExplicitHeight.push_back(children[i]->style.height >= 0);
         }
         childConstraints.availableHeight = maxChildHeight;
         childSizes.clear();
@@ -170,8 +168,7 @@ void ColumnLayout::layoutChildren(const LayoutContext& ctx, const QRectF& conten
         double childWidth = childSizes[i].width();
 
         if (m_crossAlign == "stretch") {
-            auto* sized = dynamic_cast<const SizedElement*>(children[i]->element);
-            if (!sized || !sized->hasWidth())
+            if (children[i]->style.width < 0)
                 childWidth = contentRect.width();
         }
 

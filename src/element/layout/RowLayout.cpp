@@ -1,5 +1,4 @@
 #include <broaditem/element/layout/RowLayout.h>
-#include <broaditem/element/SizedElement.h>
 #include <algorithm>
 #include <QPainter>
 #include <QDomElement>
@@ -48,8 +47,8 @@ MeasureResult RowLayout::measure(const LayoutContext& ctx, const LayoutConstrain
     double maxHeight = 0;
 
     LayoutConstraints childConstraints = constraints;
-    double decoW = boxModelWidth();
-    double decoH = boxModelHeight();
+    double decoW = boxModelWidth(node.style);
+    double decoH = boxModelHeight(node.style);
 
     if (constraints.availableWidth > 0)
         childConstraints.availableWidth = std::max(0.0, constraints.availableWidth - decoW);
@@ -90,7 +89,7 @@ void RowLayout::layout(const LayoutContext& ctx, const QRectF& rect, Node& node)
 {
     node.rect = rect;
 
-    QRectF cr = contentRect(rect);
+    QRectF cr = contentRect(rect, node.style);
 
     layoutChildren(ctx, cr, node);
 }
@@ -118,8 +117,7 @@ void RowLayout::layoutChildren(const LayoutContext& ctx, const QRectF& contentRe
             auto result = children[i]->element->measure(ctx, childConstraints, *children[i]);
             childSizes.push_back(result.intrinsicSize);
             maxChildWidth = std::max(maxChildWidth, result.intrinsicSize.width());
-            auto* sized = dynamic_cast<const SizedElement*>(children[i]->element);
-            hasExplicitWidth.push_back(sized && sized->hasWidth());
+            hasExplicitWidth.push_back(children[i]->style.width >= 0);
         }
         // 用 maxChildWidth 作为约束重新测量（使换行文本重新计算高度）
         childConstraints.availableWidth = maxChildWidth;
@@ -172,8 +170,7 @@ void RowLayout::layoutChildren(const LayoutContext& ctx, const QRectF& contentRe
         double childHeight = childSizes[i].height();
 
         if (m_crossAlign == "stretch") {
-            auto* sized = dynamic_cast<const SizedElement*>(children[i]->element);
-            if (!sized || !sized->hasHeight())
+            if (children[i]->style.height < 0)
                 childHeight = contentRect.height();
         }
 

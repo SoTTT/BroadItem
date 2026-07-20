@@ -67,6 +67,7 @@ std::unique_ptr<Node> GridLayout::materialize(const LayoutContext& ctx) const
 {
     auto node = std::make_unique<GridNode>();
     node->element = this;
+    resolveStyle(ctx, node->style);
     materializeChildrenInto(ctx, *node);
     return node;
 }
@@ -80,8 +81,8 @@ MeasureResult GridLayout::measure(const LayoutContext& ctx, const LayoutConstrai
 {
     auto& gridNode = static_cast<GridNode&>(node);
 
-    double decoW = boxModelWidth();
-    double decoH = boxModelHeight();
+    double decoW = boxModelWidth(node.style);
+    double decoH = boxModelHeight(node.style);
 
     LayoutConstraints childConstraints = constraints;
     if (constraints.availableWidth > 0)
@@ -129,7 +130,7 @@ void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect, Node& node
 
     node.rect = rect;
 
-    QRectF cr = contentRect(rect);
+    QRectF cr = contentRect(rect, node.style);
 
     double measuredWidth = 0;
     for (double w : gridNode.colWidths)
