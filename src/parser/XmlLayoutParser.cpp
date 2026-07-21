@@ -2,6 +2,7 @@
 #include <broaditem/element/Element.h>
 #include <broaditem/element/ContainerElement.h>
 #include <broaditem/element/text/TextElement.h>
+#include <broaditem/element/image/ImageElement.h>
 #include <broaditem/element/layout/ColumnLayout.h>
 #include <broaditem/element/layout/RowLayout.h>
 #include <broaditem/element/layout/GridLayout.h>
@@ -76,6 +77,8 @@ ElementPtr XmlLayoutParser::createElement(const QString& tagName)
 {
     if (tagName == "text")
         return std::make_shared<TextElement>();
+    if (tagName == "image")
+        return std::make_shared<ImageElement>();
     if (tagName == "column")
         return std::make_shared<ColumnLayout>();
     if (tagName == "row")

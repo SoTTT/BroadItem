@@ -70,6 +70,10 @@ add_library(BroadItem STATIC
     src/element/text/TextElement.cpp
     include/broaditem/element/text/TextElement.h
 
+    # image — self-measuring image leaf element
+    src/element/image/ImageElement.cpp
+    include/broaditem/element/image/ImageElement.h
+
     # parser — XML layout parsing and registry
     src/parser/XmlLayoutParser.cpp
     src/parser/LayoutRegistry.cpp
