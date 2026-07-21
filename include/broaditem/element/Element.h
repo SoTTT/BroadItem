@@ -108,6 +108,16 @@ public:
     static bool validateBool(const QString& value, const QString& attrName, bool& out);
 
 protected:
+    /// @brief 返回本元素实际有求值路径的通用绑定属性集合。
+    ///
+    /// 与 supportedAttributes()（声明"认识哪些属性"）区分：本集合声明"哪些
+    /// 绑定属性会被真正求值"。parseBindings 对不在本集合内的绑定发
+    /// 「已注册未解析」告警但仍照常注册（向前兼容：求值路径后续版本补齐）。
+    /// 基类返回空集；各级元素按 static 引用 + 集合并集方式覆盖
+    /// （同 supportedAttributes 的 static-union 写法，返回临时 QSet 会悬垂）。
+    /// @return 有求值路径的绑定属性名集合的静态引用。
+    virtual const QSet<QString>& resolvedAttributes() const;
+
     /// @brief 从字符串解析 double，失败时返回默认值。
     static double parseDouble(const QString& value, double defaultVal = 0);
     /// @brief 从字符串解析 QColor（名称或十六进制）。

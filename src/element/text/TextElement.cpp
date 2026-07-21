@@ -19,6 +19,18 @@ const QSet<QString>& TextElement::supportedAttributes() const
     return attrs;
 }
 
+/// @brief 返回有求值路径的绑定属性集合：文本字体/颜色属性并入 SizedElement 集合。
+/// @details content/v-align/h-align/wrap/max-width 暂无通用绑定求值路径，不在集合内，
+///          其绑定将被 parseBindings 标记为「已注册未解析」。
+/// @return 静态引用（沿用 supportedAttributes 的 static-union 写法）。
+const QSet<QString>& TextElement::resolvedAttributes() const
+{
+    static const QSet<QString> attrs = QSet<QString>{
+        "color", "font-size", "bold", "under-line", "font-family"
+    } + SizedElement::resolvedAttributes();
+    return attrs;
+}
+
 /// @brief 解析文本特定属性：content、b:content 绑定、字体、对齐、换行等。
 /// @param xml The DOM element to parse.
 void TextElement::parse(const QDomElement& xml)

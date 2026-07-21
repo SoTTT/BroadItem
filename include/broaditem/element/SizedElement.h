@@ -36,6 +36,10 @@ public:
     void resolveSize(const LayoutContext& ctx, ResolvedStyle& out) const;
 
 protected:
+    /// @brief 返回有求值路径的绑定属性集合：width/height + 盒模型集合。
+    /// @return 静态引用（resolveSize 求值 width/height；盒模型继承自 RenderableElement）。
+    const QSet<QString>& resolvedAttributes() const override;
+
     double m_width = -1;   ///< Explicit width in pixels, -1 means not specified.
     double m_height = -1;  ///< Explicit height in pixels, -1 means not specified.
 };

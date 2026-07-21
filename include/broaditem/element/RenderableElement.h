@@ -45,6 +45,11 @@ public:
 
     /// @brief 返回支持的盒模型属性名称集合。
     static const QSet<QString>& boxModelAttributeNames();
+
+protected:
+    /// @brief 返回有求值路径的绑定属性集合：全部 17 个盒模型属性。
+    /// @return boxModelAttributeNames() 的静态引用（resolveStyle 逐项求值）。
+    const QSet<QString>& resolvedAttributes() const override;
 };
 
 } // namespace BroadItem

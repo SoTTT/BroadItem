@@ -17,6 +17,13 @@ const QSet<QString>& RenderableElement::boxModelAttributeNames()
     return attrs;
 }
 
+/// @brief 返回有求值路径的绑定属性集合：resolveStyle 逐项求值全部 17 个盒模型属性。
+/// @return boxModelAttributeNames() 的静态引用。
+const QSet<QString>& RenderableElement::resolvedAttributes() const
+{
+    return boxModelAttributeNames();
+}
+
 /// @brief 从 XML 元素解析 margin、padding、border 和 background 属性。
 /// @param xml The DOM element to parse box model attributes from.
 void RenderableElement::parseBoxModel(const QDomElement& xml)

@@ -29,6 +29,11 @@ public:
     const QSet<QString>& supportedAttributes() const override;
     bool canHaveChildren() const override { return false; }
 
+protected:
+    /// @brief 返回有求值路径的绑定属性集合：文本字体/颜色属性 + 尺寸 + 盒模型。
+    /// @return 静态引用（materialize 逐项求值 color/font-size/bold/under-line/font-family）。
+    const QSet<QString>& resolvedAttributes() const override;
+
 private:
     QString m_text;              ///< Static text content from the XML tag body.
     QString m_contentLiteral;    ///< Literal content from XML (before binding interpolation).

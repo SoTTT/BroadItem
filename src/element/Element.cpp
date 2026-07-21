@@ -183,6 +183,14 @@ bool Element::validateBool(const QString& value, const QString& attrName, bool& 
     return false;
 }
 
+/// @brief 基类 resolvedAttributes：返回空集，表示无通用绑定求值路径。
+/// @return 空集合的静态引用。
+const QSet<QString>& Element::resolvedAttributes() const
+{
+    static const QSet<QString> empty;
+    return empty;
+}
+
 /// @brief 解析 XML 元素上的通用绑定属性（b:attr 形式）存入 m_bindings。
 ///
 /// 保留名 {"of","prop","as","content"} 与控制元素/文本语义耦合，不纳入通用
@@ -226,6 +234,10 @@ void Element::parseBindings(const QDomElement& xml)
                         << "are mutually exclusive; ignoring the binding";
             continue;
         }
+        // 「已注册未解析」告警：supported 但无求值路径的绑定仍照常注册（向前兼容），仅提示。
+        if (!resolvedAttributes().contains(local))
+            qWarning() << xml.tagName() << ": binding attribute" << attr.nodeName()
+                       << "is registered but not resolved by this element (no evaluation path yet)";
         m_bindings.insert(local, Binding(attr.nodeName(), attr.value()));
     }
 }
