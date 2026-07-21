@@ -115,6 +115,25 @@ protected:
     /// @brief 从字符串解析布尔值。
     static bool parseBool(const QString& value);
 
+    /// @brief 命名空间感知的字面量属性存在性判定。
+    ///
+    /// QDom 在命名空间模式下 hasAttribute/attribute 按局部名匹配（会命中
+    /// b:xxx 绑定属性自身），hasAttributeNS(QString(), ...) 又匹配不到无命名
+    /// 空间字面量——parseBindings 已实证该陷阱。字面量读取一律走本辅助：
+    /// 遍历属性，命中条件 namespaceURI().isEmpty() && name() == local。
+    /// @param xml The DOM element to inspect.
+    /// @param name 字面量属性名（如 "color"）。
+    /// @return 存在无命名空间的同名字面量属性时返回 true。
+    static bool hasLiteralAttribute(const QDomElement& xml, const QString& name);
+
+    /// @brief 命名空间感知的字面量属性取值（判定语义同 hasLiteralAttribute）。
+    /// @param xml The DOM element to inspect.
+    /// @param name 字面量属性名。
+    /// @param def 属性不存在时的默认返回值。
+    /// @return 字面量属性值；不存在时返回 def。
+    static QString literalAttribute(const QDomElement& xml, const QString& name,
+                                    const QString& def = QString());
+
     /// @brief 求值通用绑定：返回绑定路径在上下文中的属性值。
     /// 无绑定、绑定无效或上下文无此属性时返回无效 QVariant（静默回退）。
     /// @param attribute 局部属性名（如 "color"）。

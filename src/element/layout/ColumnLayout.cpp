@@ -19,18 +19,18 @@ void ColumnLayout::parse(const QDomElement& xml)
 {
     ContainerElement::parse(xml);
     validateAttributes(xml);
-    if (xml.hasAttribute("main-align"))
-        m_mainAlign = xml.attribute("main-align");
-    if (xml.hasAttribute("cross-align"))
-        m_crossAlign = xml.attribute("cross-align");
-    if (xml.hasAttribute("space"))
-        validateDouble(xml.attribute("space"), "space", m_space);
-    if (xml.hasAttribute("main-stretch")) {
-        const QString value = xml.attribute("main-stretch").toLower();
+    if (hasLiteralAttribute(xml, "main-align"))
+        m_mainAlign = literalAttribute(xml, "main-align");
+    if (hasLiteralAttribute(xml, "cross-align"))
+        m_crossAlign = literalAttribute(xml, "cross-align");
+    if (hasLiteralAttribute(xml, "space"))
+        validateDouble(literalAttribute(xml, "space"), "space", m_space);
+    if (hasLiteralAttribute(xml, "main-stretch")) {
+        const QString value = literalAttribute(xml, "main-stretch").toLower();
         if (value == "true" || value == "false") {
             m_mainStretch = (value == "true");
         } else {
-            qWarning() << "ColumnLayout: 'main-stretch' must be 'true' or 'false', got" << xml.attribute("main-stretch") << "- defaulting to false";
+            qWarning() << "ColumnLayout: 'main-stretch' must be 'true' or 'false', got" << literalAttribute(xml, "main-stretch") << "- defaulting to false";
             m_mainStretch = false;
         }
     }

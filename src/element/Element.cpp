@@ -210,7 +210,18 @@ void Element::parseBindings(const QDomElement& xml)
                        << "=\"" << attr.value() << "\"";
             continue;
         }
-        if (xml.hasAttribute(local)) {
+        // QDom 在命名空间模式下 hasAttribute/attribute/hasAttributeNS 均不可靠：
+        // hasAttribute 按局部名匹配（会命中 b:color 自身），hasAttributeNS(QString(), ...)
+        // 又匹配不到无命名空间字面量。只能遍历属性，要求局部名相同且 namespaceURI 为空。
+        bool hasLiteral = false;
+        for (int j = 0; j < attrs.size(); ++j) {
+            QDomAttr a = attrs.item(j).toAttr();
+            if (a.namespaceURI().isEmpty() && a.name() == local) {
+                hasLiteral = true;
+                break;
+            }
+        }
+        if (hasLiteral) {
             qCritical() << xml.tagName() << ":" << local << "and" << attr.nodeName()
                         << "are mutually exclusive; ignoring the binding";
             continue;
@@ -312,6 +323,30 @@ QString Element::resolveString(const QString& attribute, const LayoutContext& ct
         return fallback;
     }
     return v.toString();
+}
+
+/// @brief 命名空间感知的字面量属性存在性判定（语义见头文件注释）。
+bool Element::hasLiteralAttribute(const QDomElement& xml, const QString& name)
+{
+    QDomNamedNodeMap attrs = xml.attributes();
+    for (int i = 0; i < attrs.size(); ++i) {
+        QDomAttr attr = attrs.item(i).toAttr();
+        if (attr.namespaceURI().isEmpty() && attr.name() == name)
+            return true;
+    }
+    return false;
+}
+
+/// @brief 命名空间感知的字面量属性取值（语义见头文件注释）。
+QString Element::literalAttribute(const QDomElement& xml, const QString& name, const QString& def)
+{
+    QDomNamedNodeMap attrs = xml.attributes();
+    for (int i = 0; i < attrs.size(); ++i) {
+        QDomAttr attr = attrs.item(i).toAttr();
+        if (attr.namespaceURI().isEmpty() && attr.name() == name)
+            return attr.value();
+    }
+    return def;
 }
 
 } // namespace BroadItem

@@ -44,30 +44,30 @@ void TextElement::parse(const QDomElement& xml)
         auto attr = xml.attributes().namedItemNS(BINDING_NS, "content");
         m_binding = Binding(attr.nodeName(), xml.attributeNS(BINDING_NS, "content", QString()));
     }
-    if (xml.hasAttribute("v-align"))
-        m_vAlign = xml.attribute("v-align");
-    if (xml.hasAttribute("h-align"))
-        m_hAlign = xml.attribute("h-align");
-    if (xml.hasAttribute("font-family"))
-        m_fontFamily = xml.attribute("font-family");
-    if (xml.hasAttribute("font-size")) {
-        if (validateDouble(xml.attribute("font-size"), "font-size", m_fontSize)) {
+    if (hasLiteralAttribute(xml, "v-align"))
+        m_vAlign = literalAttribute(xml, "v-align");
+    if (hasLiteralAttribute(xml, "h-align"))
+        m_hAlign = literalAttribute(xml, "h-align");
+    if (hasLiteralAttribute(xml, "font-family"))
+        m_fontFamily = literalAttribute(xml, "font-family");
+    if (hasLiteralAttribute(xml, "font-size")) {
+        if (validateDouble(literalAttribute(xml, "font-size"), "font-size", m_fontSize)) {
             if (m_fontSize <= 0) {
                 qWarning() << "TextElement: font-size must be positive, got" << m_fontSize;
                 m_fontSize = 12;
             }
         }
     }
-    if (xml.hasAttribute("bold"))
-        validateBool(xml.attribute("bold"), "bold", m_bold);
-    if (xml.hasAttribute("under-line"))
-        validateBool(xml.attribute("under-line"), "under-line", m_underLine);
-    if (xml.hasAttribute("wrap"))
-        validateBool(xml.attribute("wrap"), "wrap", m_wrap);
-    if (xml.hasAttribute("max-width"))
-        validateDouble(xml.attribute("max-width"), "max-width", m_maxWidth);
-    if (xml.hasAttribute("color"))
-        m_color = parseColor(xml.attribute("color"));
+    if (hasLiteralAttribute(xml, "bold"))
+        validateBool(literalAttribute(xml, "bold"), "bold", m_bold);
+    if (hasLiteralAttribute(xml, "under-line"))
+        validateBool(literalAttribute(xml, "under-line"), "under-line", m_underLine);
+    if (hasLiteralAttribute(xml, "wrap"))
+        validateBool(literalAttribute(xml, "wrap"), "wrap", m_wrap);
+    if (hasLiteralAttribute(xml, "max-width"))
+        validateDouble(literalAttribute(xml, "max-width"), "max-width", m_maxWidth);
+    if (hasLiteralAttribute(xml, "color"))
+        m_color = parseColor(literalAttribute(xml, "color"));
 }
 
 /// @brief 按优先级解析文本：content 字面量 > b:content 绑定 > 标签文本。

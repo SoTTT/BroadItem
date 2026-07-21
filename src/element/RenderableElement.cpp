@@ -21,47 +21,47 @@ const QSet<QString>& RenderableElement::boxModelAttributeNames()
 /// @param xml The DOM element to parse box model attributes from.
 void RenderableElement::parseBoxModel(const QDomElement& xml)
 {
-    if (xml.hasAttribute("margin"))
-        m_margin.left = m_margin.right = m_margin.top = m_margin.bottom = parseDouble(xml.attribute("margin"));
-    if (xml.hasAttribute("margin-left"))
-        m_margin.left = parseDouble(xml.attribute("margin-left"));
-    if (xml.hasAttribute("margin-right"))
-        m_margin.right = parseDouble(xml.attribute("margin-right"));
-    if (xml.hasAttribute("margin-top"))
-        m_margin.top = parseDouble(xml.attribute("margin-top"));
-    if (xml.hasAttribute("margin-bottom"))
-        m_margin.bottom = parseDouble(xml.attribute("margin-bottom"));
+    if (hasLiteralAttribute(xml, "margin"))
+        m_margin.left = m_margin.right = m_margin.top = m_margin.bottom = parseDouble(literalAttribute(xml, "margin"));
+    if (hasLiteralAttribute(xml, "margin-left"))
+        m_margin.left = parseDouble(literalAttribute(xml, "margin-left"));
+    if (hasLiteralAttribute(xml, "margin-right"))
+        m_margin.right = parseDouble(literalAttribute(xml, "margin-right"));
+    if (hasLiteralAttribute(xml, "margin-top"))
+        m_margin.top = parseDouble(literalAttribute(xml, "margin-top"));
+    if (hasLiteralAttribute(xml, "margin-bottom"))
+        m_margin.bottom = parseDouble(literalAttribute(xml, "margin-bottom"));
 
-    if (xml.hasAttribute("padding"))
-        m_padding.left = m_padding.right = m_padding.top = m_padding.bottom = parseDouble(xml.attribute("padding"));
-    if (xml.hasAttribute("padding-left"))
-        m_padding.left = parseDouble(xml.attribute("padding-left"));
-    if (xml.hasAttribute("padding-right"))
-        m_padding.right = parseDouble(xml.attribute("padding-right"));
-    if (xml.hasAttribute("padding-top"))
-        m_padding.top = parseDouble(xml.attribute("padding-top"));
-    if (xml.hasAttribute("padding-bottom"))
-        m_padding.bottom = parseDouble(xml.attribute("padding-bottom"));
+    if (hasLiteralAttribute(xml, "padding"))
+        m_padding.left = m_padding.right = m_padding.top = m_padding.bottom = parseDouble(literalAttribute(xml, "padding"));
+    if (hasLiteralAttribute(xml, "padding-left"))
+        m_padding.left = parseDouble(literalAttribute(xml, "padding-left"));
+    if (hasLiteralAttribute(xml, "padding-right"))
+        m_padding.right = parseDouble(literalAttribute(xml, "padding-right"));
+    if (hasLiteralAttribute(xml, "padding-top"))
+        m_padding.top = parseDouble(literalAttribute(xml, "padding-top"));
+    if (hasLiteralAttribute(xml, "padding-bottom"))
+        m_padding.bottom = parseDouble(literalAttribute(xml, "padding-bottom"));
 
-    if (xml.hasAttribute("border-radius"))
-        m_border.radius = parseDouble(xml.attribute("border-radius"));
-    if (xml.hasAttribute("border-style"))
-        m_border.style = xml.attribute("border-style");
-    if (xml.hasAttribute("border-width"))
-        m_border.width = parseDouble(xml.attribute("border-width"));
-    if (xml.hasAttribute("border-color"))
-        m_border.color = parseColor(xml.attribute("border-color"));
+    if (hasLiteralAttribute(xml, "border-radius"))
+        m_border.radius = parseDouble(literalAttribute(xml, "border-radius"));
+    if (hasLiteralAttribute(xml, "border-style"))
+        m_border.style = literalAttribute(xml, "border-style");
+    if (hasLiteralAttribute(xml, "border-width"))
+        m_border.width = parseDouble(literalAttribute(xml, "border-width"));
+    if (hasLiteralAttribute(xml, "border-color"))
+        m_border.color = parseColor(literalAttribute(xml, "border-color"));
 
-    if (xml.hasAttribute("background-color")) {
-        m_background.color = parseColor(xml.attribute("background-color"));
+    if (hasLiteralAttribute(xml, "background-color")) {
+        m_background.color = parseColor(literalAttribute(xml, "background-color"));
         m_background.enabled = true;
     }
-    if (xml.hasAttribute("background-radius")) {
-        m_background.radius = parseDouble(xml.attribute("background-radius"));
+    if (hasLiteralAttribute(xml, "background-radius")) {
+        m_background.radius = parseDouble(literalAttribute(xml, "background-radius"));
         m_background.enabled = true;
     }
-    if (xml.hasAttribute("background-opacity")) {
-        m_background.opacity = parseDouble(xml.attribute("background-opacity"));
+    if (hasLiteralAttribute(xml, "background-opacity")) {
+        m_background.opacity = parseDouble(literalAttribute(xml, "background-opacity"));
         m_background.enabled = true;
     }
 }

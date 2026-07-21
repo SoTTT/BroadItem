@@ -18,10 +18,10 @@ void CellElement::parse(const QDomElement& xml)
 {
     ContainerElement::parse(xml);
     validateAttributes(xml);
-    if (xml.hasAttribute("v-align"))
-        m_vAlign = xml.attribute("v-align");
-    if (xml.hasAttribute("h-align"))
-        m_hAlign = xml.attribute("h-align");
+    if (hasLiteralAttribute(xml, "v-align"))
+        m_vAlign = literalAttribute(xml, "v-align");
+    if (hasLiteralAttribute(xml, "h-align"))
+        m_hAlign = literalAttribute(xml, "h-align");
 }
 
 /// @brief 在单元格内布局子节点：多节点视为垂直堆叠块，块整体按对齐配置定位，

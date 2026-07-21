@@ -7,10 +7,10 @@ namespace BroadItem {
 void SizedElement::parse(const QDomElement& xml)
 {
     Element::parse(xml);
-    if (xml.hasAttribute("width"))
-        m_width = parseDouble(xml.attribute("width"), -1);
-    if (xml.hasAttribute("height"))
-        m_height = parseDouble(xml.attribute("height"), -1);
+    if (hasLiteralAttribute(xml, "width"))
+        m_width = parseDouble(literalAttribute(xml, "width"), -1);
+    if (hasLiteralAttribute(xml, "height"))
+        m_height = parseDouble(literalAttribute(xml, "height"), -1);
 }
 
 void SizedElement::resolveSize(const LayoutContext& ctx, ResolvedStyle& out) const
