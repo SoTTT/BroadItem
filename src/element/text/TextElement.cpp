@@ -29,15 +29,15 @@ void TextElement::parse(const QDomElement& xml)
 
     m_text = xml.text().trimmed();
 
-    bool hasContentLiteral = xml.hasAttributeNS(QString(), "content");
+    bool hasContentLiteral = hasLiteralAttribute(xml, "content");
     bool hasContentBinding = xml.hasAttributeNS(BINDING_NS, "content");
 
     if (hasContentLiteral && hasContentBinding) {
         qCritical() << "TextElement: 'content' and 'b:content' are mutually exclusive";
     }
 
-    if (xml.hasAttributeNS(QString(), "content")) {
-        m_contentLiteral = xml.attributeNS(QString(), "content", QString());
+    if (hasLiteralAttribute(xml, "content")) {
+        m_contentLiteral = literalAttribute(xml, "content");
         m_hasContentLiteral = true;
     }
     if (xml.hasAttributeNS(BINDING_NS, "content")) {
