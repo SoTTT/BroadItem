@@ -18,7 +18,22 @@
   NAMESPACE:
     Binding attributes use the b: namespace prefix declared as
       xmlns:b="urn:broaditem:binding"
-    Attributes: b:content / b:of / b:as / b:prop
+
+    Reserved (control / text-content channels): b:content / b:of / b:as / b:prop
+
+    Generic property bindings: ANY literal attribute may be written as
+    b:<attr> (reference semantics, resolved from PropertyContext at
+    materialization time into the ResolvedStyle snapshot). First batch:
+      box model (17): margin, margin-left/right/top/bottom,
+        padding, padding-left/right/top/bottom,
+        border-radius, border-style, border-width, border-color,
+        background-color, background-radius, background-opacity
+      size:         width, height
+      text style:   color, font-size, bold, under-line, font-family
+    A literal attribute and its b: form are mutually exclusive
+    (qCritical, binding ignored). Layout attributes (space/align/
+    columns/rows) and text v-align/h-align/wrap/max-width will open
+    for binding in later batches.
 
     The parser auto-wraps any non-control element with b:of/b:as into <for>,
     and any with b:prop into <if-has>.
@@ -138,7 +153,7 @@
   </xs:attributeGroup>
 
   <!-- ================================================================ -->
-  <!--  Data binding attributes (b:content, b:of, b:as, b:prop)          -->
+  <!--  Data binding attributes (b: namespace)                           -->
   <!--  Defined via anyAttribute in the binding namespace; editors can    -->
   <!--  autocomplete via the annotation/documentation below.              -->
   <!-- ================================================================ -->
@@ -147,10 +162,34 @@
       <xs:annotation>
         <xs:documentation>
 Binding attributes (b: prefix, xmlns:b="urn:broaditem:binding"):
+
+Reserved (control / text-content channels):
   b:content = property path for TextElement content binding
   b:of      = property path for ForElement data source
   b:as      = per-item variable name for ForElement
   b:prop    = property path for IfHasElement condition check
+
+Generic property bindings (reference semantics):
+  Any literal attribute may be written as b:&lt;attr&gt;; the value is a
+  property path resolved from PropertyContext at materialization time
+  and stored in the instance node's ResolvedStyle snapshot.
+  First batch supported:
+    box model : b:margin, b:margin-left/right/top/bottom,
+                b:padding, b:padding-left/right/top/bottom,
+                b:border-radius, b:border-style, b:border-width,
+                b:border-color,
+                b:background-color, b:background-radius,
+                b:background-opacity
+    size      : b:width, b:height
+    text style: b:color, b:font-size, b:bold, b:under-line,
+                b:font-family
+
+  A literal attribute and its b: form are mutually exclusive:
+  if both appear, the parser logs qCritical and ignores the binding
+  (the literal wins). Missing path falls back to the attribute
+  default silently; type mismatch logs qCritical and falls back.
+  Layout attributes (space/align/columns/rows) and text
+  v-align/h-align/wrap/max-width will open in later batches.
 
 These are W3C-compliant namespace-qualified attributes.
 The b: prefix is the canonical prefix, but any prefix bound to
