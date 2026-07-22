@@ -41,6 +41,11 @@ target_link_libraries(test_regression PRIVATE BroadItem Qt5::Core Qt5::Widgets Q
 add_executable(test_bound_attributes test_bound_attributes.cpp)
 target_link_libraries(test_bound_attributes PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml Qt5::Test)
 
+# <image> 元素测试：首个 qrc 测试基建（assets/icons.qrc 编入本目标）
+qt5_add_resources(test_image_element_RCC assets/icons.qrc)
+add_executable(test_image_element test_image_element.cpp ${test_image_element_RCC})
+target_link_libraries(test_image_element PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml Qt5::Test)
+
 # 黄金镜像采集/校验工具（P4 起注册 ctest：--verify 等价组逐像素比对）
 add_executable(golden_render golden/golden_render.cpp)
 target_link_libraries(golden_render PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)
@@ -58,4 +63,9 @@ add_test(NAME test_connection_line COMMAND test_connection_line WORKING_DIRECTOR
 add_test(NAME test_anchor_decorator COMMAND test_anchor_decorator WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME test_regression COMMAND test_regression WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME test_bound_attributes COMMAND test_bound_attributes WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+add_test(NAME test_image_element COMMAND test_image_element WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME test_golden_render COMMAND golden_render --verify ${CMAKE_SOURCE_DIR}/tests/golden/golden WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+# golden 基线采集于 offscreen QPA；cocoa 下字体光栅化确定性不同，
+# 必须固定 offscreen 才能保证逐像素比对确定性（根因见 .omo/notepads/p0-2-image-element/issues.md）。
+set_tests_properties(test_golden_render PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

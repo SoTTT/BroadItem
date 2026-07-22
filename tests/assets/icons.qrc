@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 测试用 Qt 资源清单：为 test_image_element 提供 qrc:/icons/ 下的内嵌图像。 -->
+<RCC>
+    <qresource prefix="/icons">
+        <file>red.png</file>
+        <file>blue.png</file>
+    </qresource>
+</RCC>
