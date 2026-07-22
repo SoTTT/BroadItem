@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 监控铭牌：集中演示 P0-1（通用绑定）与 P0-2（<image> 元素）成果。 -->
+<root xmlns:b="urn:broaditem:binding">
+    <!-- 外层列：盒模型展示点（padding + border + background + 圆角半径独立设置） -->
+    <column space="6" padding="8"
+            background-color="#f5f5f5"
+            border-width="1" border-style="solid" border-color="#cccccc"
+            border-radius="6" background-radius="6">
+
+        <!-- <for> 展示点：b:of 绑定 QVariantList，b:as 建立项级上下文 d，
+             每次 setDynamicProperty("devices", ...) 触发整列重新物化 -->
+        <for b:of="devices" b:as="d">
+            <!-- 设备卡片行：b:background-color 展示点——绑定驱动的背景色联动；
+                 background-radius 让圆角背景随状态色一起切换 -->
+            <row space="8" padding="6" cross-align="center"
+                 b:background-color="d.bgColor" background-radius="4">
+
+                <!-- <image> 展示点：b:src 绑定图标路径（相对 cwd），
+                     显式 width/height 20×20，keep-aspect 默认 true（contain 居中不裁剪），
+                     三个图标路径命中模板级缓存，刷新不重复加载 -->
+                <image b:src="d.icon" width="20" height="20"/>
+
+                <!-- b:content 展示点：设备名文本绑定 -->
+                <text b:content="d.name" font-size="13" bold="true"/>
+
+                <!-- b:content + b:color 展示点：状态文字与文字颜色双重绑定联动 -->
+                <text b:content="d.status" font-size="12" b:color="d.statusColor"/>
+            </row>
+        </for>
+    </column>
+</root>

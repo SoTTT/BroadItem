@@ -9,6 +9,7 @@ configure_file(basic/layout.xml ${CMAKE_CURRENT_BINARY_DIR}/frame_widget.xml COP
 configure_file(basic/layout.xml ${CMAKE_CURRENT_BINARY_DIR}/frame_image.xml COPYONLY)
 configure_file(multi_instance/status_card.xml ${CMAKE_CURRENT_BINARY_DIR}/status_card.xml COPYONLY)
 configure_file(multi_instance/process_list.xml ${CMAKE_CURRENT_BINARY_DIR}/process_list.xml COPYONLY)
+configure_file(status_panel/status_panel.xml ${CMAKE_CURRENT_BINARY_DIR}/status_panel.xml COPYONLY)
 
 add_executable(basic basic/main.cpp)
 target_link_libraries(basic PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)
@@ -37,3 +38,7 @@ target_link_libraries(reactive_follow PRIVATE BroadItem Qt5::Core Qt5::Widgets Q
 # Multi-instance isolation example (same layoutId x2 + another layout x1)
 add_executable(multi_instance multi_instance/main.cpp)
 target_link_libraries(multi_instance PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)
+
+# Status panel example (generic bindings + <image> element showcase)
+add_executable(status_panel status_panel/main.cpp)
+target_link_libraries(status_panel PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml)
