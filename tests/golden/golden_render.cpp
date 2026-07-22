@@ -3,7 +3,7 @@
  * @brief 黄金镜像采集/校验工具。
  *
  * 用法：
- *   golden_render --capture <dir>  按内置 manifest 渲染 9 张 PNG 到 <dir>。
+ *   golden_render --capture <dir>  按内置 manifest 渲染 10 张 PNG 到 <dir>。
  *   golden_render --verify <dir>   重新渲染并与 <dir> 中的黄金 PNG 逐像素比对。
  *
  * verify 语义：等价组（intentionalChange=false）必须像素完全一致，否则退出码 1；
@@ -19,6 +19,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <QStringList>
+#include <QTemporaryFile>
 #include <QDebug>
 
 #include <broaditem/core/Frame.h>
@@ -29,7 +30,7 @@ namespace {
 /// @brief 单条黄金镜像语料条目。
 struct GoldenCase {
     QString name;             ///< 条目名（同时作为 PNG 文件名）。
-    QString xmlPath;          ///< XML 布局文件路径（相对仓库根目录）。
+    QString xmlPath;          ///< XML 布局文件路径（相对仓库根目录）；以 "inline:" 前缀开头时表示内联 XML 内容。
     QVariantMap props;        ///< 需要注入的动态属性。
     bool intentionalChange;   ///< true 表示该条目为有意变更组，不参与 verify 失败判定。
     bool useScene;            ///< true 表示走 QGraphicsScene + BroadItem 路径，否则走 Frame 路径。
@@ -91,7 +92,7 @@ static QVariantMap makeControlProps(bool withExtra)
     return props;
 }
 
-/// @brief 返回硬编码的 9 条黄金镜像 manifest。
+/// @brief 返回硬编码的 10 条黄金镜像 manifest。
 static QVector<GoldenCase> manifest()
 {
     QVariantMap complexProps{
@@ -131,6 +132,7 @@ static QVector<GoldenCase> manifest()
         { QStringLiteral("control_hide"), QStringLiteral("tests/golden/layouts/control.xml"), makeControlProps(false), true, false },
         { QStringLiteral("cell_for"), QStringLiteral("tests/golden/layouts/cell_for.xml"), cellForProps, true, false },
         { QStringLiteral("broaditem_basic"), QStringLiteral("example/basic/layout.xml"), makeBasicProps(), false, true },
+        { QStringLiteral("image_icon"), QStringLiteral("inline:<root xmlns:b='urn:broaditem:binding'><row space='8' padding='12' background-color='#ffffff'><image src='tests/assets/red.png' width='16' height='16'/><text font-size='12' color='#333'>图标</text></row></root>"), {}, false, false },
     };
 }
 
@@ -167,9 +169,27 @@ static QImage renderWithScene(const GoldenCase& c)
 }
 
 /// @brief 按条目配置渲染一张图。
+///
+/// xmlPath 以 "inline:" 前缀开头时，先将其余内容落盘为临时 XML 文件再渲染；
+/// 临时文件生命周期覆盖整个渲染调用（fromFile 解析 + toImage 物化），
+/// 返回后即自动删除。
 static QImage renderCase(const GoldenCase& c)
 {
-    return c.useScene ? renderWithScene(c) : renderWithFrame(c);
+    const QString inlinePrefix = QStringLiteral("inline:");
+    if (!c.xmlPath.startsWith(inlinePrefix))
+        return c.useScene ? renderWithScene(c) : renderWithFrame(c);
+
+    QTemporaryFile inlineFile(QDir::tempPath() + QStringLiteral("/broaditem_golden_XXXXXX.xml"));
+    if (!inlineFile.open()) {
+        qCritical() << "[FAIL]" << c.name << "无法创建内联 XML 临时文件";
+        return {};
+    }
+    inlineFile.write(c.xmlPath.mid(inlinePrefix.size()).toUtf8());
+    inlineFile.flush();
+
+    GoldenCase resolved = c;
+    resolved.xmlPath = inlineFile.fileName();
+    return resolved.useScene ? renderWithScene(resolved) : renderWithFrame(resolved);
 }
 
 /// @brief 把透明背景的渲染结果合成到不透明白底上。
