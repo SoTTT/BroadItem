@@ -213,6 +213,7 @@ urn:broaditem:binding is accepted by the parser.
   <xs:group name="layoutChildren">
     <xs:choice>
       <xs:element ref="text"/>
+      <xs:element ref="image"/>
       <xs:element ref="column"/>
       <xs:element ref="row"/>
       <xs:element ref="grid"/>
@@ -232,6 +233,7 @@ urn:broaditem:binding is accepted by the parser.
           <xs:element ref="row"/>
           <xs:element ref="grid"/>
           <xs:element ref="text"/>
+          <xs:element ref="image"/>
         </xs:choice>
       </xs:sequence>
     </xs:complexType>
@@ -277,6 +279,44 @@ Wrap:    wrap (true/false), max-width (px — triggers word wrap)
       <xs:attribute name="color"           type="colorType"/>
       <xs:attribute name="width"           type="nonNegativeDouble"/>
       <xs:attribute name="height"          type="nonNegativeDouble"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ================================================================ -->
+  <!--  <image> — self-sized image element                              -->
+  <!--  src / b:src are MUTUALLY EXCLUSIVE (qCritical, binding ignored) -->
+  <!-- ================================================================ -->
+  <xs:element name="image">
+    <xs:annotation>
+      <xs:documentation>
+image — renders a local image loaded via QPixmap at materialization time.
+
+Static:  src=":/icons/red.png"  (Qt resource path, ":/" prefix)
+         src="/abs/file.png" or "rel/file.png" (relative to process CWD)
+         URLs are NOT supported (QPixmap load failure semantics apply).
+Binding: b:src="iconPath"  (reference semantics, mutually exclusive with src)
+
+Size:    width / height (pixels, optional, -1 = auto)
+         explicit size wins; single dimension derives the other from the
+         image aspect ratio; no explicit size uses the pixmap's natural size.
+
+keep-aspect: true (default) = contain, centered on both axes;
+             false = stretch to fill the content rect. Never crops.
+
+Failure semantics: failed load logs one qWarning (with path), renders a
+blank 0x0 content area; box model decorators still paint. Empty src and
+unresolved bindings stay silent. Successful and failed loads are cached
+at template level (never evicted, GUI single-thread assumption).
+
+Formats follow QPixmap: PNG/JPEG built-in; SVG via Qt imageformats plugin.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attributeGroup ref="renderableAttrs"/>
+      <xs:attribute name="src"         type="xs:string"/>
+      <xs:attribute name="keep-aspect" type="boolType" default="true"/>
+      <xs:attribute name="width"       type="nonNegativeDouble"/>
+      <xs:attribute name="height"      type="nonNegativeDouble"/>
     </xs:complexType>
   </xs:element>
 
