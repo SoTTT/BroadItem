@@ -14,6 +14,9 @@ public:
         , m_frame(BroadItem::Frame::fromFile("frame_widget.xml"))
     {
         setWindowTitle("Frame Widget Example");
+        // 本示例以显式约束 performLayout(width(), height()) 驱动布局；
+        // 合并任务会以默认约束 (-1,-1) 重布局并覆盖约束结果，故保持同步策略。
+        m_frame->setUpdatePolicy(BroadItem::UpdatePolicy::Synchronous);
         m_frame->setDynamicProperty("title", QStringLiteral("设备状态"));
         m_frame->setDynamicProperty("status", QStringLiteral("运行中"));
         m_frame->setDynamicProperty("ip", QStringLiteral("192.168.1.100"));

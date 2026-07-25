@@ -6,6 +6,7 @@
 #include <QRectF>
 #include <QVariant>
 #include <QString>
+#include <functional>
 #include <memory>
 
 #include <broaditem/element/Element.h>
@@ -13,7 +14,15 @@
 #include <broaditem/context/LayoutContext.h>
 #include <broaditem/context/PropertyContext.h>
 
+class QObject;
+
 namespace BroadItem {
+
+/// @brief 布局更新策略。
+enum class UpdatePolicy {
+    Synchronous,  ///< 绑定属性变更立即重布局。
+    Coalesced     ///< 同一事件循环回合内多次变更合并为一次重布局（默认）。
+};
 
 /// @brief 绘制无关的布局帧，持有模板元素树、实例节点树及其上下文。
 ///
@@ -55,8 +64,33 @@ public:
     void setPropertyContext(std::shared_ptr<PropertyContext> ctx);
 
     /// @brief 标记实例树失效：下次 performLayout 重新物化。
-    /// 供替换了上下文回调的持有方（如 BroadItem）在数据变更时显式标脏。
     void invalidate() { m_dirty = true; }
+
+    /// @brief 设置布局更新策略（默认 Coalesced）。
+    /// @param policy 新策略。
+    void setUpdatePolicy(UpdatePolicy policy) { m_updatePolicy = policy; }
+
+    /// @brief 返回当前布局更新策略。
+    /// @return 当前生效的更新策略。
+    UpdatePolicy updatePolicy() const { return m_updatePolicy; }
+
+    /// @brief 立即执行待定的合并更新；无待定时无操作（幂等）。
+    void flush();
+
+    /// @brief 是否有待定的合并更新。
+    /// @return 存在已排入事件循环但尚未执行的合并更新时返回 true。
+    bool hasPendingUpdate() const { return m_updateScheduled; }
+
+    /// @brief 替换重布局动作（默认为调用 performLayout()）。
+    ///
+    /// 供持有方（如 BroadItem）注入 prepareGeometryChange()/update() 等外围
+    /// 通知；自定义动作必须自行调用 performLayout()。
+    ///
+    /// @param action 新的重布局动作。
+    void setRelayoutAction(std::function<void()> action)
+    {
+        m_relayoutAction = std::move(action);
+    }
 
     /// @brief 执行完整的物化（必要时）/测量/布局周期，返回计算后的尺寸。
     /// @param availableWidth  可用宽度，-1 表示无限制。
@@ -95,9 +129,20 @@ private:
     std::shared_ptr<PropertyContext> m_propertyContext; ///< 数据绑定的属性上下文。
     mutable LayoutContext m_context;                    ///< 包装属性上下文的布局上下文（mutable 以支持 const paint 中设置 ctx）。
     QRectF m_boundingRect;                              ///< 缓存的包围矩形。
+    UpdatePolicy m_updatePolicy = UpdatePolicy::Coalesced;          ///< 布局更新策略。
+    bool m_updateScheduled = false;                                 ///< 合并更新已排入事件循环（去重守卫）。
+    std::function<void()> m_relayoutAction = [this] { performLayout(); }; ///< 重布局动作，可被持有方替换。
+    std::unique_ptr<QObject> m_timerContext;                        ///< singleShot 的 context，Frame 销毁时待定任务自动取消。
 
     /// @brief 设置属性上下文（如果未提供则创建默认的 MapPropertyContext）。
     void setupPropertyContext();
+
+    /// @brief 标脏并按更新策略调度重布局（同步立即执行 / 合并排入事件循环）。
+    void requestUpdate();
+
+public:
+    /// @brief 析构函数（unique_ptr 持有不完整类型，需外联定义）。
+    ~Frame();
 };
 
 } // namespace BroadItem

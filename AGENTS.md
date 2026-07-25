@@ -22,13 +22,14 @@ cmake -B build -S . && cmake --build build
 ## 测试
 
 ```bash
-ctest --test-dir build --output-on-failure   # 全部 15 个 ctest 条目
+ctest --test-dir build --output-on-failure   # 全部 16 个 ctest 条目
 ./build/tests/test_parser                    # 运行单个测试套件
 ```
 
 测试套件（均在 `tests/`，`QTEST_MAIN(Test*)` + 包含自身 `.moc`，链接 `Qt5::Test`）：
 
 - `test_parser`、`test_property_context`、`test_sized_element`、`test_layout_behavior`、`test_for_element`、`test_flatten_children`、`test_binding`、`test_expression`、`test_reactive_binding`、`test_connection_line`、`test_anchor_decorator`、`test_regression`、`test_bound_attributes`
+- `test_update_coalescing`：P0-4 变更合并（`UpdatePolicy`/`flush()`/守卫位）
 - `test_image_element`：`<image>` 部件测试，首个 qrc 测试基建（`tests/assets/icons.qrc` 经 `qt5_add_resources` 编入该目标）
 - `test_golden_render`：黄金镜像校验。`tests/golden/golden_render.cpp` 是采集/校验工具（`--capture <dir>` 按内置 manifest 渲染 PNG；`--verify <dir>` 逐像素比对，等价组不一致则退出码 1）。**该测试固定 `QT_QPA_PLATFORM=offscreen`**（`set_tests_properties`），cocoa 下字体光栅化不确定性会破坏逐像素比对，改金图基建时不得去掉此环境变量。
 
@@ -59,7 +60,7 @@ ctest --test-dir build --output-on-failure   # 全部 15 个 ctest 条目
 - **模板/实例分离**：模板层 `Element` 树在 `parse()` 后不可变，可安全共享（`LayoutRegistry` 按 layoutId 原样返回 `ElementPtr`，支持多实例共用同一布局）；每实例状态（布局矩形、物化子节点）存于实例层 `Node` 树。
 - **控制元素透明**：`<for>` 和 `<if>` 不产生 `Node`，不参与 measure/layout/render。`ColumnLayout`/`RowLayout`/`GridLayout` 在物化时调用 `materializeChildren()`，把控制元素结构性地展开为 0..N 个普通元素实例节点。
 - **盒模型**：margin → border → background → padding → content。容器尺寸 = content + 装饰层；拉伸时只有 content 区域扩展。
-- **数据上下文**：`LayoutContext` 基于 `QVariantMap`。`BroadItem::setDynamicProperty()` 仅当被绑定属性确实被使用时才触发重布局。
+- **数据上下文**：`LayoutContext` 基于 `QVariantMap`。`BroadItem::setDynamicProperty()` 仅当被绑定属性确实被使用时才触发重布局。变更合并：命中后标脏并按 `UpdatePolicy` 调度——默认 `Coalesced`（`QTimer::singleShot(0)` 合并同一事件循环回合内的多次变更为一次重布局），`Synchronous` 可选；`Frame`/`BroadItem` 均有 `flush()` 立即冲刷待定更新；headless 渲染（`toImage`）前须 `flush()` 或同步策略。
 - **通用属性绑定**：`b:` 前缀绑定语义适用于全部字面量属性（如 `b:color`、`b:background-color`），统一走"字面量 | 绑定"二分解析；解析结果快照在 `ResolvedStyle`（`include/broaditem/core/ResolvedStyle.h`）。
 
 ### 顶层结构

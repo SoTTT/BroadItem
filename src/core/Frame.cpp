@@ -2,9 +2,14 @@
 #include <broaditem/context/MapPropertyContext.h>
 #include <broaditem/parser/XmlLayoutParser.h>
 #include <broaditem/parser/LayoutRegistry.h>
+#include <QCoreApplication>
+#include <QTimer>
 #include <cmath>
 
 namespace BroadItem {
+
+/// @brief 析构函数（out-of-line，使 unique_ptr<QObject> 在不完整类型下合法）。
+Frame::~Frame() = default;
 
 /// @brief 从 XML 文件路径构造 Frame。
 /// @param xmlPath XML 布局文件路径。
@@ -37,19 +42,56 @@ std::unique_ptr<Frame> Frame::fromRegistry(int layoutId, std::shared_ptr<Propert
     return frame;
 }
 
-/// @brief 连接属性上下文变更回调：绑定的属性变化时标脏并触发重新布局。
+/// @brief 连接属性上下文变更回调：绑定的属性变化时标脏并按更新策略调度重布局。
 ///
 /// Frame 由工厂以 unique_ptr 堆分配返回，[this] 捕获在 Frame 生命周期内安全。
 void Frame::setupPropertyContext()
 {
     if (m_propertyContext) {
         m_propertyContext->setOnChanged([this](const QString& name, const QVariant&) {
-            if (m_rootTemplate && m_rootTemplate->bindsProperty(name)) {
-                m_dirty = true;
-                performLayout();
-            }
+            if (m_rootTemplate && m_rootTemplate->bindsProperty(name))
+                requestUpdate();
         });
     }
+}
+
+/// @brief 标脏并按更新策略调度重布局。
+///
+/// Synchronous（或无 QCoreApplication 的无事件循环环境）立即执行重布局动作；
+/// Coalesced 经 QTimer::singleShot(0) 排入事件循环，m_updateScheduled 守卫位
+/// 保证同一回合内多次变更只排入一次任务。singleShot 以 m_timerContext 为
+/// context，Frame 销毁时待定任务被 Qt 自动丢弃，不会悬挂回调。
+void Frame::requestUpdate()
+{
+    m_dirty = true;
+
+    if (m_updatePolicy == UpdatePolicy::Synchronous || !QCoreApplication::instance()) {
+        m_relayoutAction();
+        return;
+    }
+
+    if (m_updateScheduled)
+        return;
+    m_updateScheduled = true;
+
+    if (!m_timerContext)
+        m_timerContext = std::make_unique<QObject>();
+
+    QTimer::singleShot(0, m_timerContext.get(), [this] {
+        if (!m_updateScheduled)
+            return;  // 已被 flush() 抢先执行
+        m_updateScheduled = false;
+        m_relayoutAction();
+    });
+}
+
+/// @brief 立即执行待定的合并更新；无待定时无操作（幂等）。
+void Frame::flush()
+{
+    if (!m_updateScheduled)
+        return;
+    m_updateScheduled = false;
+    m_relayoutAction();
 }
 
 /// @brief 替换属性上下文并重新连接变更通知；实例树标脏以待下次重新物化。

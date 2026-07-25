@@ -144,6 +144,7 @@ static QImage renderWithFrame(const GoldenCase& c)
     auto frame = BroadItem::Frame::fromFile(c.xmlPath);
     for (auto it = c.props.constBegin(); it != c.props.constEnd(); ++it)
         frame->setDynamicProperty(it.key(), it.value());
+    frame->flush();  // 默认 Coalesced 策略下立即执行待定重布局
     return frame->toImage(1.0);
 }
 
@@ -156,6 +157,7 @@ static QImage renderWithScene(const GoldenCase& c)
     auto* item = new BroadItem::BroadItem(c.xmlPath);
     for (auto it = c.props.constBegin(); it != c.props.constEnd(); ++it)
         item->setDynamicProperty(it.key(), it.value());
+    item->flush();  // 默认 Coalesced 策略下立即执行待定重布局
     scene.addItem(item);
 
     const QRectF source = item->boundingRect();

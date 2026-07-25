@@ -13,7 +13,7 @@ BroadItem::BroadItem(const QString& xmlFilePath,
     : QGraphicsObject(parent)
     , m_frame(Frame::fromFile(xmlFilePath, std::move(ctx)))
 {
-    setupPropertyContext();
+    setupRelayoutAction();
     setFlags(flags() | QGraphicsItem::ItemSendsGeometryChanges
                      | QGraphicsItem::ItemSendsScenePositionChanges);
 }
@@ -28,7 +28,7 @@ BroadItem::BroadItem(int layoutId,
     : QGraphicsObject(parent)
     , m_frame(Frame::fromRegistry(layoutId, std::move(ctx)))
 {
-    setupPropertyContext();
+    setupRelayoutAction();
     setFlags(flags() | QGraphicsItem::ItemSendsGeometryChanges
                      | QGraphicsItem::ItemSendsScenePositionChanges);
 }
@@ -36,23 +36,18 @@ BroadItem::BroadItem(int layoutId,
 /// @brief 析构函数。
 BroadItem::~BroadItem() = default;
 
-/// @brief 连接属性上下文变更回调，在绑定的属性变化时触发 Frame 重新布局并通知 QGraphicsItem 重绘。
+/// @brief 向 Frame 注入重布局动作：布局执行前通知 QGraphicsScene 几何变更，布局后触发重绘。
 ///
-/// 覆盖 Frame 内部注册的回调，额外调用 prepareGeometryChange() 和 update()
-/// 以确保 QGraphicsScene 正确反映几何变更。
-void BroadItem::setupPropertyContext()
+/// 不再覆盖上下文的 onChanged 回调（由 Frame 统一持有并按更新策略调度），
+/// 仅替换 Frame 的重布局动作；动作捕获的 this 为 BroadItem 成员 m_frame 的
+/// 持有方，Frame 销毁时其待定合并任务随之取消，不会回调到已销毁的 BroadItem。
+void BroadItem::setupRelayoutAction()
 {
-    auto ctx = m_frame->propertyContext();
-    if (ctx) {
-        ctx->setOnChanged([this](const QString& name, const QVariant&) {
-            if (m_frame->bindsProperty(name)) {
-                m_frame->invalidate();
-                prepareGeometryChange();
-                m_frame->performLayout();
-                update();
-            }
-        });
-    }
+    m_frame->setRelayoutAction([this] {
+        prepareGeometryChange();
+        m_frame->performLayout();
+        update();
+    });
 }
 
 /// @brief 替换属性上下文并重新连接变更通知。
@@ -60,7 +55,7 @@ void BroadItem::setupPropertyContext()
 void BroadItem::setPropertyContext(std::shared_ptr<PropertyContext> ctx)
 {
     m_frame->setPropertyContext(std::move(ctx));
-    setupPropertyContext();
+    setupRelayoutAction();
 }
 
 /// @brief 设置动态属性值，如已绑定则通过 onChanged 回调触发重新布局。

@@ -129,11 +129,13 @@ private slots:
         QVERIFY2(frame->toImage().isNull(), "未注入 icon 时应为空白（0×0）");
 
         frame->setDynamicProperty(QStringLiteral("icon"), redPath);
+        frame->flush();  // 默认 Coalesced 策略下立即执行待定重布局
         const QImage redImg = frame->toImage();
         QVERIFY2(!redImg.isNull(), "注入红色路径后渲染为空");
         QCOMPARE(redImg.pixelColor(4, 4), QColor(255, 0, 0));
 
         frame->setDynamicProperty(QStringLiteral("icon"), bluePath);
+        frame->flush();
         const QImage blueImg = frame->toImage();
         QVERIFY2(!blueImg.isNull(), "切换到蓝色路径后渲染为空");
         QCOMPARE(blueImg.pixelColor(4, 4), QColor(0, 0, 255));

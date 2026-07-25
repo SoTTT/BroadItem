@@ -103,6 +103,9 @@ private slots:
         frameB->setDynamicProperty(QStringLiteral("items"),
                                    QStringList{QStringLiteral("乙"),
                                                QStringLiteral("丙")});
+        // 默认 Coalesced 策略下立即执行待定重布局
+        frameA->flush();
+        frameB->flush();
 
         // 参照物：同一 XML 落临时文件 + items={甲}，走 fromFile 独立渲染。
         QTemporaryFile tmp(QDir::tempPath() + QStringLiteral("/bi_reg_XXXXXX.xml"));
@@ -114,6 +117,7 @@ private slots:
         QVERIFY(frameRef != nullptr);
         frameRef->setDynamicProperty(QStringLiteral("items"),
                                      QStringList{QStringLiteral("甲")});
+        frameRef->flush();
 
         // 先建 B 再渲染 A：旧代码下 A 的 render 必遍历到 B 的克隆实例。
         const QImage imgA = frameA->toImage(1.0);

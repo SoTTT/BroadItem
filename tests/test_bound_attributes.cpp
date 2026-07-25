@@ -209,8 +209,9 @@ private slots:
                  "初始图像尺寸不足，采样点越界");
         QCOMPARE(before.pixelColor(5, 5).alpha(), 0);
 
-        // 注入 bg → 回调标脏并重新布局 → 背景启用并填绿
+        // 注入 bg → 标脏并冲刷合并更新 → 背景启用并填绿
         frame->setDynamicProperty(QStringLiteral("bg"), QStringLiteral("#00FF00"));
+        frame->flush();  // 默认 Coalesced 策略下立即执行待定重布局
         const QImage after = frame->toImage();
         QVERIFY2(!after.isNull(), "刷新后渲染为空");
         QVERIFY2(after.width() > 5 && after.height() > 5,

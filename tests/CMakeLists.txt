@@ -41,6 +41,9 @@ target_link_libraries(test_regression PRIVATE BroadItem Qt5::Core Qt5::Widgets Q
 add_executable(test_bound_attributes test_bound_attributes.cpp)
 target_link_libraries(test_bound_attributes PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml Qt5::Test)
 
+add_executable(test_update_coalescing test_update_coalescing.cpp)
+target_link_libraries(test_update_coalescing PRIVATE BroadItem Qt5::Core Qt5::Widgets Qt5::Xml Qt5::Test)
+
 # <image> 元素测试：首个 qrc 测试基建（assets/icons.qrc 编入本目标）
 qt5_add_resources(test_image_element_RCC assets/icons.qrc)
 add_executable(test_image_element test_image_element.cpp ${test_image_element_RCC})
@@ -63,6 +66,7 @@ add_test(NAME test_connection_line COMMAND test_connection_line WORKING_DIRECTOR
 add_test(NAME test_anchor_decorator COMMAND test_anchor_decorator WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME test_regression COMMAND test_regression WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME test_bound_attributes COMMAND test_bound_attributes WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+add_test(NAME test_update_coalescing COMMAND test_update_coalescing WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME test_image_element COMMAND test_image_element WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME test_golden_render COMMAND golden_render --verify ${CMAKE_SOURCE_DIR}/tests/golden/golden WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 

@@ -38,6 +38,13 @@ public:
     /// @brief 触发完整的布局更新（测量+布局+渲染）。
     void updateLayout();
 
+    /// @brief 立即执行待定的合并更新；无待定时无操作。
+    void flush() { m_frame->flush(); }
+
+    /// @brief 设置布局更新策略（转发 Frame，默认 Coalesced）。
+    /// @param policy 新策略。
+    void setUpdatePolicy(UpdatePolicy policy) { m_frame->setUpdatePolicy(policy); }
+
     /// @brief 通过上下文访问属性的方括号运算符语法糖。
     PropertyProxy operator[](const QString& key)
     {
@@ -48,8 +55,8 @@ public:
 private:
     std::unique_ptr<Frame> m_frame;     ///< 内部布局引擎，持有模板树、实例节点树、上下文和布局逻辑。
 
-    /// @brief 设置属性上下文变更回调，连接 Frame 布局与 QGraphicsItem 重绘。
-    void setupPropertyContext();
+    /// @brief 向 Frame 注入重布局动作，连接布局执行与 QGraphicsItem 的几何通知和重绘。
+    void setupRelayoutAction();
 };
 
 } // namespace BroadItem
