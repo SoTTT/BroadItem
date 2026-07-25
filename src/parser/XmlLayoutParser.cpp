@@ -8,7 +8,7 @@
 #include <broaditem/element/layout/GridLayout.h>
 #include <broaditem/element/layout/CellElement.h>
 #include <broaditem/element/control/ForElement.h>
-#include <broaditem/element/control/IfHasElement.h>
+#include <broaditem/element/control/IfElement.h>
 #include <QDomDocument>
 #include <QFile>
 #include <QDebug>
@@ -89,8 +89,8 @@ ElementPtr XmlLayoutParser::createElement(const QString& tagName)
         return std::make_shared<CellElement>();
     if (tagName == "for")
         return std::make_shared<ForElement>();
-    if (tagName == "if-has")
-        return std::make_shared<IfHasElement>();
+    if (tagName == "if")
+        return std::make_shared<IfElement>();
     if (tagName == "margin" || tagName == "border" || tagName == "padding" || tagName == "background") {
         qWarning() << "Deprecated decorator tag <" << tagName << ">. Use inline attributes instead (e.g. margin=\"4\" border-width=\"1\").";
         return nullptr;
@@ -107,16 +107,16 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
 {
     QString tag = xml.tagName();
 
-    bool wrapFor = xml.hasAttributeNS(BINDING_NS, "of") && tag != "for" && tag != "if-has";
-    bool wrapIfHas = xml.hasAttributeNS(BINDING_NS, "prop") && tag != "for" && tag != "if-has";
+    bool wrapFor = xml.hasAttributeNS(BINDING_NS, "of") && tag != "for" && tag != "if";
+    bool wrapIf = xml.hasAttributeNS(BINDING_NS, "prop") && tag != "for" && tag != "if";
 
     ElementPtr element = createElement(tag);
     if (!element)
         return nullptr;
 
     element->parse(xml);
-    // parseBindings 对控制元素同样调用；保留名 {of,prop,as,content} 在 parseBindings 内部豁免，
-    // 上方与下方的伪属性包装逻辑（wrapFor/wrapIfHas）不受影响
+    // parseBindings 对控制元素同样调用；保留名 {of,prop,as,content,not} 在 parseBindings 内部豁免，
+    // 上方与下方的伪属性包装逻辑（wrapFor/wrapIf）不受影响
     element->parseBindings(xml);
 
     if (!element->canHaveChildren() && !xml.firstChildElement().isNull()) {
@@ -130,7 +130,7 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
     auto grid = std::dynamic_pointer_cast<GridLayout>(element);
     auto cell = std::dynamic_pointer_cast<CellElement>(element);
     auto forEl = std::dynamic_pointer_cast<ForElement>(element);
-    auto ifEl = std::dynamic_pointer_cast<IfHasElement>(element);
+    auto ifEl = std::dynamic_pointer_cast<IfElement>(element);
 
     if (column || row || grid) {
         for (QDomElement child = xml.firstChildElement(); !child.isNull(); child = child.nextSiblingElement()) {
@@ -175,6 +175,10 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
         if (xml.hasAttributeNS(BINDING_NS, "as"))
             forEl->setAsVariable(xml.attributeNS(BINDING_NS, "as", QString()));
     } else if (ifEl) {
+        if (!ifEl->isConditionValid()) {
+            qCritical() << "<if> requires b:prop to specify the condition path";
+            return nullptr;
+        }
         QDomElement child = xml.firstChildElement();
         if (!child.isNull()) {
             auto childEl = parseNode(child);
@@ -194,8 +198,8 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
         return wrapper;
     }
 
-    if (wrapIfHas) {
-        auto wrapper = std::make_shared<IfHasElement>();
+    if (wrapIf) {
+        auto wrapper = std::make_shared<IfElement>();
         wrapper->setBindProperty(xml.attributeNS(BINDING_NS, "prop", QString()));
         wrapper->setNot(false);
         wrapper->setChild(element);

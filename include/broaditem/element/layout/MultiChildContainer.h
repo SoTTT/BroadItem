@@ -7,7 +7,7 @@ namespace BroadItem {
 /// @brief 多子容器基类，管理多个模板子元素。
 ///
 /// 物化时对每个模板子元素调 materializeChildren() 拼接进 node->children，
-/// 控制元素（for、if-has）在此结构性展开；三阶段遍历 node.children。
+/// 控制元素（for、if）在此结构性展开；三阶段遍历 node.children。
 class MultiChildContainer : public ContainerElement {
 public:
     /// @brief 物化：创建裸 Node 并拼接所有模板子元素的物化结果。

@@ -11,7 +11,7 @@ void MultiChildContainer::addChild(ElementPtr child)
 }
 
 /// @brief 物化：对每个模板子元素调 materializeChildren() 拼接进 node->children。
-///   ForElement 每个迭代值产生一组节点；IfHasElement 根据条件产生节点或跳过。
+///   ForElement 每个迭代值产生一组节点；IfElement 根据条件产生节点或跳过。
 /// @param ctx 布局上下文。
 /// @return 新创建的实例节点。
 std::unique_ptr<Node> MultiChildContainer::materialize(const LayoutContext& ctx) const

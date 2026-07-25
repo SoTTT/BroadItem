@@ -76,14 +76,14 @@
         </column>
 
         <!-- 警告信息（条件显示） -->
-        <if-has b:prop="warning">
+        <if b:prop="warning">
             <row space="8" cross-align="center" background-color="#f38ba8" background-radius="8"
                   margin-bottom="12"
                   padding-top="10" padding-bottom="10" padding-left="12" padding-right="12">
                 <text font-size="14" bold="true" color="#1e1e2e">⚠</text>
                 <text font-size="12" color="#1e1e2e" b:content="warning">警告信息</text>
             </row>
-        </if-has>
+        </if>
 
         <!-- 进程列表（循环） -->
         <column space="8">

@@ -4,7 +4,7 @@
 #include <broaditem/element/layout/RowLayout.h>
 #include <broaditem/element/layout/CellElement.h>
 #include <broaditem/element/control/ForElement.h>
-#include <broaditem/element/control/IfHasElement.h>
+#include <broaditem/element/control/IfElement.h>
 #include <broaditem/context/LayoutContext.h>
 #include <broaditem/context/MapPropertyContext.h>
 
@@ -36,21 +36,35 @@ std::shared_ptr<BroadItem::ForElement> makeFor(const QString& of, const QString&
     return forEl;
 }
 
-/// @brief 构造 IfHasElement：b:prop=prop，条件子元素为 child。
+/// @brief 构造 IfElement（存在性形态）：b:prop=prop，条件子元素为 child。
 /// @param prop 条件检查的属性名。
 /// @param child 条件成立时要物化的子元素。
-std::shared_ptr<BroadItem::IfHasElement> makeIfHas(const QString& prop,
+std::shared_ptr<BroadItem::IfElement> makeIf(const QString& prop,
+                                             BroadItem::ElementPtr child)
+{
+    auto ifEl = std::make_shared<BroadItem::IfElement>();
+    ifEl->setBindProperty(prop);
+    ifEl->setChild(std::move(child));
+    return ifEl;
+}
+
+/// @brief 构造 IfElement（值比较形态）：b:prop=prop，equals 字面量比较。
+/// @param prop 条件检查的属性名。
+/// @param equals 字面量比较值。
+/// @param child 条件成立时要物化的子元素。
+std::shared_ptr<BroadItem::IfElement> makeIfEquals(const QString& prop, const QString& equals,
                                                    BroadItem::ElementPtr child)
 {
-    auto ifEl = std::make_shared<BroadItem::IfHasElement>();
+    auto ifEl = std::make_shared<BroadItem::IfElement>();
     ifEl->setBindProperty(prop);
+    ifEl->setEquals(equals);
     ifEl->setChild(std::move(child));
     return ifEl;
 }
 
 } // anonymous namespace
 
-/// @brief 验证物化（materialize）展开语义：控制元素（for、if-has）在物化时
+/// @brief 验证物化（materialize）展开语义：控制元素（for、if）在物化时
 /// 结构性消失，node->children 即旧架构 flattenChildren() 的"展平结果"。
 class TestFlattenChildren : public QObject {
     Q_OBJECT
@@ -80,8 +94,8 @@ private slots:
             QVERIFY(child->element == leaf.get());
     }
 
-    /// @brief if-has 条件成立产生 1 个节点（旧 testFlattenIfHasElementPresent）。
-    void testIfHasPresentProducesOneNode()
+    /// @brief if 条件成立产生 1 个节点（旧 testFlattenIfHasElementPresent）。
+    void testIfPresentProducesOneNode()
     {
         BroadItem::MapPropertyContext mapCtx;
         mapCtx.setProperty("show", true);
@@ -89,7 +103,7 @@ private slots:
 
         auto leaf = std::make_shared<SimpleLeaf>();
         BroadItem::RowLayout container;
-        container.addChild(makeIfHas("show", leaf));
+        container.addChild(makeIf("show", leaf));
 
         auto node = container.materialize(ctx);
         QVERIFY(node != nullptr);
@@ -97,19 +111,35 @@ private slots:
         QVERIFY(node->children[0]->element == leaf.get());
     }
 
-    /// @brief if-has 条件不成立产生 0 个节点（旧 testFlattenIfHasElementAbsent）。
-    void testIfHasAbsentProducesZeroNodes()
+    /// @brief if 条件不成立产生 0 个节点（旧 testFlattenIfHasElementAbsent）。
+    void testIfAbsentProducesZeroNodes()
     {
         BroadItem::MapPropertyContext mapCtx;
         // 不设置 "show" 属性
         BroadItem::LayoutContext ctx{&mapCtx};
 
         BroadItem::RowLayout container;
-        container.addChild(makeIfHas("show", std::make_shared<SimpleLeaf>()));
+        container.addChild(makeIf("show", std::make_shared<SimpleLeaf>()));
 
         auto node = container.materialize(ctx);
         QVERIFY(node != nullptr);
         QCOMPARE(node->children.size(), 0);
+    }
+
+    /// @brief if 值比较（equals）：比较成立展开 1 个节点，不成立展开 0 个节点。
+    void testIfEqualsFlatten()
+    {
+        BroadItem::MapPropertyContext mapCtx;
+        mapCtx.setProperty("status", QStringLiteral("alarm"));
+        BroadItem::LayoutContext ctx{&mapCtx};
+
+        BroadItem::RowLayout container;
+        container.addChild(makeIfEquals("status", "alarm", std::make_shared<SimpleLeaf>()));  // 成立 → 1
+        container.addChild(makeIfEquals("status", "ok", std::make_shared<SimpleLeaf>()));     // 不成立 → 0
+
+        auto node = container.materialize(ctx);
+        QVERIFY(node != nullptr);
+        QCOMPARE(node->children.size(), 1);
     }
 
     /// @brief 空容器物化后无子节点（旧 testFlattenEmptyChildren）。
@@ -164,8 +194,8 @@ private slots:
         QVERIFY(node->children[2]->element == forLeaf.get());
     }
 
-    /// @brief for 与 if-has 混排：按条件分别展开为 1/2/0 个节点。
-    void testForAndIfHasMixed()
+    /// @brief for 与 if 混排：按条件分别展开为 1/2/0 个节点。
+    void testForAndIfMixed()
     {
         BroadItem::MapPropertyContext mapCtx;
         mapCtx.setProperty("show", true);
@@ -176,9 +206,9 @@ private slots:
         auto forLeaf = std::make_shared<SimpleLeaf>();
 
         BroadItem::RowLayout container;
-        container.addChild(makeIfHas("show", ifLeaf));             // 条件成立 → 1
-        container.addChild(makeFor("items", "v", forLeaf));        // 2 项 → 2
-        container.addChild(makeIfHas("missing", std::make_shared<SimpleLeaf>()));  // 不成立 → 0
+        container.addChild(makeIf("show", ifLeaf));                  // 条件成立 → 1
+        container.addChild(makeFor("items", "v", forLeaf));          // 2 项 → 2
+        container.addChild(makeIf("missing", std::make_shared<SimpleLeaf>()));  // 不成立 → 0
 
         auto node = container.materialize(ctx);
         QVERIFY(node != nullptr);
@@ -247,9 +277,9 @@ private slots:
         }
     }
 
-    /// @brief 嵌套包装（元素带 b:prop 被包装）：if-has 位于 for 模板内时，
+    /// @brief 嵌套包装（元素带 b:prop 被包装）：if 位于 for 模板内时，
     /// 条件按 per-item 上下文逐项求值，仅条件成立的迭代产生节点。
-    void testForWrappingIfHasPerItem()
+    void testForWrappingIfPerItem()
     {
         BroadItem::MapPropertyContext mapCtx;
         QVariantList items;
@@ -259,10 +289,10 @@ private slots:
         mapCtx.setProperty("items", items);
         BroadItem::LayoutContext ctx{&mapCtx};
 
-        // 等价于 XML 中 <for> 内 <text b:prop="show">：叶子被 IfHasElement 包装
+        // 等价于 XML 中 <for> 内 <text b:prop="show">：叶子被 IfElement 包装
         auto leaf = std::make_shared<SimpleLeaf>();
         BroadItem::RowLayout container;
-        container.addChild(makeFor("items", "item", makeIfHas("show", leaf)));
+        container.addChild(makeFor("items", "item", makeIf("show", leaf)));
 
         auto node = container.materialize(ctx);
         QVERIFY(node != nullptr);

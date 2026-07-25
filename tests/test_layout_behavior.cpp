@@ -55,7 +55,7 @@ private slots:
 
     // strict grid validation
     void testGridRejectsForChild();
-    void testGridRejectsIfHasChild();
+    void testGridRejectsIfChild();
     void testGridRejectsNonCellChild();
 };
 
@@ -465,14 +465,14 @@ void TestLayoutBehavior::testGridRejectsForChild()
     QVERIFY(root == nullptr);
 }
 
-void TestLayoutBehavior::testGridRejectsIfHasChild()
+void TestLayoutBehavior::testGridRejectsIfChild()
 {
     QString xml = R"(
         <root xmlns:b="urn:broaditem:binding">
             <grid columns="2" rows="2">
-                <if-has b:prop="show">
+                <if b:prop="show">
                     <cell><text>X</text></cell>
-                </if-has>
+                </if>
             </grid>
         </root>
     )";

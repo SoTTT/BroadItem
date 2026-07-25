@@ -5,9 +5,9 @@
         <for b:of="items" b:as="it">
             <text font-size="12" color="#333" b:content="it"/>
         </for>
-        <if-has b:prop="extra">
+        <if b:prop="extra">
             <text font-size="12" color="#c0392b" b:content="extra"/>
-        </if-has>
+        </if>
         <for b:of="users" b:as="u">
             <row space="6">
                 <text font-size="11" color="#555" b:content="u.name"/>

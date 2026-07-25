@@ -62,9 +62,9 @@ add_library(BroadItem STATIC
 
     # control — control-flow elements
     src/element/control/ForElement.cpp
-    src/element/control/IfHasElement.cpp
+    src/element/control/IfElement.cpp
     include/broaditem/element/control/ForElement.h
-    include/broaditem/element/control/IfHasElement.h
+    include/broaditem/element/control/IfElement.h
 
     # text — text rendering leaf element
     src/element/text/TextElement.cpp

@@ -7,7 +7,7 @@ namespace BroadItem {
 
 /// @brief 不直接参与渲染的控制元素的基类。
 ///
-/// 控制元素（如 ForElement、IfHasElement）在物化（materializeChildren）时
+/// 控制元素（如 ForElement、IfElement）在物化（materializeChildren）时
 /// 结构性展开为 0..N 个普通元素节点，自身不产生 Node，因此三阶段流水线
 /// 永远不会碰到它们——透明性由类型结构保证而非约定。
 /// 根据设计文档，控制元素没有装饰器。

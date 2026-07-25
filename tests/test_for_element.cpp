@@ -1,6 +1,6 @@
 #include <QtTest/QtTest>
 #include <broaditem/element/control/ForElement.h>
-#include <broaditem/element/control/IfHasElement.h>
+#include <broaditem/element/control/IfElement.h>
 #include <broaditem/element/text/TextElement.h>
 #include <broaditem/element/layout/RowLayout.h>
 #include <broaditem/element/layout/ColumnLayout.h>
@@ -470,8 +470,8 @@ private slots:
         }
     }
 
-    /// @brief testIfHasResolvesBindingsInClonedChild: positive + negative cases for IfHasElement with TextElement
-    void testIfHasResolvesBindingsInClonedChild()
+    /// @brief testIfResolvesBindingsInClonedChild: positive + negative cases for IfElement with TextElement
+    void testIfResolvesBindingsInClonedChild()
     {
         // Positive: warning property exists → TextNode resolves "System alert"
         {
@@ -479,7 +479,7 @@ private slots:
             mapCtx.setProperty("warning", QString("System alert"));
             BroadItem::LayoutContext ctx{&mapCtx};
 
-            auto ifEl = std::make_shared<BroadItem::IfHasElement>();
+            auto ifEl = std::make_shared<BroadItem::IfElement>();
             ifEl->setBindProperty("warning");
             ifEl->setChild(makeBoundText("warning", "11"));
 
@@ -495,7 +495,7 @@ private slots:
             BroadItem::MapPropertyContext mapCtx;
             BroadItem::LayoutContext ctx{&mapCtx};
 
-            auto ifEl = std::make_shared<BroadItem::IfHasElement>();
+            auto ifEl = std::make_shared<BroadItem::IfElement>();
             ifEl->setBindProperty("warning");
             ifEl->setChild(makeBoundText("warning", "11"));
 

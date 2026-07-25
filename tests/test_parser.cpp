@@ -6,11 +6,11 @@
 #include <broaditem/core/LayoutEngine.h>
 #include <broaditem/parser/LayoutRegistry.h>
 #include <broaditem/element/Element.h>
-#include <broaditem/element/control/IfHasElement.h>
+#include <broaditem/element/control/IfElement.h>
 #include <broaditem/element/control/ForElement.h>
 #include <QDebug>
 
-/// @brief 供 IfHasElement 空值测试使用的最小可渲染元素（模板/实例分离版）。
+/// @brief 供 IfElement 空值测试使用的最小可渲染元素（模板/实例分离版）。
 class NullTestElement : public BroadItem::Element {
 public:
     std::unique_ptr<BroadItem::Node> materialize(const BroadItem::LayoutContext&) const override
@@ -30,8 +30,8 @@ public:
     bool bindsProperty(const QString&) const override { return false; }
 };
 
-// Helper: QObject with declared Q_PROPERTY for testing <if-has> null value behavior
-class IfHasNullHelper : public QObject {
+// Helper: QObject with declared Q_PROPERTY for testing <if> null value behavior
+class IfNullHelper : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString warning READ warning WRITE setWarning NOTIFY warningChanged)
 public:
@@ -66,15 +66,22 @@ private slots:
     void testMeasureText();
     void testColumnMeasure();
     void testBindProperty();
-    void testIfHas();
-    void testIfHasNullWithQPropertyContext();
+    void testIf();
+    void testIfNullWithQPropertyContext();
+    void testIfRequiresProp();
+    void testIfHasTagRemoved();
+    void testIfEqualsLiteral();
+    void testIfEqualsConversions();
+    void testIfBoundEquals();
+    void testIfEqualsLiteralAndBoundMutuallyExclusive();
+    void testIfNotBindingRejected();
     void testRegistryLoad();
     void testUnknownAttributeWarning();
     void testInvalidChildError();
     void testInvalidAttributeTypeError();
     void testAutoWrapFor();
-    void testAutoWrapIfHas();
-    void testAutoWrapBothForAndIfHas();
+    void testAutoWrapIf();
+    void testAutoWrapBothForAndIf();
     void testNamespaceDeclarationSkipped();
     void testBindingAttributeSkipped();
     void testOldSyntaxRejected();
@@ -179,14 +186,14 @@ void TestParser::testBindProperty()
     QVERIFY(!root->bindsProperty("other"));
 }
 
-/// @brief 验证 <if-has> 条件控制元素：属性不存在时不物化（无实例节点），存在时正常物化测量
-void TestParser::testIfHas()
+/// @brief 验证 <if> 条件控制元素（裸 b:prop 存在性语义）：属性不存在时不物化，存在时正常物化测量
+void TestParser::testIf()
 {
     QString xml = R"(
         <root xmlns:b="urn:broaditem:binding">
-            <if-has b:prop="show">
+            <if b:prop="show">
                 <text>Visible</text>
-            </if-has>
+            </if>
         </root>
     )";
     auto root = BroadItem::XmlLayoutParser::parseString(xml);
@@ -204,19 +211,19 @@ void TestParser::testIfHas()
     mapCtx.setProperty("show", "yes");
     node = BroadItem::LayoutEngine::materialize(root, ctx);
     QVERIFY(node != nullptr);
-    /// 根为控制元素（if-has），三阶段须经 node->element（物化后的可渲染模板）驱动，
+    /// 根为控制元素（if），三阶段须经 node->element（物化后的可渲染模板）驱动，
     /// 直接对控制元素模板调 measure 会命中 Element 基类的 qFatal
     auto result = node->element->measure(ctx, BroadItem::LayoutConstraints{}, *node);
     QVERIFY(result.intrinsicSize.width() > 0);
 }
 
-/// @brief 验证 QPropertyContext 中 null 值的 <if-has> 行为：默认 null 不展开，设非 null 后展开
-void TestParser::testIfHasNullWithQPropertyContext()
+/// @brief 验证 QPropertyContext 中 null 值的 <if> 行为：默认 null 不展开，设非 null 后展开
+void TestParser::testIfNullWithQPropertyContext()
 {
-    IfHasNullHelper item;
+    IfNullHelper item;
     BroadItem::QPropertyContext propCtx(&item);
 
-    auto ifEl = std::make_shared<BroadItem::IfHasElement>();
+    auto ifEl = std::make_shared<BroadItem::IfElement>();
     ifEl->setBindProperty("warning");
     ifEl->setChild(std::make_shared<NullTestElement>());
 
@@ -231,6 +238,239 @@ void TestParser::testIfHasNullWithQPropertyContext()
     item.setWarning("alert");
     result = ifEl->materializeChildren(ctx);
     QCOMPARE(result.size(), size_t(1));
+}
+
+/// @brief 验证 <if> 缺少 b:prop 时解析失败（条件必须有所作用的路径）
+void TestParser::testIfRequiresProp()
+{
+    QString xml = R"(
+        <root xmlns:b="urn:broaditem:binding">
+            <if>
+                <text>Visible</text>
+            </if>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root == nullptr);
+}
+
+/// @brief 验证 <if-has> 标签已移除：按未知标签处理，作为 root 唯一子元素时解析失败
+void TestParser::testIfHasTagRemoved()
+{
+    QString xml = R"(
+        <root xmlns:b="urn:broaditem:binding">
+            <if-has b:prop="show">
+                <text>Visible</text>
+            </if-has>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root == nullptr);
+}
+
+/// @brief 验证 equals 字面量比较：匹配/不匹配/缺失/null/not 取反/空串语义
+void TestParser::testIfEqualsLiteral()
+{
+    auto makeIf = [](const QString& equals, bool withNot = false) {
+        auto ifEl = std::make_shared<BroadItem::IfElement>();
+        ifEl->setBindProperty("status");
+        ifEl->setEquals(equals);
+        ifEl->setNot(withNot);
+        ifEl->setChild(std::make_shared<NullTestElement>());
+        return ifEl;
+    };
+
+    BroadItem::MapPropertyContext mapCtx;
+    BroadItem::LayoutContext ctx;
+    ctx.ctx = &mapCtx;
+
+    // 匹配 → 1 个节点；不匹配 → 0 个节点
+    mapCtx.setProperty("status", "alarm");
+    QCOMPARE(makeIf("alarm")->materializeChildren(ctx).size(), size_t(1));
+    QCOMPARE(makeIf("ok")->materializeChildren(ctx).size(), size_t(0));
+
+    // not：值不等 → 显示；值相等 → 隐藏
+    QCOMPARE(makeIf("ok", true)->materializeChildren(ctx).size(), size_t(1));
+    QCOMPARE(makeIf("alarm", true)->materializeChildren(ctx).size(), size_t(0));
+
+    // 属性缺失 → 不显示；not → 显示（整体取反）
+    BroadItem::MapPropertyContext emptyCtx;
+    BroadItem::LayoutContext ctx2;
+    ctx2.ctx = &emptyCtx;
+    QCOMPARE(makeIf("alarm")->materializeChildren(ctx2).size(), size_t(0));
+    QCOMPARE(makeIf("alarm", true)->materializeChildren(ctx2).size(), size_t(1));
+
+    // null 值 → 不显示
+    mapCtx.setProperty("status", QVariant(QString()));
+    QCOMPARE(makeIf("alarm")->materializeChildren(ctx).size(), size_t(0));
+
+    // equals="" 匹配非 null 空串，不匹配 null
+    mapCtx.setProperty("status", QString(""));
+    QCOMPARE(makeIf("")->materializeChildren(ctx).size(), size_t(1));
+    mapCtx.setProperty("status", QVariant(QString()));
+    QCOMPARE(makeIf("")->materializeChildren(ctx).size(), size_t(0));
+}
+
+/// @brief 钉死 equals 字符串化比较的 QVariant 隐式转换行为（Qt5 toString 语义）
+void TestParser::testIfEqualsConversions()
+{
+    auto ifEl = std::make_shared<BroadItem::IfElement>();
+    ifEl->setBindProperty("v");
+    ifEl->setChild(std::make_shared<NullTestElement>());
+
+    BroadItem::MapPropertyContext mapCtx;
+    BroadItem::LayoutContext ctx;
+    ctx.ctx = &mapCtx;
+
+    auto matches = [&](const QVariant& value, const QString& equals) {
+        mapCtx.setProperty("v", value);
+        ifEl->setEquals(equals);
+        return ifEl->materializeChildren(ctx).size() == size_t(1);
+    };
+
+    // int → "3"、"-2"、"0"
+    QVERIFY(matches(3, "3"));
+    QVERIFY(!matches(3, "03"));
+    QVERIFY(matches(-2, "-2"));
+    QVERIFY(matches(0, "0"));
+
+    // double：Qt5 toString 尾随零丢失（3.0 → "3"）
+    QVERIFY(matches(3.0, "3"));
+    QVERIFY(!matches(3.0, "3.0"));
+    QVERIFY(matches(3.5, "3.5"));
+    QVERIFY(matches(-0.5, "-0.5"));
+
+    // bool → "true"/"false"
+    QVERIFY(matches(true, "true"));
+    QVERIFY(!matches(true, "1"));
+    QVERIFY(matches(false, "false"));
+
+    // QString：区分大小写、区分首尾空白
+    QVERIFY(matches(QString("alarm"), "alarm"));
+    QVERIFY(!matches(QString("alarm"), "Alarm"));
+    QVERIFY(!matches(QString("alarm"), "alarm "));
+}
+
+/// @brief 验证 b:equals 绑定比较值：匹配/不匹配/不可解析/数字目标/绑定发现
+void TestParser::testIfBoundEquals()
+{
+    QString xml = R"(
+        <root xmlns:b="urn:broaditem:binding">
+            <if b:prop="status" b:equals="level">
+                <text>ALARM</text>
+            </if>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root != nullptr);
+    auto ifEl = std::dynamic_pointer_cast<BroadItem::IfElement>(root);
+    QVERIFY(ifEl != nullptr);
+
+    // b:prop 路径与 b:equals 目标均参与绑定发现（变更触发重布局）
+    QVERIFY(ifEl->bindsProperty("status"));
+    QVERIFY(ifEl->bindsProperty("level"));
+    QVERIFY(!ifEl->bindsProperty("other"));
+
+    BroadItem::MapPropertyContext mapCtx;
+    BroadItem::LayoutContext ctx;
+    ctx.ctx = &mapCtx;
+    mapCtx.setProperty("status", "alarm");
+
+    // 绑定目标匹配 → 显示；不匹配 → 隐藏（运行时可改比较目标）
+    mapCtx.setProperty("level", "alarm");
+    QCOMPARE(ifEl->materializeChildren(ctx).size(), size_t(1));
+    mapCtx.setProperty("level", "ok");
+    QCOMPARE(ifEl->materializeChildren(ctx).size(), size_t(0));
+
+    // 绑定路径不可解析 → 条件不成立
+    BroadItem::MapPropertyContext noLevel;
+    noLevel.setProperty("status", "alarm");
+    BroadItem::LayoutContext ctx2;
+    ctx2.ctx = &noLevel;
+    QCOMPARE(ifEl->materializeChildren(ctx2).size(), size_t(0));
+
+    // 绑定路径不可解析 + not → 整体取反，显示
+    {
+        QString notXml = R"(
+            <root xmlns:b="urn:broaditem:binding">
+                <if b:prop="status" b:equals="level" not="true">
+                    <text>ALARM</text>
+                </if>
+            </root>
+        )";
+        auto notRoot = BroadItem::XmlLayoutParser::parseString(notXml);
+        QVERIFY(notRoot != nullptr);
+        auto notIfEl = std::dynamic_pointer_cast<BroadItem::IfElement>(notRoot);
+        QVERIFY(notIfEl != nullptr);
+        QCOMPARE(notIfEl->materializeChildren(ctx2).size(), size_t(1));
+    }
+
+    // 绑定目标为数字时同样走字符串化比较（两侧均 toString）
+    mapCtx.setProperty("level", 3);
+    mapCtx.setProperty("status", "3");
+    QCOMPARE(ifEl->materializeChildren(ctx).size(), size_t(1));
+}
+
+/// @brief 验证 equals 字面量与 b:equals 同现时互斥：qCritical，绑定被忽略，按字面量求值
+void TestParser::testIfEqualsLiteralAndBoundMutuallyExclusive()
+{
+    QString xml = R"(
+        <root xmlns:b="urn:broaditem:binding">
+            <if b:prop="status" equals="alarm" b:equals="level">
+                <text>ALARM</text>
+            </if>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    QVERIFY(root != nullptr);
+    auto ifEl = std::dynamic_pointer_cast<BroadItem::IfElement>(root);
+    QVERIFY(ifEl != nullptr);
+
+    // 互斥：b:equals 绑定未注册
+    QVERIFY(!ifEl->bindsProperty("level"));
+
+    // 按字面量 equals="alarm" 求值，与 level 无关
+    BroadItem::MapPropertyContext mapCtx;
+    BroadItem::LayoutContext ctx;
+    ctx.ctx = &mapCtx;
+    mapCtx.setProperty("status", "alarm");
+    mapCtx.setProperty("level", "different");
+    QCOMPARE(ifEl->materializeChildren(ctx).size(), size_t(1));
+}
+
+/// @brief 验证 b:not 被拒绝：qWarning 且按无 not 求值（not 是结构性修饰符，不参与绑定）
+void TestParser::testIfNotBindingRejected()
+{
+    s_warnings.clear();
+    QtMessageHandler original = qInstallMessageHandler(captureWarning);
+
+    QString xml = R"(
+        <root xmlns:b="urn:broaditem:binding">
+            <if b:prop="show" b:not="flag">
+                <text>Visible</text>
+            </if>
+        </root>
+    )";
+    auto root = BroadItem::XmlLayoutParser::parseString(xml);
+    qInstallMessageHandler(original);
+    QVERIFY(root != nullptr);
+
+    bool warned = false;
+    for (const QString& w : s_warnings) {
+        if (w.contains("b:not"))
+            warned = true;
+    }
+    QVERIFY2(warned, "b:not should be rejected with a warning");
+
+    // b:not 被忽略：按无 not 求值（属性缺失 → 不显示；存在 → 显示）
+    auto ifEl = std::dynamic_pointer_cast<BroadItem::IfElement>(root);
+    QVERIFY(ifEl != nullptr);
+    BroadItem::MapPropertyContext mapCtx;
+    BroadItem::LayoutContext ctx;
+    ctx.ctx = &mapCtx;
+    QCOMPARE(ifEl->materializeChildren(ctx).size(), size_t(0));
+    mapCtx.setProperty("show", "yes");
+    QCOMPARE(ifEl->materializeChildren(ctx).size(), size_t(1));
 }
 
 /// @brief 验证从目录加载布局注册表，至少加载到 test_layout.xml
@@ -308,8 +548,8 @@ void TestParser::testAutoWrapFor()
     QCOMPARE(expanded.size(), size_t(2));
 }
 
-/// @brief 验证 @c b:prop 的自动包装：非控制元素带 @c b:prop 属性时自动创建 IfHasElement 包装器
-void TestParser::testAutoWrapIfHas()
+/// @brief 验证 @c b:prop 的自动包装：非控制元素带 @c b:prop 属性时自动创建 IfElement 包装器
+void TestParser::testAutoWrapIf()
 {
     QString xml = R"(
         <root xmlns:b="urn:broaditem:binding">
@@ -319,7 +559,7 @@ void TestParser::testAutoWrapIfHas()
     auto root = BroadItem::XmlLayoutParser::parseString(xml);
     QVERIFY(root != nullptr);
 
-    auto ifEl = std::dynamic_pointer_cast<BroadItem::IfHasElement>(root);
+    auto ifEl = std::dynamic_pointer_cast<BroadItem::IfElement>(root);
     QVERIFY(ifEl != nullptr);
     QVERIFY(ifEl->bindsProperty("show"));
 
@@ -337,8 +577,8 @@ void TestParser::testAutoWrapIfHas()
     QCOMPARE(result.size(), size_t(1));
 }
 
-/// @brief 验证 @c b:of 和 @c b:prop 同时存在时，wrapFor 优先于 wrapIfHas
-void TestParser::testAutoWrapBothForAndIfHas()
+/// @brief 验证 @c b:of 和 @c b:prop 同时存在时，wrapFor 优先于 wrapIf
+void TestParser::testAutoWrapBothForAndIf()
 {
     QString xml = R"(
         <root xmlns:b="urn:broaditem:binding">
@@ -348,7 +588,7 @@ void TestParser::testAutoWrapBothForAndIfHas()
     auto root = BroadItem::XmlLayoutParser::parseString(xml);
     QVERIFY(root != nullptr);
 
-    // wrapFor 优先于 wrapIfHas → 应得到 ForElement
+    // wrapFor 优先于 wrapIf → 应得到 ForElement
     auto forEl = std::dynamic_pointer_cast<BroadItem::ForElement>(root);
     QVERIFY(forEl != nullptr);
 }
@@ -452,11 +692,11 @@ void TestParser::testWrongNamespaceUri()
     auto root = BroadItem::XmlLayoutParser::parseString(xml);
     QVERIFY(root != nullptr);
 
-    /// 根元素不应被 auto-wrap 为 ForElement 或 IfHasElement
+    /// 根元素不应被 auto-wrap 为 ForElement 或 IfElement
     QVERIFY2(std::dynamic_pointer_cast<BroadItem::ForElement>(root) == nullptr,
              "Should not auto-wrap to ForElement with wrong namespace URI");
-    QVERIFY2(std::dynamic_pointer_cast<BroadItem::IfHasElement>(root) == nullptr,
-             "Should not auto-wrap to IfHasElement with wrong namespace URI");
+    QVERIFY2(std::dynamic_pointer_cast<BroadItem::IfElement>(root) == nullptr,
+             "Should not auto-wrap to IfElement with wrong namespace URI");
 
     /// hasAttributeNS(BINDING_NS, ...) 不匹配，因此不应绑定任何属性
     QVERIFY2(!root->bindsProperty("title"),

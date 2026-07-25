@@ -193,16 +193,18 @@ const QSet<QString>& Element::resolvedAttributes() const
 
 /// @brief 解析 XML 元素上的通用绑定属性（b:attr 形式）存入 m_bindings。
 ///
-/// 保留名 {"of","prop","as","content"} 与控制元素/文本语义耦合，不纳入通用
+/// 保留名 {"of","prop","as","content","not"} 与控制元素/文本语义耦合，不纳入通用
 /// 绑定——参见设计.md 记载的伪属性双重包装陷阱：XmlLayoutParser.cpp:107-108
-/// 会把携带 b:of/b:prop 的普通元素再包一层 for/if-has，若这些名字也进通用表，
-/// 同一属性将被两套机制重复解析。
+/// 会把携带 b:of/b:prop 的普通元素再包一层 for/if，若这些名字也进通用表，
+/// 同一属性将被两套机制重复解析。"not" 是 <if> 的结构性修饰符（取反），
+/// 如同代码中只修改变量而不修改条件表达式的取反，永不参与绑定。
 ///
 /// @param xml The DOM element whose binding attributes to parse.
 void Element::parseBindings(const QDomElement& xml)
 {
     static const QSet<QString> reserved{QStringLiteral("of"), QStringLiteral("prop"),
-                                        QStringLiteral("as"), QStringLiteral("content")};
+                                        QStringLiteral("as"), QStringLiteral("content"),
+                                        QStringLiteral("not")};
     const QSet<QString>& known = supportedAttributes();
     QDomNamedNodeMap attrs = xml.attributes();
     for (int i = 0; i < attrs.size(); ++i) {

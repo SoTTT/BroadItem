@@ -36,7 +36,7 @@
     for binding in later batches.
 
     The parser auto-wraps any non-control element with b:of/b:as into <for>,
-    and any with b:prop into <if-has>.
+    and any with b:prop into <if>.
 -->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
            xmlns:b="urn:broaditem:binding"
@@ -167,7 +167,7 @@ Reserved (control / text-content channels):
   b:content = property path for TextElement content binding
   b:of      = property path for ForElement data source
   b:as      = per-item variable name for ForElement
-  b:prop    = property path for IfHasElement condition check
+  b:prop    = property path for IfElement condition check
 
 Generic property bindings (reference semantics):
   Any literal attribute may be written as b:&lt;attr&gt;; the value is a
@@ -208,7 +208,7 @@ urn:broaditem:binding is accepted by the parser.
   </xs:attributeGroup>
 
   <!-- ================================================================ -->
-  <!--  Group: any layout child (column/row/for/if-has/cell child)      -->
+  <!--  Group: any layout child (column/row/for/if/cell child)          -->
   <!-- ================================================================ -->
   <xs:group name="layoutChildren">
     <xs:choice>
@@ -218,7 +218,7 @@ urn:broaditem:binding is accepted by the parser.
       <xs:element ref="row"/>
       <xs:element ref="grid"/>
       <xs:element ref="for"/>
-      <xs:element ref="if-has"/>
+      <xs:element ref="if"/>
     </xs:choice>
   </xs:group>
 
@@ -449,21 +449,36 @@ Example:
   </xs:element>
 
   <!-- ================================================================ -->
-  <!--  <if-has> — conditional render control element                   -->
+  <!--  <if> — conditional render control element                       -->
   <!-- ================================================================ -->
-  <xs:element name="if-has">
+  <xs:element name="if">
     <xs:annotation>
       <xs:documentation>
-if-has — conditionally renders its child.
+if — conditionally renders its child.
 Control elements do NOT have box model decorators.
 
-b:prop  property to check — renders child if exists AND not null
-not    if present (any value), inverts: show when absent/null
+b:prop   condition path (required) — bare form = existence:
+         renders child if the property exists AND is not null
+equals   literal comparison value — renders child if the property
+         exists, is not null, AND its stringified value equals this
+         literal (case-sensitive; int 3 → "3", double 3.0 → "3",
+         bool true → "true")
+b:equals bound comparison value — same as equals, but the target is
+         read from PropertyContext and may change at runtime.
+         equals and b:equals are MUTUALLY EXCLUSIVE
+         (qCritical, binding ignored). An unresolvable b:equals
+         target makes the condition fail.
+not      if present (any value), inverts the whole condition.
+         not is a structural modifier and cannot be bound (b:not
+         is rejected with a warning).
 
 Example:
-  &lt;if-has b:prop="warning"&gt;
+  &lt;if b:prop="warning"&gt;
       &lt;text b:content="warning" /&gt;
-  &lt;/if-has&gt;
+  &lt;/if&gt;
+  &lt;if b:prop="status" equals="alarm"&gt;
+      &lt;text color="#c0392b"&gt;ALARM&lt;/text&gt;
+  &lt;/if&gt;
       </xs:documentation>
     </xs:annotation>
     <xs:complexType>
@@ -471,6 +486,7 @@ Example:
         <xs:group ref="layoutChildren" minOccurs="0" maxOccurs="1"/>
       </xs:sequence>
       <xs:attribute name="not" type="boolType"/>
+      <xs:attribute name="equals" type="xs:string"/>
       <xs:attributeGroup ref="bindingAttrs"/>
     </xs:complexType>
   </xs:element>

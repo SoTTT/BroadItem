@@ -12,7 +12,7 @@ namespace BroadItem {
  * 路径遍历通过基类的共享引擎 walkNested 实现。
  *
  * 空值语义：setProperty(name, QVariant()) 从 map 中删除该键，
- * hasProperty() 返回 false。这使 `<if-has>` 的条件隐藏可以自然工作。
+ * hasProperty() 返回 false。这使 `<if>` 的条件隐藏可以自然工作。
  *
  * 若构造 BroadItem 时未传入 PropertyContext，则自动创建本类实例。
  */

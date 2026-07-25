@@ -50,7 +50,7 @@ public:
     virtual std::unique_ptr<Node> materialize(const LayoutContext& ctx) const = 0;
 
     /// @brief 物化子节点序列：默认实现将 materialize() 包装为单元素向量。
-    /// 控制元素（for、if-has）覆盖此方法，展开为 0..N 个节点。
+    /// 控制元素（for、if）覆盖此方法，展开为 0..N 个节点。
     /// @param ctx 布局上下文。
     /// @return 物化后的节点向量。
     virtual std::vector<std::unique_ptr<Node>> materializeChildren(const LayoutContext& ctx) const;

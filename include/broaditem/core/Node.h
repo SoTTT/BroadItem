@@ -12,7 +12,7 @@ class Element;
 /// @brief 实例层节点：三阶段流水线（测量、布局、渲染）作用的哑数据袋。
 ///
 /// 模板层 Element 在 parse 后不可变；每实例状态（布局矩形、物化后的子节点）
-/// 全部存放在 Node 树中。控制元素（for、if-has）在物化时结构性消失，
+/// 全部存放在 Node 树中。控制元素（for、if）在物化时结构性消失，
 /// 因此实例树中的 element 指针只指向可渲染元素。
 struct Node {
     const Element* element = nullptr;  ///< 产生此节点的模板（非拥有；模板树由 Frame/Registry 持有，生命周期覆盖 Node）。
