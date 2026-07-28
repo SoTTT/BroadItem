@@ -26,13 +26,8 @@ void ColumnLayout::parse(const QDomElement& xml)
     if (hasLiteralAttribute(xml, "space"))
         validateDouble(literalAttribute(xml, "space"), "space", m_space);
     if (hasLiteralAttribute(xml, "main-stretch")) {
-        const QString value = literalAttribute(xml, "main-stretch").toLower();
-        if (value == "true" || value == "false") {
-            m_mainStretch = (value == "true");
-        } else {
-            qWarning() << "ColumnLayout: 'main-stretch' must be 'true' or 'false', got" << literalAttribute(xml, "main-stretch") << "- defaulting to false";
+        if (!validateBool(literalAttribute(xml, "main-stretch"), "main-stretch", m_mainStretch))
             m_mainStretch = false;
-        }
     }
 }
 

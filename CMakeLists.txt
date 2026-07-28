@@ -29,6 +29,12 @@ add_library(BroadItem STATIC
     include/broaditem/context/QPropertyContext.h
     include/broaditem/context/LayoutContext.h
 
+    # diagnostics — structured diagnostics (error codes, collector, scopes)
+    src/diagnostics/Diagnostics.cpp
+    include/broaditem/diagnostics/Diagnostic.h
+    include/broaditem/diagnostics/ErrorCollector.h
+    include/broaditem/diagnostics/Diagnostics.h
+
     # expression — path-string parser and binding
     src/expression/Expression.cpp
     src/expression/Binding.cpp

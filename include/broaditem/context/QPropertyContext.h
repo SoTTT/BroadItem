@@ -68,8 +68,9 @@ public:
             QByteArray nameBa = name.toUtf8();
             if (obj->metaObject()->indexOfProperty(nameBa.constData()) >= 0) {
                 if (!obj->setProperty(nameBa.constData(), value)) {
-                    qWarning() << "QPropertyContext::setProperty: type mismatch for" << name
-                               << "(type:" << value.typeName() << ")";
+                    Diagnostics::reportRuntime(ErrorCode::SetPropertyTypeMismatch, name,
+                                               QStringLiteral("setProperty: type mismatch for %1 (type: %2)")
+                                                   .arg(name, QLatin1String(value.typeName())));
                 }
             } else {
                 obj->setProperty(nameBa.constData(), value);

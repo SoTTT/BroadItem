@@ -22,7 +22,7 @@ cmake -B build -S . && cmake --build build
 ## 测试
 
 ```bash
-ctest --test-dir build --output-on-failure   # 全部 16 个 ctest 条目
+ctest --test-dir build --output-on-failure   # 全部 17 个 ctest 条目
 ./build/tests/test_parser                    # 运行单个测试套件
 ```
 
@@ -30,6 +30,7 @@ ctest --test-dir build --output-on-failure   # 全部 16 个 ctest 条目
 
 - `test_parser`、`test_property_context`、`test_sized_element`、`test_layout_behavior`、`test_for_element`、`test_flatten_children`、`test_binding`、`test_expression`、`test_reactive_binding`、`test_connection_line`、`test_anchor_decorator`、`test_regression`、`test_bound_attributes`
 - `test_update_coalescing`：P0-4 变更合并（`UpdatePolicy`/`flush()`/守卫位）
+- `test_diagnostics`：P1-1 结构化诊断。码表 32 个错误码逐一一个用例 + 4 个行为用例（嵌套 Abort 整文件失败、全收集、运行时模板级去重、静默清单）
 - `test_image_element`：`<image>` 部件测试，首个 qrc 测试基建（`tests/assets/icons.qrc` 经 `qt5_add_resources` 编入该目标）
 - `test_golden_render`：黄金镜像校验。`tests/golden/golden_render.cpp` 是采集/校验工具（`--capture <dir>` 按内置 manifest 渲染 PNG；`--verify <dir>` 逐像素比对，等价组不一致则退出码 1）。**该测试固定 `QT_QPA_PLATFORM=offscreen`**（`set_tests_properties`），cocoa 下字体光栅化不确定性会破坏逐像素比对，改金图基建时不得去掉此环境变量。
 
@@ -71,6 +72,7 @@ ctest --test-dir build --output-on-failure   # 全部 16 个 ctest 条目
 
 - `core/`：`BroadItem`、`Frame`、`LayoutEngine`、`Node`、`ResolvedStyle`
 - `context/`：属性上下文体系——`PropertyContext`（接口）、`MapPropertyContext`（默认，map 存储）、`QPropertyContext`（proxy 模式，连接目标对象全部 Q_PROPERTY NOTIFY 信号）、`ItemPropertyContext`、`LayoutContext`
+- `diagnostics/`：结构化诊断——`Diagnostic`（错误码枚举 BI-P-xxx/BI-R-xxx，级别与恢复策略由码表唯一决定）、`ErrorCollector`（可注入收集器，默认转发 qWarning/qCritical）、`Diagnostics`（`reportParse`/`reportRuntime` 入口；`ParseSession` 解析会话提供元素路径与 Abort 标记，`RuntimeScope` 由 Frame 管线安装、承担模板级去重）。错误码总表见 `doc/设计.md`「诊断」节
 - `expression/`：`Expression`（路径字符串解析）、`Binding`
 - `element/`：元素基类层级——`Element` → `ControlElement` / `RenderableElement` → `SizedElement` / `ContainerElement`；`BoxModel`
   - `element/layout/`：`MultiChildContainer`、`ColumnLayout`、`RowLayout`、`GridLayout`、`CellElement`

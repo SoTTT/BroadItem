@@ -1,5 +1,6 @@
 #include <broaditem/parser/LayoutRegistry.h>
 #include <broaditem/parser/XmlLayoutParser.h>
+#include <broaditem/diagnostics/Diagnostics.h>
 #include <QDir>
 #include <QDebug>
 
@@ -14,18 +15,23 @@ LayoutRegistry& LayoutRegistry::instance()
 }
 
 /// @brief 从目录加载所有 XML 布局文件到注册表。
+///
+/// 目录不存在报 BI-P-020（按空目录处理）；单文件解析失败报 BI-P-021 并
+/// 跳过该文件（其内部错误已由 parse 会话各自报告）。
+///
 /// @param dirPath Path to the directory containing .xml layout files.
 /// @return Number of layouts successfully loaded.
 int LayoutRegistry::loadLayoutsFromDirectory(const QString& dirPath)
 {
     QDir dir(dirPath);
     if (!dir.exists()) {
-        qWarning() << "Directory does not exist:" << dirPath;
+        Diagnostics::reportParse(ErrorCode::RegistryDirMissing,
+                                 QStringLiteral("directory does not exist: %1").arg(dirPath), dirPath);
         return 0;
     }
 
     QStringList filters;
-    filters << "*.xml";
+    filters << QStringLiteral("*.xml");
     QFileInfoList files = dir.entryInfoList(filters, QDir::Files);
 
     int count = 0;
@@ -36,7 +42,9 @@ int LayoutRegistry::loadLayoutsFromDirectory(const QString& dirPath)
             m_layouts.insert(id, root);
             ++count;
         } else {
-            qWarning() << "Failed to parse layout file, skipping:" << info.absoluteFilePath();
+            Diagnostics::reportParse(ErrorCode::RegistryFileSkipped,
+                                     QStringLiteral("failed to parse layout file, skipping"),
+                                     info.absoluteFilePath());
         }
     }
     return count;

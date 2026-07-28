@@ -1,4 +1,5 @@
 #include <broaditem/element/layout/GridLayout.h>
+#include <broaditem/diagnostics/Diagnostics.h>
 #include <algorithm>
 #include <QPainter>
 #include <QDomElement>
@@ -23,7 +24,9 @@ void GridLayout::parse(const QDomElement& xml)
     if (hasLiteralAttribute(xml, "columns")) {
         if (validateInt(literalAttribute(xml, "columns"), "columns", m_columns)) {
             if (m_columns <= 0) {
-                qWarning() << "GridLayout: columns must be positive, got" << m_columns;
+                Diagnostics::reportParse(ErrorCode::LiteralOutOfRange,
+                                         QStringLiteral("GridLayout: columns must be positive, got %1")
+                                             .arg(m_columns));
                 m_columns = 1;
             }
         }
@@ -31,7 +34,9 @@ void GridLayout::parse(const QDomElement& xml)
     if (hasLiteralAttribute(xml, "rows")) {
         if (validateInt(literalAttribute(xml, "rows"), "rows", m_rows)) {
             if (m_rows <= 0) {
-                qWarning() << "GridLayout: rows must be positive, got" << m_rows;
+                Diagnostics::reportParse(ErrorCode::LiteralOutOfRange,
+                                         QStringLiteral("GridLayout: rows must be positive, got %1")
+                                             .arg(m_rows));
                 m_rows = 1;
             }
         }
@@ -56,7 +61,9 @@ void GridLayout::addChild(ElementPtr child)
 {
     MultiChildContainer::addChild(std::move(child));
     if (static_cast<int>(m_children.size()) > m_columns * m_rows) {
-        qWarning() << "GridLayout: too many children — maximum is" << (m_columns * m_rows);
+        Diagnostics::reportParse(ErrorCode::GridTooManyChildren,
+                                 QStringLiteral("GridLayout: too many children — maximum is %1")
+                                     .arg(m_columns * m_rows));
     }
 }
 

@@ -1,5 +1,6 @@
 #include <broaditem/core/Frame.h>
 #include <broaditem/context/MapPropertyContext.h>
+#include <broaditem/diagnostics/Diagnostics.h>
 #include <broaditem/parser/XmlLayoutParser.h>
 #include <broaditem/parser/LayoutRegistry.h>
 #include <QCoreApplication>
@@ -142,6 +143,9 @@ QSizeF Frame::performLayout(double availableWidth, double availableHeight)
     if (!m_rootTemplate)
         return QSizeF();
 
+    // 运行时诊断去重作用域：覆盖物化/测量/布局全管线
+    const Diagnostics::RuntimeScope runtimeScope(m_rootTemplate.get());
+
     m_context.ctx = m_propertyContext.get();
 
     if (m_dirty || !m_rootNode) {
@@ -177,6 +181,7 @@ QSizeF Frame::performLayout(double availableWidth, double availableHeight)
 void Frame::paint(QPainter* painter) const
 {
     if (m_rootNode) {
+        const Diagnostics::RuntimeScope runtimeScope(m_rootTemplate.get());
         m_context.ctx = m_propertyContext.get();
         m_rootNode->element->render(painter, m_context, *m_rootNode);
     }

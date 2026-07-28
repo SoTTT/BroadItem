@@ -1,6 +1,7 @@
 #include <broaditem/element/control/ForElement.h>
 #include <broaditem/context/MapPropertyContext.h>
 #include <broaditem/context/ItemPropertyContext.h>
+#include <broaditem/diagnostics/Diagnostics.h>
 #include <QDomElement>
 #include <QDebug>
 
@@ -60,7 +61,8 @@ std::vector<std::unique_ptr<Node>> ForElement::materializeChildren(const LayoutC
         return result;
 
     if (m_asVariable.isEmpty()) {
-        qCritical() << "ForElement: b:as attribute is required, but not set";
+        Diagnostics::reportRuntime(ErrorCode::ForMissingAs, m_binding.path(),
+                                   QStringLiteral("ForElement: b:as attribute is required, but not set"));
         return result;
     }
 
@@ -84,7 +86,8 @@ std::vector<std::unique_ptr<Node>> ForElement::materializeChildren(const LayoutC
         QVariantList list = v.toList();
         for (const auto& val : list) {
             if (!val.isValid()) {
-                qWarning() << "ForElement: skipping null item in list";
+                Diagnostics::reportRuntime(ErrorCode::ForNullItemSkipped, m_binding.path(),
+                                           QStringLiteral("ForElement: skipping null item in list"));
                 continue;
             }
             auto itemCtx = std::make_shared<MapPropertyContext>();
@@ -102,8 +105,9 @@ std::vector<std::unique_ptr<Node>> ForElement::materializeChildren(const LayoutC
                 result.push_back(std::move(n));
         }
     } else {
-        qCritical() << "ForElement: property" << m_binding.path()
-                     << "expected QStringList or QVariantList, got" << v.typeName();
+        Diagnostics::reportRuntime(ErrorCode::ForDataNotList, m_binding.path(),
+                                   QStringLiteral("ForElement: property expected QStringList or QVariantList, "
+                                                  "got %1").arg(QLatin1String(v.typeName())));
     }
 
     return result;

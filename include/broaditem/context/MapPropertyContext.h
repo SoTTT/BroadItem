@@ -25,10 +25,9 @@ public:
             return QVariant();
         if (!name.contains('.') && !name.contains('['))
             return m_map.value(name);
-        QVariant v = resolveFirstThenWalk(name);
-        if (!v.isValid())
-            qCritical() << "MapPropertyContext:" << name << "not found";
-        return v;
+        // 遍历失败的具体诊断已由 walkNested/advanceBrackets 报告；
+        // 首段未注入属正常状态（诊断标准静默清单），此处不再重复报告。
+        return resolveFirstThenWalk(name);
     }
 
     /** @copydoc PropertyContext::hasProperty */
@@ -92,12 +91,13 @@ private:
 
         QString firstKey = path.left(segEnd);
         if (firstKey.isEmpty()) {
-            qCritical() << "MapPropertyContext: empty first key in path" << path;
+            Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
+                                       QStringLiteral("empty first key in path"));
             return;
         }
         if (!m_map.contains(firstKey)) {
-            qCritical() << "MapPropertyContext:" << firstKey
-                        << "not found (path:" << path << ")";
+            Diagnostics::reportRuntime(ErrorCode::NestedKeyMissing, path,
+                                       QStringLiteral("%1 not found").arg(firstKey));
             return;
         }
 
@@ -136,8 +136,9 @@ private:
 
         if (pos < len) {
             if (path[pos] != '.') {
-                qCritical() << "MapPropertyContext: expected '.' or end, got"
-                            << path[pos] << "(path:" << path << ")";
+                Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
+                                           QStringLiteral("expected '.' or end, got %1")
+                                               .arg(path[pos]));
                 return QVariant();
             }
             pos++;

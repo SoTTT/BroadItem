@@ -75,8 +75,8 @@ public:
     ///
     /// 遍历 xml.attributes()，命中绑定命名空间的属性取局部名（命名空间处理
     /// 开启时 QDomAttr::name() 返回不带前缀的局部名）。保留名 of/prop/as/content
-    /// 与控制元素语义耦合，跳过；局部名不在 supportedAttributes() 中警告并跳过；
-    /// 与字面量同名属性互斥（qCritical 并忽略该绑定）。
+    /// 与控制元素语义耦合，跳过；局部名不在 supportedAttributes() 中报告
+    /// BI-P-012 并跳过；与字面量同名属性互斥（BI-P-014，忽略该绑定）。
     /// @param xml The DOM element whose binding attributes to parse.
     void parseBindings(const QDomElement& xml);
 
@@ -100,12 +100,32 @@ public:
     /// @brief 根据 supportedAttributes 验证 XML 元素中的属性。
     void validateAttributes(const QDomElement& xml) const;
 
+    /// @brief 运行时诊断去重标记：key 首次插入返回 true，已存在返回 false。
+    ///
+    /// 仅模板根元素的集合被 Diagnostics::RuntimeScope 使用
+    /// （仿 ImageElement::m_failedPaths 的模板级先例）。
+    /// @param key 去重键（错误码|绑定路径）。
+    /// @return 首次报告返回 true。
+    bool markDiagnosticReported(const QString& key) const
+    {
+        if (m_reportedDiagnostics.contains(key))
+            return false;
+        m_reportedDiagnostics.insert(key);
+        return true;
+    }
+
     /// @brief 验证属性值是否为 double，有效返回 true。
-    static bool validateDouble(const QString& value, const QString& attrName, double& out);
-    /// @brief 验证属性值是否为 int，有效返回 true。
-    static bool validateInt(const QString& value, const QString& attrName, int& out);
-    /// @brief 验证属性值是否为 bool，有效返回 true。
-    static bool validateBool(const QString& value, const QString& attrName, bool& out);
+    ///
+    /// 校验失败时：runtimePath 为空按解析期字面量错误（BI-P-015）报告；
+    /// 非空按运行时绑定值错误（BI-R-011）报告，runtimePath 为绑定路径。
+    static bool validateDouble(const QString& value, const QString& attrName, double& out,
+                               const QString& runtimePath = QString());
+    /// @brief 验证属性值是否为 int，有效返回 true。阶段语义同 validateDouble。
+    static bool validateInt(const QString& value, const QString& attrName, int& out,
+                            const QString& runtimePath = QString());
+    /// @brief 验证属性值是否为 bool，有效返回 true。阶段语义同 validateDouble。
+    static bool validateBool(const QString& value, const QString& attrName, bool& out,
+                             const QString& runtimePath = QString());
 
 protected:
     /// @brief 返回本元素实际有求值路径的通用绑定属性集合。
@@ -163,6 +183,10 @@ protected:
     /// @brief 通用绑定表：局部属性名 → Binding。
     /// Binding 无默认构造函数，只允许 insert/constFind 访问。
     QHash<QString, Binding> m_bindings;
+
+private:
+    /// 运行时诊断去重集合（模板级，mutable 因报告发生在 const 管线中）。
+    mutable QSet<QString> m_reportedDiagnostics;
 };
 
 } // namespace BroadItem

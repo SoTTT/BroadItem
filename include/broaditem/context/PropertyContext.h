@@ -8,6 +8,8 @@
 #include <QDebug>
 #include <functional>
 
+#include <broaditem/diagnostics/Diagnostics.h>
+
 namespace BroadItem {
 
 class PropertyContext;
@@ -102,7 +104,7 @@ protected:
      * @brief 纯嵌套路径遍历引擎。
      *
      * 从已解析的首段值出发，递进处理后续的 .key 和 [n] 操作。
-     * 每步执行类型断言，失败时通过 qCritical 报告错误并返回无效值。
+     * 每步执行类型断言，失败时报告结构化诊断（BI-R 系列）并返回无效值。
      *
      * @param current 首段 key 解析后的值（已通过首段查找获得）。
      * @param path    原始路径字符串（仅用于错误日志）。
@@ -127,28 +129,24 @@ protected:
 
             QString key = path.mid(pos, segEnd - pos);
             if (key.isEmpty()) {
-                qCritical() << "PropertyContext: empty key in path" << path;
+                Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
+                                           QStringLiteral("empty key in path"));
                 return QVariant();
             }
 
             // Type check: .key navigation requires QMetaType::QVariantMap as parent.
-            //   Pass — current.userType() == QMetaType::QVariantMap; extracts the
-            //          nested value by key.  Missing key is a separate error
-            //          (qCritical + returns invalid QVariant).
-            //   Fail — current is not a Map; qCritical logs the key name and
-            //          actual type; returns QVariant() to terminate the path.
             if (current.userType() == QMetaType::QVariantMap) {
                 QVariantMap map = current.toMap();
                 if (!map.contains(key)) {
-                    qCritical() << "PropertyContext:" << key
-                                << "not found in object (path:" << path << ")";
+                    Diagnostics::reportRuntime(ErrorCode::NestedKeyMissing, path,
+                                               QStringLiteral("%1 not found in object").arg(key));
                     return QVariant();
                 }
                 current = map.value(key);
             } else {
-                qCritical() << "PropertyContext: cannot access" << key
-                            << "on non-object type" << current.typeName()
-                            << "(path:" << path << ")";
+                Diagnostics::reportRuntime(ErrorCode::TraverseTypeMismatch, path,
+                                           QStringLiteral("cannot access %1 on non-object type %2")
+                                               .arg(key, QLatin1String(current.typeName())));
                 return QVariant();
             }
 
@@ -159,8 +157,9 @@ protected:
 
             if (pos < len) {
                 if (path[pos] != '.') {
-                    qCritical() << "PropertyContext: expected '.' or end, got"
-                                << path[pos] << "(path:" << path << ")";
+                    Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
+                                               QStringLiteral("expected '.' or end, got %1")
+                                                   .arg(path[pos]));
                     return QVariant();
                 }
                 pos++;
@@ -201,8 +200,8 @@ protected:
         QString firstKey = path.left(segEnd);
         QVariant current = obj->property(firstKey.toUtf8().constData());
         if (!current.isValid()) {
-            qCritical() << "PropertyContext: property" << firstKey
-                        << "not found on object (path:" << path << ")";
+            Diagnostics::reportRuntime(ErrorCode::ObjectFirstKeyMissing, path,
+                                       QStringLiteral("property %1 not found on object").arg(firstKey));
             return QVariant();
         }
 
@@ -212,8 +211,9 @@ protected:
 
         if (pos < len) {
             if (path[pos] != '.') {
-                qCritical() << "PropertyContext: expected '.' or end, got"
-                            << path[pos] << "(path:" << path << ")";
+                Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
+                                           QStringLiteral("expected '.' or end, got %1")
+                                               .arg(path[pos]));
                 return QVariant();
             }
             pos++;
@@ -241,27 +241,29 @@ protected:
             if (path[pos] == '[') {
                 int closePos = path.indexOf(']', pos);
                 if (closePos < 0) {
-                    qCritical() << "PropertyContext: unmatched '[' (path:" << path << ")";
+                    Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
+                                               QStringLiteral("unmatched '['"));
                     return false;
                 }
                 QString indexStr = path.mid(pos + 1, closePos - pos - 1);
                 bool ok;
                 int index = indexStr.toInt(&ok);
                 if (!ok || index < 0) {
-                    qCritical() << "PropertyContext: invalid index" << indexStr
-                                << "(path:" << path << ")";
+                    Diagnostics::reportRuntime(ErrorCode::IndexOutOfBounds, path,
+                                               QStringLiteral("invalid index %1").arg(indexStr));
                     return false;
                 }
                 if (current.userType() != QMetaType::QVariantList) {
-                    qCritical() << "PropertyContext: cannot index into non-array type"
-                                << current.typeName() << "(path:" << path << ")";
+                    Diagnostics::reportRuntime(ErrorCode::TraverseTypeMismatch, path,
+                                               QStringLiteral("cannot index into non-array type %1")
+                                                   .arg(QLatin1String(current.typeName())));
                     return false;
                 }
                 QVariantList list = current.toList();
                 if (index >= list.size()) {
-                    qCritical() << "PropertyContext: index" << index
-                                << "out of bounds, size" << list.size()
-                                << "(path:" << path << ")";
+                    Diagnostics::reportRuntime(ErrorCode::IndexOutOfBounds, path,
+                                               QStringLiteral("index %1 out of bounds, size %2")
+                                                   .arg(index).arg(list.size()));
                     return false;
                 }
 
@@ -273,8 +275,9 @@ protected:
                 }
 
                 if (path[pos] != '.' && path[pos] != '[') {
-                    qCritical() << "PropertyContext: expected '.' or '[' after ']', got"
-                                << path[pos] << "(path:" << path << ")";
+                    Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
+                                               QStringLiteral("expected '.' or '[' after ']', got %1")
+                                                   .arg(path[pos]));
                     return false;
                 }
 
@@ -300,20 +303,21 @@ protected:
 
                 QString key = path.mid(pos, segEnd - pos);
                 if (key.isEmpty()) {
-                    qCritical() << "PropertyContext: empty key in path" << path;
+                    Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
+                                               QStringLiteral("empty key in path"));
                     return false;
                 }
 
                 if (current.userType() != QMetaType::QVariantMap) {
-                    qCritical() << "PropertyContext: cannot access" << key
-                                << "on non-object type" << current.typeName()
-                                << "(path:" << path << ")";
+                    Diagnostics::reportRuntime(ErrorCode::TraverseTypeMismatch, path,
+                                               QStringLiteral("cannot access %1 on non-object type %2")
+                                                   .arg(key, QLatin1String(current.typeName())));
                     return false;
                 }
                 QVariantMap map = current.toMap();
                 if (!map.contains(key)) {
-                    qCritical() << "PropertyContext:" << key
-                                << "not found in object (path:" << path << ")";
+                    Diagnostics::reportRuntime(ErrorCode::NestedKeyMissing, path,
+                                               QStringLiteral("%1 not found in object").arg(key));
                     return false;
                 }
 
@@ -333,8 +337,9 @@ protected:
                 return true;
 
             } else {
-                qCritical() << "PropertyContext: unexpected character"
-                            << path[pos] << "in path" << path;
+                Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
+                                           QStringLiteral("unexpected character %1")
+                                               .arg(path[pos]));
                 return false;
             }
         }
@@ -358,33 +363,30 @@ protected:
         while (pos < len && path[pos] == '[') {
             int closePos = path.indexOf(']', pos);
             if (closePos < 0) {
-                qCritical() << "PropertyContext: unmatched '[' (path:" << path << ")";
+                Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
+                                           QStringLiteral("unmatched '['"));
                 return -1;
             }
             QString indexStr = path.mid(pos + 1, closePos - pos - 1);
             bool ok;
             int index = indexStr.toInt(&ok);
             if (!ok || index < 0) {
-                qCritical() << "PropertyContext: invalid index" << indexStr
-                            << "(path:" << path << ")";
+                Diagnostics::reportRuntime(ErrorCode::IndexOutOfBounds, path,
+                                           QStringLiteral("invalid index %1").arg(indexStr));
                 return -1;
             }
             // Type check: [n] indexing requires QMetaType::QVariantList as parent.
-            //   Pass — current.userType() == QMetaType::QVariantList; reads
-            //          list[n].  Out-of-bounds is a separate error (qCritical
-            //          + returns -1).
-            //   Fail — current is not a List; qCritical logs the actual type
-            //          name; returns -1 to terminate the path.
             if (current.userType() != QMetaType::QVariantList) {
-                qCritical() << "PropertyContext: cannot index into non-array type"
-                            << current.typeName() << "(path:" << path << ")";
+                Diagnostics::reportRuntime(ErrorCode::TraverseTypeMismatch, path,
+                                           QStringLiteral("cannot index into non-array type %1")
+                                               .arg(QLatin1String(current.typeName())));
                 return -1;
             }
             QVariantList list = current.toList();
             if (index >= list.size()) {
-                qCritical() << "PropertyContext: index" << index
-                            << "out of bounds, size" << list.size()
-                            << "(path:" << path << ")";
+                Diagnostics::reportRuntime(ErrorCode::IndexOutOfBounds, path,
+                                           QStringLiteral("index %1 out of bounds, size %2")
+                                               .arg(index).arg(list.size()));
                 return -1;
             }
             current = list.at(index);

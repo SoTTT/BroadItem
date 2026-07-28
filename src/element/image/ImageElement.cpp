@@ -1,4 +1,5 @@
 #include <broaditem/element/image/ImageElement.h>
+#include <broaditem/diagnostics/Diagnostics.h>
 #include <QPainter>
 #include <QDomElement>
 #include <QDebug>
@@ -46,9 +47,9 @@ void ImageElement::parse(const QDomElement& xml)
 ///
 /// 缓存语义（模板层首个 mutable 状态，依赖 GUI 单线程假设，无需同步）：
 /// - m_pixmapCache 命中：直接复用，避免重复磁盘加载；
-/// - m_failedPaths 命中：跳过加载，静默空白，避免 qWarning 刷屏；
+/// - m_failedPaths 命中：跳过加载，静默空白（告警去重由运行时诊断统一机制承担）；
 /// - 均未命中：尝试 QPixmap(path) 加载，成功入 m_pixmapCache，
-///   失败 qWarning 一次并入 m_failedPaths；缓存永不淘汰，生命周期随模板。
+///   失败报 BI-R-010 一次并入 m_failedPaths；缓存永不淘汰，生命周期随模板。
 ///
 /// src 为空串（未指定或绑定求值为空）时静默空白——node->pixmap 保持为空，
 /// 渲染阶段只画盒模型装饰，不绘制占位错误图。
@@ -73,7 +74,8 @@ std::unique_ptr<Node> ImageElement::materialize(const LayoutContext& ctx) const
         } else if (!m_failedPaths.contains(path)) {
             QPixmap pixmap(path);
             if (pixmap.isNull()) {
-                qWarning() << "ImageElement: failed to load image" << path;
+                Diagnostics::reportRuntime(ErrorCode::ImageLoadFailed, path,
+                                           QStringLiteral("ImageElement: failed to load image"));
                 m_failedPaths.insert(path);
             } else {
                 m_pixmapCache.insert(path, pixmap);

@@ -1,4 +1,5 @@
 #include <broaditem/element/control/IfElement.h>
+#include <broaditem/diagnostics/Diagnostics.h>
 #include <QDomElement>
 
 namespace BroadItem {
@@ -33,9 +34,11 @@ void IfElement::parse(const QDomElement& xml)
     }
     // QDom 命名空间模式下 hasAttribute 按局部名匹配（会命中 b:not 自身），字面量判定走 hasLiteralAttribute
     m_not = hasLiteralAttribute(xml, "not");
-    // not 是结构性修饰符，不参与绑定；parseBindings 已将 not 列为保留名，此处显式警告
+    // not 是结构性修饰符，不参与绑定；parseBindings 已将 not 列为保留名，此处显式报告
     if (xml.hasAttributeNS(BINDING_NS, "not"))
-        qWarning() << "<if>: b:not is not supported; not is a structural modifier and cannot be bound";
+        Diagnostics::reportParse(ErrorCode::NotBindingIgnored,
+                                 QStringLiteral("<if>: b:not is not supported; not is a structural modifier "
+                                                "and cannot be bound"));
     if (hasLiteralAttribute(xml, "equals")) {
         m_equals = literalAttribute(xml, "equals");
         m_hasEquals = true;

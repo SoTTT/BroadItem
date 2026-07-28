@@ -1,4 +1,5 @@
 #include <broaditem/context/QPropertyContext.h>
+#include <broaditem/diagnostics/Diagnostics.h>
 #include <QDynamicPropertyChangeEvent>
 #include <QDebug>
 
@@ -129,7 +130,8 @@ void QPropertyContext::setPropertyNested(const QString& path, const QVariant& va
 
     QString firstKey = path.left(segEnd);
     if (firstKey.isEmpty()) {
-        qCritical() << "QPropertyContext: empty first key in path" << path;
+        Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
+                                   QStringLiteral("empty first key in path"));
         return;
     }
 
@@ -139,8 +141,8 @@ void QPropertyContext::setPropertyNested(const QString& path, const QVariant& va
 
     QVariant root = obj->property(firstKeyBa.constData());
     if (!root.isValid()) {
-        qCritical() << "QPropertyContext: property" << firstKey
-                    << "not found on object (path:" << path << ")";
+        Diagnostics::reportRuntime(ErrorCode::ObjectFirstKeyMissing, path,
+                                   QStringLiteral("property %1 not found on object").arg(firstKey));
         return;
     }
 
@@ -149,8 +151,8 @@ void QPropertyContext::setPropertyNested(const QString& path, const QVariant& va
 
     if (obj->metaObject()->indexOfProperty(firstKeyBa.constData()) >= 0) {
         if (!obj->setProperty(firstKeyBa.constData(), root)) {
-            qWarning() << "QPropertyContext::setProperty: type mismatch for" << firstKey
-                       << "(nested path:" << path << ")";
+            Diagnostics::reportRuntime(ErrorCode::SetPropertyTypeMismatch, path,
+                                       QStringLiteral("setProperty: type mismatch for %1").arg(firstKey));
         }
     } else {
         obj->setProperty(firstKeyBa.constData(), root);

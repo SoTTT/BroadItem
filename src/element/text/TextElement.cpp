@@ -1,4 +1,5 @@
 #include <broaditem/element/text/TextElement.h>
+#include <broaditem/diagnostics/Diagnostics.h>
 #include <QPainter>
 #include <QTextLayout>
 #include <QDomElement>
@@ -45,7 +46,9 @@ void TextElement::parse(const QDomElement& xml)
     bool hasContentBinding = xml.hasAttributeNS(BINDING_NS, "content");
 
     if (hasContentLiteral && hasContentBinding) {
-        qCritical() << "TextElement: 'content' and 'b:content' are mutually exclusive";
+        Diagnostics::reportParse(ErrorCode::MutexLiteralBinding,
+                                 QStringLiteral("TextElement: 'content' and 'b:content' are mutually exclusive; "
+                                                "the literal wins"));
     }
 
     if (hasLiteralAttribute(xml, "content")) {
@@ -65,7 +68,9 @@ void TextElement::parse(const QDomElement& xml)
     if (hasLiteralAttribute(xml, "font-size")) {
         if (validateDouble(literalAttribute(xml, "font-size"), "font-size", m_fontSize)) {
             if (m_fontSize <= 0) {
-                qWarning() << "TextElement: font-size must be positive, got" << m_fontSize;
+                Diagnostics::reportParse(ErrorCode::LiteralOutOfRange,
+                                         QStringLiteral("TextElement: font-size must be positive, got %1")
+                                             .arg(m_fontSize));
                 m_fontSize = 12;
             }
         }
@@ -115,8 +120,12 @@ std::unique_ptr<Node> TextElement::materialize(const LayoutContext& ctx) const
     node->color = resolveColor("color", ctx, m_color);
     node->fontSize = resolveDouble("font-size", ctx, m_fontSize);
     if (node->fontSize <= 0) {
-        // 与 parse 行为对齐：非正字号回退为 12 并告警。
-        qWarning() << "TextElement: font-size must be positive, got" << node->fontSize;
+        // 与 parse 行为对齐：非正字号回退为 12 并报告诊断（运行时绑定值越界同 BI-R-011 族）。
+        Diagnostics::reportRuntime(ErrorCode::BoundValueTypeError,
+                                   bindingFor(QStringLiteral("font-size"))
+                                       ? bindingFor(QStringLiteral("font-size"))->path() : QString(),
+                                   QStringLiteral("TextElement: font-size must be positive, got %1")
+                                       .arg(node->fontSize));
         node->fontSize = 12;
     }
     node->bold = resolveBool("bold", ctx, m_bold);
