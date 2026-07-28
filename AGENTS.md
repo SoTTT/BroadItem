@@ -30,7 +30,7 @@ ctest --test-dir build --output-on-failure   # 全部 17 个 ctest 条目
 
 - `test_parser`、`test_property_context`、`test_sized_element`、`test_layout_behavior`、`test_for_element`、`test_flatten_children`、`test_binding`、`test_expression`、`test_reactive_binding`、`test_connection_line`、`test_anchor_decorator`、`test_regression`、`test_bound_attributes`
 - `test_update_coalescing`：P0-4 变更合并（`UpdatePolicy`/`flush()`/守卫位）
-- `test_diagnostics`：P1-1 结构化诊断。码表 32 个错误码逐一一个用例 + 4 个行为用例（嵌套 Abort 整文件失败、全收集、运行时模板级去重、静默清单）
+- `test_diagnostics`：P1-1 结构化诊断。码表 33 个错误码逐一一个用例 + 行为用例（嵌套 Abort 整文件失败、全收集、运行时模板级去重、静默清单、Default 语义回归）
 - `test_image_element`：`<image>` 部件测试，首个 qrc 测试基建（`tests/assets/icons.qrc` 经 `qt5_add_resources` 编入该目标）
 - `test_golden_render`：黄金镜像校验。`tests/golden/golden_render.cpp` 是采集/校验工具（`--capture <dir>` 按内置 manifest 渲染 PNG；`--verify <dir>` 逐像素比对，等价组不一致则退出码 1）。**该测试固定 `QT_QPA_PLATFORM=offscreen`**（`set_tests_properties`），cocoa 下字体光栅化不确定性会破坏逐像素比对，改金图基建时不得去掉此环境变量。
 

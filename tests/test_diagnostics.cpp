@@ -7,6 +7,7 @@
 #include <broaditem/core/Frame.h>
 #include <broaditem/core/Node.h>
 #include <broaditem/element/text/TextElement.h>
+#include <broaditem/element/layout/GridLayout.h>
 #include <broaditem/context/MapPropertyContext.h>
 #include <broaditem/context/QPropertyContext.h>
 
@@ -158,6 +159,19 @@ private slots:
         QCOMPARE(recoveryOf(d->code), Recovery::Default);
     }
 
+    /// @brief BI-P-022：根唯一子元素降级为空 → 补报 Abort，维持"nullptr ⇔ Abort"不变量。
+    void rootChildDiscardedYieldsAbort()
+    {
+        CaptureCollector cap;
+        auto root = XmlLayoutParser::parseString(wrap(QStringLiteral("<margin/>")), &cap);
+        QVERIFY(root == nullptr);                        // 无可用内容，整文件失败
+        QVERIFY(cap.find(ErrorCode::DeprecatedDecoratorTag) != nullptr);  // 原降级码仍在
+        const Diagnostic* d = cap.find(ErrorCode::RootChildDiscarded);
+        QVERIFY(d != nullptr);                           // 不变量守卫补报的 Abort
+        QCOMPARE(severityOf(d->code), Severity::Error);
+        QCOMPARE(recoveryOf(d->code), Recovery::Abort);
+    }
+
     /// @brief BI-P-007：不可含子元素的部件含子元素 → Abort。
     void leafWithChildren()
     {
@@ -253,6 +267,9 @@ private slots:
     }
 
     /// @brief BI-P-015：字面量类型错误（font-size / main-stretch 布尔）→ Default 回退。
+    ///
+    /// 回归点：校验失败不得覆写属性成员——font-size="abc" 解析后 m_fontSize
+    /// 保持默认 12，物化期不得再产生伪 BI-R-011（运行时诊断走进程级收集器）。
     void literalTypeMismatch()
     {
         CaptureCollector cap;
@@ -261,17 +278,35 @@ private slots:
         QVERIFY(root != nullptr);
         QVERIFY(cap.find(ErrorCode::LiteralTypeMismatch) != nullptr);
 
+        auto rtCap = std::make_shared<CaptureCollector>();
+        const ProcessCollectorGuard guard(rtCap);
         MapPropertyContext map;
         LayoutContext lctx{&map};
         auto nodes = root->materializeChildren(lctx);
         QVERIFY(!nodes.empty());
         QCOMPARE(static_cast<const TextNode&>(*nodes[0]).fontSize, 12.0);
+        QCOMPARE(rtCap->list.size(), 0);  // 无伪运行时诊断（解析期错误不重复到运行时）
 
         CaptureCollector cap2;
         auto root2 = XmlLayoutParser::parseString(
             wrap(QStringLiteral("<column main-stretch=\"yes\"><text>x</text></column>")), &cap2);
         QVERIFY(root2 != nullptr);
         QVERIFY(cap2.find(ErrorCode::LiteralTypeMismatch) != nullptr);
+    }
+
+    /// @brief BI-P-015（validateInt 路径）：columns="abc" 回退默认 1，
+    /// 不得级联为 BI-P-009 Abort（Warning/Error 级输入不得放大为整文件失败）。
+    void literalIntTypeMismatchKeepsDefault()
+    {
+        CaptureCollector cap;
+        auto root = XmlLayoutParser::parseString(
+            wrap(QStringLiteral("<grid columns=\"abc\" rows=\"1\"><cell/></grid>")), &cap);
+        QVERIFY(root != nullptr);  // columns 保持默认 1 → cell 数 1×1 匹配，无级联 Abort
+        QVERIFY(cap.find(ErrorCode::LiteralTypeMismatch) != nullptr);
+        QVERIFY(cap.find(ErrorCode::GridCellCountMismatch) == nullptr);
+        auto grid = std::dynamic_pointer_cast<GridLayout>(root);
+        QVERIFY(grid != nullptr);
+        QCOMPARE(grid->columns(), 1);
     }
 
     /// @brief BI-P-016：字面量数值越界（font-size≤0、columns≤0）→ 钳到默认。

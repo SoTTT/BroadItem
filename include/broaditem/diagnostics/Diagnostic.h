@@ -30,6 +30,7 @@ enum class ErrorCode {
     NotBindingIgnored,       ///< BI-P-019 <if> 的 b:not 绑定
     RegistryDirMissing,      ///< BI-P-020 Registry 批量加载：目录不存在
     RegistryFileSkipped,     ///< BI-P-021 Registry 批量加载：单文件解析失败
+    RootChildDiscarded,      ///< BI-P-022 根唯一子元素降级为空（如 deprecated 装饰器），无可用内容
     // ---- 运行时（BI-R-xxx） ----
     ObjectFirstKeyMissing,   ///< BI-R-001 绑定路径首段属性在 QObject 上不存在
     NestedKeyMissing,        ///< BI-R-002 路径中段键在 map 中不存在

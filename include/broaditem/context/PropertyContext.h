@@ -107,7 +107,7 @@ protected:
      * 每步执行类型断言，失败时报告结构化诊断（BI-R 系列）并返回无效值。
      *
      * @param current 首段 key 解析后的值（已通过首段查找获得）。
-     * @param path    原始路径字符串（仅用于错误日志）。
+     * @param path    原始路径字符串（仅用于结构化诊断）。
      * @param pos     下次解析的起始位置（跳过首段 key 及消化完的 [n] 和 .）。
      * @return 路径终点值，解析失败时返回无效 QVariant。
      */
@@ -228,7 +228,7 @@ protected:
      * 每步执行类型断言，失败时返回 false 且不修改 current（无副作用）。
      *
      * @param[in,out] current 当前值引用。成功时在叶子位置被修改。
-     * @param path    原始路径（用于错误日志及遍历）。
+     * @param path    原始路径（用于结构化诊断及遍历）。
      * @param pos     起始位置（跳过首段 key）。
      * @param value   待设置的值。
      * @return true 写入成功；false 类型/存在性校验失败。
@@ -352,7 +352,7 @@ protected:
      * @brief 消化路径中的数组索引 [n]，修改 current 并返回新位置。
      *
      * @param[in,out] current 当前值，成功消化后指向索引的元素。
-     * @param path            原始路径（用于错误日志）。
+     * @param path            原始路径（用于结构化诊断）。
      * @param pos             当前处理位置。
      * @return 消化后的新位置，出错时返回 -1。
      */

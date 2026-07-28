@@ -156,12 +156,13 @@ bool Element::validateDouble(const QString& value, const QString& attrName, doub
                              const QString& runtimePath)
 {
     bool ok = false;
-    out = value.toDouble(&ok);
+    const double parsed = value.toDouble(&ok);
     if (!ok) {
         reportValueMismatch(runtimePath, QStringLiteral("Attribute %1 expects a number, got \"%2\"")
                                              .arg(attrName, value));
-        return false;
+        return false;  // 失败不写 out：属性保持默认（BI-P-015 恢复语义）
     }
+    out = parsed;
     return true;
 }
 
@@ -175,12 +176,13 @@ bool Element::validateInt(const QString& value, const QString& attrName, int& ou
                           const QString& runtimePath)
 {
     bool ok = false;
-    out = value.toInt(&ok);
+    const int parsed = value.toInt(&ok);
     if (!ok) {
         reportValueMismatch(runtimePath, QStringLiteral("Attribute %1 expects an integer, got \"%2\"")
                                              .arg(attrName, value));
-        return false;
+        return false;  // 失败不写 out：属性保持默认（BI-P-015 恢复语义）
     }
+    out = parsed;
     return true;
 }
 
@@ -218,8 +220,8 @@ const QSet<QString>& Element::resolvedAttributes() const
 /// @brief 解析 XML 元素上的通用绑定属性（b:attr 形式）存入 m_bindings。
 ///
 /// 保留名 {"of","prop","as","content","not"} 与控制元素/文本语义耦合，不纳入通用
-/// 绑定——参见设计.md 记载的伪属性双重包装陷阱：XmlLayoutParser.cpp:107-108
-/// 会把携带 b:of/b:prop 的普通元素再包一层 for/if，若这些名字也进通用表，
+/// 绑定——参见设计.md 记载的伪属性双重包装陷阱：parseNode 前置判定 wrapFor/wrapIf
+/// 并在尾部包装已解析元素，若这些名字也进通用表，
 /// 同一属性将被两套机制重复解析。"not" 是 <if> 的结构性修饰符（取反），
 /// 如同代码中只修改变量而不修改条件表达式的取反，永不参与绑定。
 ///

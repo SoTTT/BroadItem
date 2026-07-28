@@ -38,6 +38,7 @@ const CodeInfo kCodeTable[] = {
     { "BI-P-019", Severity::Warning, Recovery::Default },  // NotBindingIgnored
     { "BI-P-020", Severity::Warning, Recovery::Default },  // RegistryDirMissing
     { "BI-P-021", Severity::Warning, Recovery::Skip    },  // RegistryFileSkipped
+    { "BI-P-022", Severity::Error,   Recovery::Abort   },  // RootChildDiscarded
     // ---- 运行时（BI-R-xxx） ----
     { "BI-R-001", Severity::Error,   Recovery::Default },  // ObjectFirstKeyMissing
     { "BI-R-002", Severity::Error,   Recovery::Default },  // NestedKeyMissing

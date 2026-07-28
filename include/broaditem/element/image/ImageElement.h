@@ -24,7 +24,7 @@ struct ImageNode : Node {
 /// 模板级缓存（m_pixmapCache / m_failedPaths）：
 /// - 本类是模板层首个引入 mutable 状态的元素——缓存生命周期随模板，永不淘汰；
 /// - 依赖 Qt GUI 单线程假设：parse/materialize 均在主线程发生，无需同步；
-/// - 失败路径入 m_failedPaths，避免重复磁盘加载与 qWarning 日志刷屏。
+/// - 失败路径入 m_failedPaths，避免重复磁盘加载（告警去重由运行时诊断统一机制承担）。
 class ImageElement : public SizedElement {
 public:
     void parse(const QDomElement& xml) override;

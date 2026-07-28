@@ -119,6 +119,13 @@ ElementPtr XmlLayoutParser::parseStringInternal(const QString& xmlContent, const
 
     const SegmentGuard rootGuard(QStringLiteral("root"));
     ElementPtr tree = parseNode(firstChild);
+    if (!tree && !session.sawAbort()) {
+        // 不变量守卫：tree 为空但无 Abort 级错误（如根唯一子元素是
+        // deprecated 装饰器，被 Default 降级忽略）——补报 Abort 码，
+        // 保证"nullptr ⇔ 存在 Abort 级错误"。
+        Diagnostics::reportParse(ErrorCode::RootChildDiscarded,
+                                 QStringLiteral("the root's only child produced no usable element"));
+    }
     return session.sawAbort() ? nullptr : tree;
 }
 
