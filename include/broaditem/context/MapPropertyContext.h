@@ -1,6 +1,7 @@
 #pragma once
 
 #include <broaditem/context/PropertyContext.h>
+#include <broaditem/compat/QtCompat.h>
 #include <QVariantMap>
 
 namespace BroadItem {
@@ -52,7 +53,7 @@ public:
     {
         if (!name.contains('.') && !name.contains('[')) {
             // Flat key — existing behavior
-            if (!value.isValid() || value.isNull()) {
+            if (!value.isValid() || variantIsNull(value)) {
                 if (m_map.remove(name) > 0)
                     notifyChanged(name, QVariant());
                 return;

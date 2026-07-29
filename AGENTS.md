@@ -11,33 +11,36 @@ Qt5 C++ 静态库：从 XML 文件加载布局，渲染为 `QGraphicsItem`，支
 ## 构建
 
 ```bash
-cmake -B build -S . && cmake --build build
+cmake -B build -S . && cmake --build build          # Qt5（CMAKE_PREFIX_PATH 指向 qt@5）
+cmake -B build-qt6 -S . -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt@6 && cmake --build build-qt6   # Qt6
 ```
 
-- 依赖 Qt5（Core、Widgets、Xml；测试还需 Test），`Qt5_DIR` 须可被 CMake 发现。
+- **Qt5/Qt6 双栈**：`find_package(QT NAMES Qt6 Qt5)` 优先 Qt6、回退 Qt5，链接目标统一 `Qt${QT_VERSION_MAJOR}::`；依赖 Core、Widgets、Xml（测试还需 Test）。版本差异点集中在 `compat/` 模块（P1-3 纪律：禁止散落版本分支），目前有 `variantIsNull()`（Qt6 的 `QVariant::isNull()` 不再传播内含类型的 null 性）与 `domSetContent()`（Qt6.8 起 setContent 旧重载废弃）。
+- **已知行为差异**：Qt6 的 XML 解析器更严格——未声明命名空间前缀（`b:content` 无 `xmlns:b`、裸 `:content`）在 Qt5 下"parse 成功但无绑定"，Qt6 下为 BI-P-002 语法错误 parse 失败；两版语义等价（均不产生绑定），测试按 `QT_VERSION_CHECK` 分别断言。
 - C++17，开启 AUTOMOC/AUTORCC/AUTOUIC，导出 `compile_commands.json`。
 - 库目标为 `BroadItem`（STATIC）。示例与测试可执行文件分别构建于 `example/` 和 `tests/` 子目录。
-- 仓库根目录另有 `cmake-build-debug/`（CLion 的 Ninja 构建目录），`build/` 才是 `.gitignore` 认可的标准构建目录。
+- 仓库根目录另有 `cmake-build-debug/`（CLion 的 Ninja 构建目录），`build/`（Qt5）与 `build-qt6/`（Qt6）是 `.gitignore` 认可的标准构建目录。
 
 ## 测试
 
 ```bash
-ctest --test-dir build --output-on-failure   # 全部 17 个 ctest 条目
-./build/tests/test_parser                    # 运行单个测试套件
+ctest --test-dir build --output-on-failure      # Qt5：全部 17 个 ctest 条目
+ctest --test-dir build-qt6 --output-on-failure  # Qt6：16 个（test_golden_render 条件跳过）
+./build/tests/test_parser                       # 运行单个测试套件
 ```
 
-测试套件（均在 `tests/`，`QTEST_MAIN(Test*)` + 包含自身 `.moc`，链接 `Qt5::Test`）：
+测试套件（均在 `tests/`，`QTEST_MAIN(Test*)` + 包含自身 `.moc`，链接 `Qt${QT_VERSION_MAJOR}::Test`）：
 
 - `test_parser`、`test_property_context`、`test_sized_element`、`test_layout_behavior`、`test_for_element`、`test_flatten_children`、`test_binding`、`test_expression`、`test_reactive_binding`、`test_connection_line`、`test_anchor_decorator`、`test_regression`、`test_bound_attributes`
 - `test_update_coalescing`：P0-4 变更合并（`UpdatePolicy`/`flush()`/守卫位）
 - `test_diagnostics`：P1-1 结构化诊断。码表 33 个错误码逐一一个用例 + 行为用例（嵌套 Abort 整文件失败、全收集、运行时模板级去重、静默清单、Default 语义回归）
-- `test_image_element`：`<image>` 部件测试，首个 qrc 测试基建（`tests/assets/icons.qrc` 经 `qt5_add_resources` 编入该目标）
-- `test_golden_render`：黄金镜像校验。`tests/golden/golden_render.cpp` 是采集/校验工具（`--capture <dir>` 按内置 manifest 渲染 PNG；`--verify <dir>` 逐像素比对，等价组不一致则退出码 1）。**该测试固定 `QT_QPA_PLATFORM=offscreen`**（`set_tests_properties`），cocoa 下字体光栅化不确定性会破坏逐像素比对，改金图基建时不得去掉此环境变量。
+- `test_image_element`：`<image>` 部件测试，首个 qrc 测试基建（`tests/assets/icons.qrc` 经 `qt5/qt6_add_resources` 编入该目标）
+- `test_golden_render`：黄金镜像校验。`tests/golden/golden_render.cpp` 是采集/校验工具（`--capture <dir>` 按内置 manifest 渲染 PNG；`--verify <dir>` 逐像素比对，等价组不一致则退出码 1）。**该测试固定 `QT_QPA_PLATFORM=offscreen`**（`set_tests_properties`），cocoa 下字体光栅化不确定性会破坏逐像素比对，改金图基建时不得去掉此环境变量。**基线按 Qt 版本分套**：`tests/golden/golden/`（Qt5）与 `tests/golden/golden-qt6/`（Qt6，字体度量/光栅化有亚像素级漂移，逐像素比对不可跨栈共用），`tests/CMakeLists.txt` 按 `QT_VERSION_MAJOR` 指向对应基线；改渲染行为时两套都要重新采集。
 
 注意：
 
 - 示例/测试使用的 XML 布局文件经 `configure_file` 拷入构建目录（见 `example/CMakeLists.txt`、`tests/CMakeLists.txt`）。测试报找不到 XML 时先重新构建。
-- 黄金基线 PNG 位于 `tests/golden/golden/`，对应布局在 `tests/golden/layouts/`。
+- 黄金基线 PNG 按 Qt 版本分套：`tests/golden/golden/`（Qt5）、`tests/golden/golden-qt6/`（Qt6），对应布局在 `tests/golden/layouts/`。
 - 布局 XML 的结构约束由仓库根目录的 `broaditem.xsd` 描述；新增/修改部件时应同步更新 XSD 与设计文档。
 
 ## 示例
@@ -73,6 +76,7 @@ ctest --test-dir build --output-on-failure   # 全部 17 个 ctest 条目
 - `core/`：`BroadItem`、`Frame`、`LayoutEngine`、`Node`、`ResolvedStyle`
 - `context/`：属性上下文体系——`PropertyContext`（接口）、`MapPropertyContext`（默认，map 存储）、`QPropertyContext`（proxy 模式，连接目标对象全部 Q_PROPERTY NOTIFY 信号）、`ItemPropertyContext`、`LayoutContext`
 - `diagnostics/`：结构化诊断——`Diagnostic`（错误码枚举 BI-P-xxx/BI-R-xxx，级别与恢复策略由码表唯一决定）、`ErrorCollector`（可注入收集器，默认转发 qWarning/qCritical）、`Diagnostics`（`reportParse`/`reportRuntime` 入口；`ParseSession` 解析会话提供元素路径与 Abort 标记，`RuntimeScope` 由 Frame 管线安装、承担模板级去重）。错误码总表见 `doc/设计.md`「诊断」节
+- `compat/`：Qt5/Qt6 兼容层（P1-3）。版本差异点唯一落点：`variantIsNull()`（null 语义统一）、`domSetContent()`（setContent 新旧重载）。新增版本差异一律收进本模块，源码中禁止散落的 `QT_VERSION_CHECK`（测试断言除外）
 - `expression/`：`Expression`（路径字符串解析）、`Binding`
 - `element/`：元素基类层级——`Element` → `ControlElement` / `RenderableElement` → `SizedElement` / `ContainerElement`；`BoxModel`
   - `element/layout/`：`MultiChildContainer`、`ColumnLayout`、`RowLayout`、`GridLayout`、`CellElement`

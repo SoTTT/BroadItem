@@ -637,9 +637,9 @@ void TestParser::testBindingAttributeSkipped()
 }
 
 /// @brief 验证旧 @c :xxx 语法不被识别为绑定属性。
-/// @details namespace processing 下 @c :content 没有命名空间前缀声明，
-/// Qt 将其视为普通属性名 @c ":content"，@c hasAttributeNS(BINDING_NS, "content") 返回 false，
-/// 因此 TextElement 不会设置绑定。
+/// @details Qt5：namespace processing 下 @c :content 按普通属性名保留，parse 成功但无绑定；
+/// Qt6：XML 解析器直接拒绝裸冒号属性名（BI-P-002 语法错误，parse 失败）。
+/// 两版语义等价——旧语法都不会产生绑定，差异仅在拒绝发生的阶段。
 void TestParser::testOldSyntaxRejected()
 {
     QString xml = R"(
@@ -648,6 +648,10 @@ void TestParser::testOldSyntaxRejected()
         </root>
     )";
     auto root = BroadItem::XmlLayoutParser::parseString(xml);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    // Qt6 在语法层拒绝：parse 返回 nullptr
+    QVERIFY(root == nullptr);
+#else
     QVERIFY(root != nullptr);
 
     /// 旧 :content 语法在 namespace processing 下不被识别为绑定属性，
@@ -656,11 +660,13 @@ void TestParser::testOldSyntaxRejected()
              "Old :content syntax should not be recognized as binding attribute");
     QVERIFY2(!root->bindsProperty("other"),
              "Old :content syntax should not be recognized as binding attribute");
+#endif
 }
 
 /// @brief 验证缺少命名空间声明时 @c b:content 不被识别为绑定属性。
-/// @details 不声明 @c xmlns:b 时，@c b: 前缀未绑定到 BINDING_NS，
-/// @c hasAttributeNS(BINDING_NS, "content") 返回 false，TextElement 不会设置绑定。
+/// @details Qt5：未声明 @c xmlns:b 时前缀未绑定，@c hasAttributeNS 返回 false，
+/// parse 成功但无绑定；Qt6：未声明前缀是致命语法错误（BI-P-002），parse 失败。
+/// 两版语义等价——未声明的 b: 属性都不会产生绑定。
 void TestParser::testNamespaceMissingRejected()
 {
     QString xml = R"(
@@ -669,6 +675,9 @@ void TestParser::testNamespaceMissingRejected()
         </root>
     )";
     auto root = BroadItem::XmlLayoutParser::parseString(xml);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    QVERIFY(root == nullptr);
+#else
     QVERIFY(root != nullptr);
 
     /// 未声明 xmlns:b 时，b:content 的 b: 前缀未绑定到 BINDING_NS 命名空间 URI，
@@ -677,6 +686,7 @@ void TestParser::testNamespaceMissingRejected()
              "b:content without xmlns:b declaration should not be recognized as binding");
     QVERIFY2(!root->bindsProperty("other"),
              "b:content without xmlns:b declaration should not be recognized as binding");
+#endif
 }
 
 /// @brief 验证错误命名空间 URI 时绑定属性不被识别。

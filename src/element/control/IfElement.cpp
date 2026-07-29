@@ -1,5 +1,6 @@
 #include <broaditem/element/control/IfElement.h>
 #include <broaditem/diagnostics/Diagnostics.h>
+#include <broaditem/compat/QtCompat.h>
 #include <QDomElement>
 
 namespace BroadItem {
@@ -87,7 +88,8 @@ bool IfElement::shouldShow(const LayoutContext& ctx) const
     QVariant value;
     if (base) {
         value = ctx.property(m_binding.path());
-        base = !value.isNull();
+        // variantIsNull 统一 Qt5/Qt6 的 null 语义：null QString 在两版下均视为不存在
+        base = !variantIsNull(value);
     }
 
     bool cond = base;

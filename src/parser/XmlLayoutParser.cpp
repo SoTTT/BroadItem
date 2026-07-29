@@ -1,5 +1,6 @@
 #include <broaditem/parser/XmlLayoutParser.h>
 #include <broaditem/diagnostics/Diagnostics.h>
+#include <broaditem/compat/QtCompat.h>
 #include <broaditem/element/Element.h>
 #include <broaditem/element/ContainerElement.h>
 #include <broaditem/element/text/TextElement.h>
@@ -84,12 +85,13 @@ ElementPtr XmlLayoutParser::parseStringInternal(const QString& xmlContent, const
     Diagnostics::ParseSession session(file, collector);
 
     QDomDocument doc;
-    QString errorMsg;
-    int errorLine, errorColumn;
     /// Qt 命名空间处理会剥离纯空白文本节点（如用于对齐的缩进），
     /// 这是预期行为，BroadItem 布局引擎不依赖这些空白。
-    if (!doc.setContent(xmlContent, true, &errorMsg, &errorLine, &errorColumn)) {
-        Diagnostics::reportParse(ErrorCode::XmlSyntaxError, errorMsg, QString(), errorLine, errorColumn);
+    /// setContent 的 Qt5/Qt6 重载差异集中在 domSetContent 兼容函数。
+    const DomContentResult content = domSetContent(doc, xmlContent);
+    if (!content.ok) {
+        Diagnostics::reportParse(ErrorCode::XmlSyntaxError, content.errorMessage,
+                                 QString(), content.errorLine, content.errorColumn);
         return nullptr;
     }
 

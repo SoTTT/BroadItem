@@ -8,7 +8,10 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt5 REQUIRED COMPONENTS Core Widgets Xml)
+# Qt5/Qt6 双栈：优先 Qt6，未安装时回退 Qt5。
+# 下游统一使用 Qt${QT_VERSION_MAJOR}:: 形式的导入目标。
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Widgets Xml)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets Xml)
 
 add_library(BroadItem STATIC
     # core — top-level orchestration
@@ -34,6 +37,10 @@ add_library(BroadItem STATIC
     include/broaditem/diagnostics/Diagnostic.h
     include/broaditem/diagnostics/ErrorCollector.h
     include/broaditem/diagnostics/Diagnostics.h
+
+    # compat — Qt5/Qt6 差异点集中地（P1-3 纪律：禁止散落版本分支）
+    src/compat/QtCompat.cpp
+    include/broaditem/compat/QtCompat.h
 
     # expression — path-string parser and binding
     src/expression/Expression.cpp
@@ -105,7 +112,7 @@ target_include_directories(BroadItem PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(BroadItem PUBLIC Qt5::Core Qt5::Widgets Qt5::Xml)
+target_link_libraries(BroadItem PUBLIC Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Xml)
 
 # Tests
 enable_testing()
