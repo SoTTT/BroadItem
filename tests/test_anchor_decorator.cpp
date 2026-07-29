@@ -739,6 +739,25 @@ private slots:
         delete decorator;
     }
 
+    /// @brief 回归：场景拆除时锚点（z=2）先于装饰器（z=1）被场景销毁，
+    /// 装饰器析构不得二次删除锚点（曾导致 reactive_follow 示例退出时段错误）。
+    /// 不崩溃即通过；QPointer 进一步验证装饰器确已销毁。
+    void sceneTeardownDoesNotDoubleDeleteAnchors()
+    {
+        auto* scene = new QGraphicsScene;
+        auto* item = new TestObservableObject();
+        scene->addItem(item);
+
+        auto* decorator = BroadItem::AnchorDecorator::create(scene, item);
+        QVERIFY(decorator != nullptr);
+        QPointer<BroadItem::AnchorDecorator> guard = decorator;
+
+        // ~QGraphicsScene 按层叠顺序销毁全部图元：锚点先于装饰器
+        delete scene;
+
+        QVERIFY(guard.isNull());  // 装饰器随场景销毁，且过程未崩溃
+    }
+
     // NOLINTEND(readability-convert-member-functions-to-static)
 };
 

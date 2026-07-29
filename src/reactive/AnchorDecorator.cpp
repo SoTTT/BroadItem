@@ -259,6 +259,11 @@ AnchorDecorator::AnchorDecorator(QGraphicsScene* scene,
     // 锚点通过 QObject 父子关系随装饰器析构自动销毁
     for (int i = 0; i < 8; ++i) {
         m_anchors[i] = new AnchorPoint(scene, this);
+        // 双重所有权防护：锚点既是顶级场景项（~QGraphicsScene 会删除，
+        // 且 z=2 高于装饰器的 z=1，场景拆除时先死）又是装饰器的子节点。
+        // 锚点被场景先行销毁时将槽位置空，避免装饰器析构时二次删除。
+        QObject::connect(m_anchors[i], &QObject::destroyed, this,
+                         [this, i]() { m_anchors[i] = nullptr; });
     }
 }
 
