@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+# BroadItem 是静态库，按构建时选定的 Qt 主版本（@QT_VERSION_MAJOR@）编译。
+# 下游必须使用同一 Qt 主版本链接，此处自动 find_dependency。
+include(CMakeFindDependencyMacro)
+find_dependency(Qt@QT_VERSION_MAJOR@ COMPONENTS Core Widgets Xml)
+
+include("${CMAKE_CURRENT_LIST_DIR}/BroadItemTargets.cmake")
+
+check_required_components(BroadItem)

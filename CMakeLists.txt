@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(BroadItem VERSION 1.0.0 LANGUAGES CXX)
+project(BroadItem VERSION 0.9.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -112,7 +112,65 @@ target_include_directories(BroadItem PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
+# 让下游经 find_package 消费时同样以 C++17 编译（全局 CMAKE_CXX_STANDARD 不进导出目标）。
+target_compile_features(BroadItem PUBLIC cxx_std_17)
+
 target_link_libraries(BroadItem PUBLIC Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Xml)
+
+# 供 add_subdirectory / FetchContent 方式消费的下游使用与安装导出一致的命名空间目标。
+add_library(BroadItem::BroadItem ALIAS BroadItem)
+
+# ---- 安装与导出（P1-4） ----
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+install(TARGETS BroadItem
+    EXPORT BroadItemTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(DIRECTORY include/broaditem
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+# 布局结构约束文件，供下游校验 XML 使用。
+install(FILES broaditem.xsd
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/broaditem
+)
+
+install(FILES LICENSE
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/broaditem
+)
+
+set(BroadItem_CMAKE_CONFIG_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/BroadItem)
+
+install(EXPORT BroadItemTargets
+    FILE BroadItemTargets.cmake
+    NAMESPACE BroadItem::
+    DESTINATION ${BroadItem_CMAKE_CONFIG_DIR}
+)
+
+# 把构建时选定的 Qt 主版本烧进 Config，下游 find_package(BroadItem) 时自动 find_dependency 同一 Qt 主版本。
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/BroadItemConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/BroadItemConfig.cmake
+    INSTALL_DESTINATION ${BroadItem_CMAKE_CONFIG_DIR}
+)
+
+# 0.x 阶段按 SameMinorVersion 判定兼容（0.y 系列内 API 稳定，跨 minor 允许调整）。
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/BroadItemConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMinorVersion
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/BroadItemConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/BroadItemConfigVersion.cmake
+    DESTINATION ${BroadItem_CMAKE_CONFIG_DIR}
+)
 
 # Tests
 enable_testing()
