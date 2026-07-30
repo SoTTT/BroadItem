@@ -18,6 +18,7 @@ cmake -B build-qt6 -S . -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt@6 && cmake --bu
 - **Qt5/Qt6 双栈**：`find_package(QT NAMES Qt6 Qt5)` 优先 Qt6、回退 Qt5，链接目标统一 `Qt${QT_VERSION_MAJOR}::`；依赖 Core、Widgets、Xml（测试还需 Test）。版本差异点集中在 `compat/` 模块（P1-3 纪律：禁止散落版本分支），目前有 `variantIsNull()`（Qt6 的 `QVariant::isNull()` 不再传播内含类型的 null 性）与 `domSetContent()`（Qt6.8 起 setContent 旧重载废弃）。
 - **已知行为差异**：Qt6 的 XML 解析器更严格——未声明命名空间前缀（`b:content` 无 `xmlns:b`、裸 `:content`）在 Qt5 下"parse 成功但无绑定"，Qt6 下为 BI-P-002 语法错误 parse 失败；两版语义等价（均不产生绑定），测试按 `QT_VERSION_CHECK` 分别断言。
 - C++17，开启 AUTOMOC/AUTORCC/AUTOUIC，导出 `compile_commands.json`。
+- **安装与下游消费**：`cmake --install <build-dir> --prefix <prefix>` 安装头文件、静态库、`broaditem.xsd`、LICENSE 与 CMake 包配置；导出目标 `BroadItem::BroadItem`（`add_subdirectory` 消费有同名 ALIAS）。`BroadItemConfig.cmake` 烧入构建时的 Qt 主版本并自动 `find_dependency`，下游须用同一 Qt 主版本；`cxx_std_17` 以 PUBLIC compile feature 随目标传导。版本 0.x 阶段按 `SameMinorVersion` 判定兼容，发布以 git tag `vX.Y.Z` 为准。
 - 库目标为 `BroadItem`（STATIC）。示例与测试可执行文件分别构建于 `example/` 和 `tests/` 子目录。
 - 仓库根目录另有 `cmake-build-debug/`（CLion 的 Ninja 构建目录），`build/`（Qt5）与 `build-qt6/`（Qt6）是 `.gitignore` 认可的标准构建目录。
 
@@ -55,7 +56,10 @@ ctest --test-dir build-qt6 --output-on-failure  # Qt6：16 个（test_golden_ren
 ./build/example/reactive_follow   # ReactiveBinding 跟随示例
 ./build/example/multi_instance    # 多实例隔离可视化验证
 ./build/example/status_panel      # 监控铭牌（通用绑定 + <image> 集中展示）
+./build/example/badges            # README 标牌画廊集中展示（--shot <png> 离屏出图后退出）
 ```
+
+`example/badges/` 布局集由 `badges` 可执行集中展示；单张 PNG 用 `./build/example/frame_image <布局.xml> <输出.png>` 渲染（存于 `doc/images/badges/`）。`frame_image` 第三参数可指定布局可用宽度，缺省 -1 为内容驱动。
 
 ## 架构
 
