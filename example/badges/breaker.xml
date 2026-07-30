@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 电力资产铭牌：深色标题条 + 参数网格，直角小圆角、密集排布。 -->
+<root xmlns:b="urn:broaditem:binding">
+    <column background-color="#ffffff"
+            border-width="1" border-style="solid" border-color="#b8bec8"
+            border-radius="2" background-radius="2">
+
+        <!-- 标题条：设备名 + 资产编号 + 状态 chip -->
+        <row background-color="#2f3b4c" padding="8" padding-top="5" padding-bottom="5"
+             space="8" cross-align="center">
+            <text font-size="12" bold="true" color="#ffffff">110kV 断路器</text>
+            <text font-size="10" color="#9fb3c8">CB-1102-A</text>
+            <column padding="4" padding-top="1" padding-bottom="1"
+                    background-color="#2e7d32" background-radius="2">
+                <text font-size="10" bold="true" color="#ffffff">合闸</text>
+            </column>
+        </row>
+
+        <!-- 参数区：grid 标签/值四列对齐 -->
+        <grid columns="4" rows="3" space-column="12" space-row="3"
+              padding="8" padding-top="6" padding-bottom="6">
+            <cell><text font-size="10" color="#6b7280">型号</text></cell>
+            <cell><text font-size="10" color="#1f2937">LW36-126</text></cell>
+            <cell><text font-size="10" color="#6b7280">额定电压</text></cell>
+            <cell><text font-size="10" color="#1f2937">126 kV</text></cell>
+            <cell><text font-size="10" color="#6b7280">额定电流</text></cell>
+            <cell><text font-size="10" color="#1f2937">3150 A</text></cell>
+            <cell><text font-size="10" color="#6b7280">投运日期</text></cell>
+            <cell><text font-size="10" color="#1f2937">2019-06-12</text></cell>
+            <cell><text font-size="10" color="#6b7280">生产厂家</text></cell>
+            <cell><text font-size="10" color="#1f2937">平高电气</text></cell>
+            <cell><text font-size="10" color="#6b7280">最近检修</text></cell>
+            <cell><text font-size="10" color="#1f2937">2026-03-08</text></cell>
+        </grid>
+    </column>
+</root>

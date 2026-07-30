@@ -11,9 +11,11 @@ int main(int argc, char* argv[]) {
 
     QString xmlPath = argc > 1 ? QString::fromLocal8Bit(argv[1]) : "frame_image.xml";
     QString outputPath = argc > 2 ? QString::fromLocal8Bit(argv[2]) : "output.png";
+    // 可选第三参数：布局可用宽度（像素），缺省 -1 表示内容驱动不设约束。
+    double availableWidth = argc > 3 ? QString::fromLocal8Bit(argv[3]).toDouble() : -1.0;
 
     auto frame = BroadItem::Frame::fromFile(xmlPath);
-    frame->performLayout(400, -1);
+    frame->performLayout(availableWidth, -1);
 
     QImage image = frame->toImage(2.0);
     if (image.isNull()) {

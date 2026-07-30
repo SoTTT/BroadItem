@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 交换机端口面板：12×2 端口矩阵，色块即状态。实际使用中端口由 <for> 绑定生成。 -->
+<root xmlns:b="urn:broaditem:binding">
+    <column background-color="#ffffff"
+            border-width="1" border-style="solid" border-color="#b8bec8"
+            border-radius="2" background-radius="2">
+
+        <row padding="8" padding-top="5" padding-bottom="5" space="8" cross-align="center"
+             background-color="#f2f4f7">
+            <text font-size="12" bold="true" color="#1f2937">SW-Core-01</text>
+            <text font-size="10" color="#6b7280">24 口千兆</text>
+            <column padding="4" padding-top="1" padding-bottom="1"
+                    background-color="#2e7d32" background-radius="2">
+                <text font-size="10" bold="true" color="#ffffff">在线</text>
+            </column>
+        </row>
+
+        <grid columns="12" rows="2" space="2"
+              padding="8" padding-top="6" padding-bottom="6">
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#2e7d32" background-radius="2"><text font-size="9" color="#ffffff">01</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#2e7d32" background-radius="2"><text font-size="9" color="#ffffff">02</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#2e7d32" background-radius="2"><text font-size="9" color="#ffffff">03</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#c62828" background-radius="2"><text font-size="9" color="#ffffff">04</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#2e7d32" background-radius="2"><text font-size="9" color="#ffffff">05</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#c9ced6" background-radius="2"><text font-size="9" color="#6b7280">06</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#c9ced6" background-radius="2"><text font-size="9" color="#6b7280">07</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#2e7d32" background-radius="2"><text font-size="9" color="#ffffff">08</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#2e7d32" background-radius="2"><text font-size="9" color="#ffffff">09</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#2e7d32" background-radius="2"><text font-size="9" color="#ffffff">10</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#c9ced6" background-radius="2"><text font-size="9" color="#6b7280">11</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#2e7d32" background-radius="2"><text font-size="9" color="#ffffff">12</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#2e7d32" background-radius="2"><text font-size="9" color="#ffffff">13</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#2e7d32" background-radius="2"><text font-size="9" color="#ffffff">14</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#f59e0b" background-radius="2"><text font-size="9" color="#ffffff">15</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#2e7d32" background-radius="2"><text font-size="9" color="#ffffff">16</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#c9ced6" background-radius="2"><text font-size="9" color="#6b7280">17</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#c9ced6" background-radius="2"><text font-size="9" color="#6b7280">18</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#2e7d32" background-radius="2"><text font-size="9" color="#ffffff">19</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#2e7d32" background-radius="2"><text font-size="9" color="#ffffff">20</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#2e7d32" background-radius="2"><text font-size="9" color="#ffffff">21</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#2e7d32" background-radius="2"><text font-size="9" color="#ffffff">22</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#c9ced6" background-radius="2"><text font-size="9" color="#6b7280">23</text></column></cell>
+            <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#c62828" background-radius="2"><text font-size="9" color="#ffffff">24</text></column></cell>
+        </grid>
+
+        <row padding="8" padding-top="0" padding-bottom="6" space="10">
+            <text font-size="9" color="#2e7d32">■ 已连接</text>
+            <text font-size="9" color="#9ca3af">■ 空闲</text>
+            <text font-size="9" color="#f59e0b">■ 半双工</text>
+            <text font-size="9" color="#c62828">■ 告警</text>
+        </row>
+    </column>
+</root>

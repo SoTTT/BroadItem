@@ -10,6 +10,11 @@ configure_file(basic/layout.xml ${CMAKE_CURRENT_BINARY_DIR}/frame_image.xml COPY
 configure_file(multi_instance/status_card.xml ${CMAKE_CURRENT_BINARY_DIR}/status_card.xml COPYONLY)
 configure_file(multi_instance/process_list.xml ${CMAKE_CURRENT_BINARY_DIR}/process_list.xml COPYONLY)
 configure_file(status_panel/status_panel.xml ${CMAKE_CURRENT_BINARY_DIR}/status_panel.xml COPYONLY)
+configure_file(badges/breaker.xml ${CMAKE_CURRENT_BINARY_DIR}/breaker.xml COPYONLY)
+configure_file(badges/telemetry.xml ${CMAKE_CURRENT_BINARY_DIR}/telemetry.xml COPYONLY)
+configure_file(badges/alarm_banner.xml ${CMAKE_CURRENT_BINARY_DIR}/alarm_banner.xml COPYONLY)
+configure_file(badges/switch_ports.xml ${CMAKE_CURRENT_BINARY_DIR}/switch_ports.xml COPYONLY)
+configure_file(badges/pump.xml ${CMAKE_CURRENT_BINARY_DIR}/pump.xml COPYONLY)
 
 add_executable(basic basic/main.cpp)
 target_link_libraries(basic PRIVATE BroadItem Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Xml)
@@ -42,3 +47,7 @@ target_link_libraries(multi_instance PRIVATE BroadItem Qt${QT_VERSION_MAJOR}::Co
 # Status panel example (generic bindings + <image> element showcase)
 add_executable(status_panel status_panel/main.cpp)
 target_link_libraries(status_panel PRIVATE BroadItem Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Xml)
+
+# Badges gallery (README 标牌画廊集中展示)
+add_executable(badges badges/main.cpp)
+target_link_libraries(badges PRIVATE BroadItem Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Xml)

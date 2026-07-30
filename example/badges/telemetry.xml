@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 遥测点组：温度/振动/压力三个紧凑读数块，大数字 + 单位 + 趋势。 -->
+<root xmlns:b="urn:broaditem:binding">
+    <row space="4">
+
+        <column background-color="#ffffff"
+                border-width="1" border-style="solid" border-color="#c9ced6"
+                border-radius="2" background-radius="2"
+                padding="8" padding-top="6" padding-bottom="6" space="2">
+            <row space="6">
+                <text font-size="10" color="#6b7280">温度</text>
+                <text font-size="10" color="#9ca3af">T-2031</text>
+            </row>
+            <row space="2" cross-align="end">
+                <text font-size="20" bold="true" color="#1f2937">76.4</text>
+                <text font-size="10" color="#6b7280" margin-bottom="2">°C</text>
+            </row>
+            <text font-size="9" color="#c62828">▲ +2.1 /h</text>
+        </column>
+
+        <column background-color="#ffffff"
+                border-width="1" border-style="solid" border-color="#c9ced6"
+                border-radius="2" background-radius="2"
+                padding="8" padding-top="6" padding-bottom="6" space="2">
+            <row space="6">
+                <text font-size="10" color="#6b7280">振动</text>
+                <text font-size="10" color="#9ca3af">V-2031</text>
+            </row>
+            <row space="2" cross-align="end">
+                <text font-size="20" bold="true" color="#1f2937">4.8</text>
+                <text font-size="10" color="#6b7280" margin-bottom="2">mm/s</text>
+            </row>
+            <text font-size="9" color="#f59e0b">▲ 接近预警 6.0</text>
+        </column>
+
+        <column background-color="#ffffff"
+                border-width="1" border-style="solid" border-color="#c9ced6"
+                border-radius="2" background-radius="2"
+                padding="8" padding-top="6" padding-bottom="6" space="2">
+            <row space="6">
+                <text font-size="10" color="#6b7280">压力</text>
+                <text font-size="10" color="#9ca3af">P-2031</text>
+            </row>
+            <row space="2" cross-align="end">
+                <text font-size="20" bold="true" color="#1f2937">0.82</text>
+                <text font-size="10" color="#6b7280" margin-bottom="2">MPa</text>
+            </row>
+            <text font-size="9" color="#2e7d32">— 平稳</text>
+        </column>
+    </row>
+</root>
