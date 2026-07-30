@@ -215,7 +215,8 @@ QImage Frame::toImage(double dpr) const
 
     QPainter painter(&image);
     painter.setRenderHint(QPainter::Antialiasing);
-    painter.scale(dpr, dpr);
+    // 注意：不要额外 painter.scale(dpr, dpr)——QPainter 在带 devicePixelRatio 的
+    // QImage 上 begin 时已自动应用该比例，再缩放会重复放大内容。
     paint(&painter);
     painter.end();
 
