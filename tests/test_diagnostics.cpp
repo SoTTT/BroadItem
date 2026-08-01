@@ -192,7 +192,7 @@ private slots:
         QVERIFY(cap.find(ErrorCode::GridNonCellChild) != nullptr);
     }
 
-    /// @brief BI-P-009：grid cell 数 ≠ columns×rows → Abort（超容量同时触发 BI-P-017）。
+    /// @brief BI-P-009：grid cell 数 ≠ columns×rows → Abort。
     void gridCellCountMismatch()
     {
         CaptureCollector cap;
@@ -329,17 +329,6 @@ private slots:
             wrap(QStringLiteral("<grid columns=\"0\" rows=\"1\"><cell/></grid>")), &cap2);
         QVERIFY(root2 != nullptr);  // columns 钳到 1，cell 数 1×1 匹配
         QVERIFY(cap2.find(ErrorCode::LiteralOutOfRange) != nullptr);
-    }
-
-    /// @brief BI-P-017：grid 子元素超容量 → Warning（保留全部，同时触发 BI-P-009 Abort）。
-    void gridTooManyChildren()
-    {
-        CaptureCollector cap;
-        XmlLayoutParser::parseString(
-            wrap(QStringLiteral("<grid columns=\"1\" rows=\"1\"><cell/><cell/></grid>")), &cap);
-        const Diagnostic* d = cap.find(ErrorCode::GridTooManyChildren);
-        QVERIFY(d != nullptr);
-        QCOMPARE(severityOf(d->code), Severity::Warning);
     }
 
     /// @brief BI-P-018：b:as 无 b:of → Warning，parse 成功。

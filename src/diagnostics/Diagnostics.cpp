@@ -33,7 +33,6 @@ const CodeInfo kCodeTable[] = {
     { "BI-P-014", Severity::Error,   Recovery::Default },  // MutexLiteralBinding
     { "BI-P-015", Severity::Error,   Recovery::Default },  // LiteralTypeMismatch
     { "BI-P-016", Severity::Error,   Recovery::Default },  // LiteralOutOfRange
-    { "BI-P-017", Severity::Warning, Recovery::Default },  // GridTooManyChildren
     { "BI-P-018", Severity::Warning, Recovery::Default },  // AsWithoutOf
     { "BI-P-019", Severity::Warning, Recovery::Default },  // NotBindingIgnored
     { "BI-P-020", Severity::Warning, Recovery::Default },  // RegistryDirMissing

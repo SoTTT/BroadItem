@@ -22,7 +22,6 @@ public:
     bool canHaveChildren() const override { return true; }
 
     /// @brief Virtual hook for subclasses to validate children before adding.
-    /// GridLayout overrides this to validate cell count.
     virtual bool validateChild(const ElementPtr& child) const { Q_UNUSED(child); return true; }
 
 protected:

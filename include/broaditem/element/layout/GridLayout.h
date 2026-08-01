@@ -24,8 +24,6 @@ public:
     MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const override;
     void layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const override;
 
-    /// @brief 向此网格添加子元素，并验证单元格数量。
-    void addChild(ElementPtr child);
     /// @brief 返回直接子元素列表。
     const std::vector<ElementPtr>& children() const { return m_children; }
 

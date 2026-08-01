@@ -55,18 +55,6 @@ void GridLayout::parse(const QDomElement& xml)
     }
 }
 
-/// @brief 向此网格添加子元素（通常是 CellElement），并验证单元格数量。
-/// @param child The element to add.
-void GridLayout::addChild(ElementPtr child)
-{
-    MultiChildContainer::addChild(std::move(child));
-    if (static_cast<int>(m_children.size()) > m_columns * m_rows) {
-        Diagnostics::reportParse(ErrorCode::GridTooManyChildren,
-                                 QStringLiteral("GridLayout: too many children — maximum is %1")
-                                     .arg(m_columns * m_rows));
-    }
-}
-
 /// @brief 物化：创建 GridNode 并拼接所有模板子元素的物化结果。
 /// @param ctx 布局上下文。
 /// @return 新创建的 GridNode 实例节点。

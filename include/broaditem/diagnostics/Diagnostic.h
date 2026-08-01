@@ -25,7 +25,6 @@ enum class ErrorCode {
     MutexLiteralBinding,     ///< BI-P-014 字面量与 b: 绑定互斥
     LiteralTypeMismatch,     ///< BI-P-015 字面量类型错误（数字/整数/布尔校验失败）
     LiteralOutOfRange,       ///< BI-P-016 字面量数值越界（font-size≤0、columns/rows≤0 等）
-    GridTooManyChildren,     ///< BI-P-017 grid 子元素超容量
     AsWithoutOf,             ///< BI-P-018 b:as 无 b:of
     NotBindingIgnored,       ///< BI-P-019 <if> 的 b:not 绑定
     RegistryDirMissing,      ///< BI-P-020 Registry 批量加载：目录不存在
