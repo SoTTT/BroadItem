@@ -14,7 +14,7 @@ const QSet<QString>& TextElement::supportedAttributes() const
     static const QSet<QString> attrs = QSet<QString>{
         "width", "height",
         "content", "v-align", "h-align",
-        "font-family", "font-size", "bold", "under-line",
+        "font-family", "font-size", "bold", "underline",
         "wrap", "max-width", "color"
     } + boxModelAttributeNames();
     return attrs;
@@ -27,7 +27,7 @@ const QSet<QString>& TextElement::supportedAttributes() const
 const QSet<QString>& TextElement::resolvedAttributes() const
 {
     static const QSet<QString> attrs = QSet<QString>{
-        "color", "font-size", "bold", "under-line", "font-family"
+        "color", "font-size", "bold", "underline", "font-family"
     } + SizedElement::resolvedAttributes();
     return attrs;
 }
@@ -77,8 +77,8 @@ void TextElement::parse(const QDomElement& xml)
     }
     if (hasLiteralAttribute(xml, "bold"))
         validateBool(literalAttribute(xml, "bold"), "bold", m_bold);
-    if (hasLiteralAttribute(xml, "under-line"))
-        validateBool(literalAttribute(xml, "under-line"), "under-line", m_underLine);
+    if (hasLiteralAttribute(xml, "underline"))
+        validateBool(literalAttribute(xml, "underline"), "underline", m_underLine);
     if (hasLiteralAttribute(xml, "wrap"))
         validateBool(literalAttribute(xml, "wrap"), "wrap", m_wrap);
     if (hasLiteralAttribute(xml, "max-width"))
@@ -129,9 +129,22 @@ std::unique_ptr<Node> TextElement::materialize(const LayoutContext& ctx) const
         node->fontSize = 12;
     }
     node->bold = resolveBool("bold", ctx, m_bold);
-    node->underLine = resolveBool("under-line", ctx, m_underLine);
+    node->underLine = resolveBool("underline", ctx, m_underLine);
     node->fontFamily = resolveString("font-family", ctx, m_fontFamily);
     return node;
+}
+
+/// @brief 从 TextNode 快照重建 QFont：以 m_font 为基准，覆盖物化时求值的字体属性。
+QFont TextElement::fontFromNode(const TextNode& node) const
+{
+    QFont font = m_font;
+    if (node.fontSize > 0)
+        font.setPixelSize(static_cast<int>(node.fontSize));
+    if (!node.fontFamily.isEmpty())
+        font.setFamily(node.fontFamily);
+    font.setBold(node.bold);
+    font.setUnderline(node.underLine);
+    return font;
 }
 
 /// @brief 计算给定文本的渲染尺寸，考虑字体、换行和 max-width 约束。
@@ -141,14 +154,7 @@ std::unique_ptr<Node> TextElement::materialize(const LayoutContext& ctx) const
 /// @return The computed text size.
 QSizeF TextElement::computeTextSize(const QString& text, const LayoutConstraints& constraints, const TextNode& node) const
 {
-    QFont font = m_font;
-    if (node.fontSize > 0)
-        font.setPixelSize(static_cast<int>(node.fontSize));
-    if (!node.fontFamily.isEmpty())
-        font.setFamily(node.fontFamily);
-    font.setBold(node.bold);
-    font.setUnderline(node.underLine);
-
+    QFont font = fontFromNode(node);
     QFontMetricsF fm(font);
 
     double maxW = m_maxWidth;
@@ -214,6 +220,22 @@ void TextElement::layout(const LayoutContext& ctx, const QRectF& rect, Node& nod
     static_cast<TextNode&>(node).contentRect = contentRect(rect, node.style);
 }
 
+/// @brief 基线钩子：首行文字基线 = margin-top + border-width + padding-top + ascent。
+///
+/// 多行（wrap）文本统一取首行基线；字体从 TextNode 快照重建（同 render 路径）。
+/// 供 RowLayout 的 cross-align="baseline" 分支使用。
+///
+/// @param ctx 布局上下文（未使用；字体属性已在物化时固化进节点）。
+/// @param node 实例节点（TextNode）。
+/// @return 矩形顶边到首行基线的距离（px）。
+double TextElement::baselineOffset(const LayoutContext& ctx, const Node& node) const
+{
+    Q_UNUSED(ctx)
+    const auto& textNode = static_cast<const TextNode&>(node);
+    QFontMetricsF fm(fontFromNode(textNode));
+    return node.style.margin.top + node.style.border.width + node.style.padding.top + fm.ascent();
+}
+
 /// @brief 渲染文本元素：盒模型装饰，然后使用字体、对齐和换行渲染节点文本。
 /// @param painter The QPainter to render onto.
 /// @param ctx The layout context (unused; 文本已在物化时解析)。
@@ -228,13 +250,7 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx, const Node
     if (text.isEmpty())
         return;
 
-    QFont font = m_font;
-    if (textNode.fontSize > 0)
-        font.setPixelSize(static_cast<int>(textNode.fontSize));
-    if (!textNode.fontFamily.isEmpty())
-        font.setFamily(textNode.fontFamily);
-    font.setBold(textNode.bold);
-    font.setUnderline(textNode.underLine);
+    QFont font = fontFromNode(textNode);
 
     painter->setFont(font);
     painter->setPen(textNode.color);

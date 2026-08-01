@@ -17,23 +17,23 @@
         <row space="14">
             <column space="1">
                 <text font-size="9" color="#8b98ab">电流</text>
-                <row space="2" cross-align="end">
+                <row space="2" cross-align="baseline">
                     <text font-size="18" bold="true" color="#4fc3f7">42.6</text>
-                    <text font-size="9" color="#8b98ab" margin-bottom="2">A</text>
+                    <text font-size="9" color="#8b98ab">A</text>
                 </row>
             </column>
             <column space="1">
                 <text font-size="9" color="#8b98ab">转速</text>
-                <row space="2" cross-align="end">
+                <row space="2" cross-align="baseline">
                     <text font-size="18" bold="true" color="#e5eaf1">1480</text>
-                    <text font-size="9" color="#8b98ab" margin-bottom="2">rpm</text>
+                    <text font-size="9" color="#8b98ab">rpm</text>
                 </row>
             </column>
             <column space="1">
                 <text font-size="9" color="#8b98ab">频率</text>
-                <row space="2" cross-align="end">
+                <row space="2" cross-align="baseline">
                     <text font-size="18" bold="true" color="#e5eaf1">49.8</text>
-                    <text font-size="9" color="#8b98ab" margin-bottom="2">Hz</text>
+                    <text font-size="9" color="#8b98ab">Hz</text>
                 </row>
             </column>
         </row>

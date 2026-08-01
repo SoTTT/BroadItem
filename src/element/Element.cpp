@@ -69,6 +69,14 @@ void Element::render(QPainter* painter, const LayoutContext& ctx, const Node& no
     qFatal("Element::render: control elements must not appear in node trees");
 }
 
+/// @brief 基类基线默认实现：-1 表示无基线（调用方回退为底边对齐）。
+double Element::baselineOffset(const LayoutContext& ctx, const Node& node) const
+{
+    Q_UNUSED(ctx)
+    Q_UNUSED(node)
+    return -1;
+}
+
 /// @brief 安全地将字符串解析为 double。
 /// @param value The string to parse.
 /// @param defaultVal Value returned if parsing fails.

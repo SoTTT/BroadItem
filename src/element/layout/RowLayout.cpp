@@ -52,6 +52,11 @@ MeasureResult RowLayout::measure(const LayoutContext& ctx, const LayoutConstrain
 
     const auto& children = node.children;
 
+    // baseline 交叉轴模式：行内容高 = 最大基线 + 最大基线以下高度
+    const bool baselineMode = (m_crossAlign == "baseline");
+    double maxBaseline = 0;
+    double maxBelowBaseline = 0;
+
     if (m_mainStretch && !children.empty()) {
         // 主轴等距拉伸模式：先测量每个子节点的主轴固有尺寸，取最大值。
         double maxChildWidth = 0;
@@ -59,6 +64,13 @@ MeasureResult RowLayout::measure(const LayoutContext& ctx, const LayoutConstrain
             auto result = children[i]->element->measure(ctx, childConstraints, *children[i]);
             maxChildWidth = std::max(maxChildWidth, result.intrinsicSize.width());
             maxHeight = std::max(maxHeight, result.intrinsicSize.height());
+            if (baselineMode) {
+                double b = children[i]->element->baselineOffset(ctx, *children[i]);
+                if (b < 0)  // 无基线元素回退为底边对齐（CSS flexbox fallback 语义）
+                    b = result.intrinsicSize.height();
+                maxBaseline = std::max(maxBaseline, b);
+                maxBelowBaseline = std::max(maxBelowBaseline, result.intrinsicSize.height() - b);
+            }
         }
         totalWidth = maxChildWidth * static_cast<double>(children.size())
                      + m_space * static_cast<double>(children.size() - 1);
@@ -67,10 +79,20 @@ MeasureResult RowLayout::measure(const LayoutContext& ctx, const LayoutConstrain
             auto result = children[i]->element->measure(ctx, childConstraints, *children[i]);
             totalWidth += result.intrinsicSize.width();
             maxHeight = std::max(maxHeight, result.intrinsicSize.height());
+            if (baselineMode) {
+                double b = children[i]->element->baselineOffset(ctx, *children[i]);
+                if (b < 0)  // 无基线元素回退为底边对齐
+                    b = result.intrinsicSize.height();
+                maxBaseline = std::max(maxBaseline, b);
+                maxBelowBaseline = std::max(maxBelowBaseline, result.intrinsicSize.height() - b);
+            }
             if (i + 1 < children.size())
                 totalWidth += m_space;
         }
     }
+
+    if (baselineMode)
+        maxHeight = maxBaseline + maxBelowBaseline;
 
     QSizeF sz(totalWidth + decoW, maxHeight + decoH);
     return MeasureResult{sz};
@@ -143,6 +165,21 @@ void RowLayout::layoutChildren(const LayoutContext& ctx, const QRectF& contentRe
     double extraSpace = contentRect.width() - totalIntrinsicWidth;
     double offsetX = contentRect.x();
 
+    // baseline 交叉轴模式：不做拉伸，先求各子基线与最大基线（无基线回退为子高=底边对齐）
+    const bool baselineMode = (m_crossAlign == "baseline");
+    std::vector<double> childBaselines;
+    double maxBaseline = 0;
+    if (baselineMode) {
+        childBaselines.reserve(children.size());
+        for (size_t i = 0; i < children.size(); ++i) {
+            double b = children[i]->element->baselineOffset(ctx, *children[i]);
+            if (b < 0)
+                b = childSizes[i].height();
+            childBaselines.push_back(b);
+            maxBaseline = std::max(maxBaseline, b);
+        }
+    }
+
     double spacing = m_space;
     if (m_mainAlign == "center") {
         offsetX += extraSpace / 2.0;
@@ -174,6 +211,8 @@ void RowLayout::layoutChildren(const LayoutContext& ctx, const QRectF& contentRe
             childY = contentRect.y() + (contentRect.height() - childHeight) / 2.0;
         } else if (m_crossAlign == "end") {
             childY = contentRect.y() + contentRect.height() - childHeight;
+        } else if (baselineMode) {
+            childY = contentRect.y() + (maxBaseline - childBaselines[i]);
         }
 
         QRectF childRect(offsetX, childY, childWidth, childHeight);

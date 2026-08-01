@@ -11,9 +11,9 @@
                 <text font-size="10" color="#6b7280">温度</text>
                 <text font-size="10" color="#9ca3af">T-2031</text>
             </row>
-            <row space="2" cross-align="end">
+            <row space="2" cross-align="baseline">
                 <text font-size="20" bold="true" color="#1f2937">76.4</text>
-                <text font-size="10" color="#6b7280" margin-bottom="2">°C</text>
+                <text font-size="10" color="#6b7280">°C</text>
             </row>
             <text font-size="9" color="#c62828">▲ +2.1 /h</text>
         </column>
@@ -26,9 +26,9 @@
                 <text font-size="10" color="#6b7280">振动</text>
                 <text font-size="10" color="#9ca3af">V-2031</text>
             </row>
-            <row space="2" cross-align="end">
+            <row space="2" cross-align="baseline">
                 <text font-size="20" bold="true" color="#1f2937">4.8</text>
-                <text font-size="10" color="#6b7280" margin-bottom="2">mm/s</text>
+                <text font-size="10" color="#6b7280">mm/s</text>
             </row>
             <text font-size="9" color="#f59e0b">▲ 接近预警 6.0</text>
         </column>
@@ -41,9 +41,9 @@
                 <text font-size="10" color="#6b7280">压力</text>
                 <text font-size="10" color="#9ca3af">P-2031</text>
             </row>
-            <row space="2" cross-align="end">
+            <row space="2" cross-align="baseline">
                 <text font-size="20" bold="true" color="#1f2937">0.82</text>
-                <text font-size="10" color="#6b7280" margin-bottom="2">MPa</text>
+                <text font-size="10" color="#6b7280">MPa</text>
             </row>
             <text font-size="9" color="#2e7d32">— 平稳</text>
         </column>

@@ -25,13 +25,14 @@ public:
     void layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const override;
     void render(QPainter* painter, const LayoutContext& ctx, const Node& node) const override;
     bool bindsProperty(const QString& name) const override;
+    double baselineOffset(const LayoutContext& ctx, const Node& node) const override;
 
     const QSet<QString>& supportedAttributes() const override;
     bool canHaveChildren() const override { return false; }
 
 protected:
     /// @brief 返回有求值路径的绑定属性集合：文本字体/颜色属性 + 尺寸 + 盒模型。
-    /// @return 静态引用（materialize 逐项求值 color/font-size/bold/under-line/font-family）。
+    /// @return 静态引用（materialize 逐项求值 color/font-size/bold/underline/font-family）。
     const QSet<QString>& resolvedAttributes() const override;
 
 private:
@@ -40,7 +41,7 @@ private:
     bool m_hasContentLiteral = false; ///< Whether literal content was provided.
     Binding m_binding{"b:content", QString{}}; ///< Binding for the b:content attribute.
     QFont m_font;                ///< Font used for rendering.
-    QString m_vAlign = "baseline"; ///< Vertical alignment ("baseline", "top", "center", "bottom").
+    QString m_vAlign = "top"; ///< Vertical alignment ("top", "center", "bottom").
     QString m_hAlign = "left";   ///< Horizontal alignment ("left", "center", "right").
     bool m_bold = false;         ///< Whether text is bold.
     bool m_underLine = false;    ///< Whether text is underlined.
@@ -58,6 +59,10 @@ private:
     /// @param node 实例节点，读取物化时求值的字体属性。
     /// @return The computed text size.
     QSizeF computeTextSize(const QString& text, const LayoutConstraints& constraints, const TextNode& node) const;
+    /// @brief 从 TextNode 快照重建 QFont（fontSize/fontFamily/bold/underLine 覆盖 m_font 基准）。
+    /// @param node 实例节点，读取物化时求值的字体属性。
+    /// @return 重建后的字体；供 measure/render/baselineOffset 共用，避免多处漂移。
+    QFont fontFromNode(const TextNode& node) const;
 };
 
 } // namespace BroadItem

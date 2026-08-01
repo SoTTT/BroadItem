@@ -29,7 +29,7 @@
         border-radius, border-style, border-width, border-color,
         background-color, background-radius, background-opacity
       size:         width, height
-      text style:   color, font-size, bold, under-line, font-family
+      text style:   color, font-size, bold, underline, font-family
     A literal attribute and its b: form are mutually exclusive
     (qCritical, binding ignored). Layout attributes (space/align/
     columns/rows) and text v-align/h-align/wrap/max-width will open
@@ -84,6 +84,19 @@
       <xs:enumeration value="center"/>
       <xs:enumeration value="end"/>
       <xs:enumeration value="stretch"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- row 专用交叉轴对齐：在 crossAlignType 基础上增加 baseline（基线对齐）。
+       baseline 仅 row 有效（交叉轴为垂直方向）；column 交叉轴为水平方向，
+       无 baseline 语义，继续使用 crossAlignType。 -->
+  <xs:simpleType name="rowCrossAlignType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="start"/>
+      <xs:enumeration value="center"/>
+      <xs:enumeration value="end"/>
+      <xs:enumeration value="stretch"/>
+      <xs:enumeration value="baseline"/>
     </xs:restriction>
   </xs:simpleType>
 
@@ -181,7 +194,7 @@ Generic property bindings (reference semantics):
                 b:background-color, b:background-radius,
                 b:background-opacity
     size      : b:width, b:height
-    text style: b:color, b:font-size, b:bold, b:under-line,
+    text style: b:color, b:font-size, b:bold, b:underline,
                 b:font-family
 
   A literal attribute and its b: form are mutually exclusive:
@@ -256,7 +269,7 @@ Binding: b:content="propName"  (e.g. "device.cpu")
 Size:    width / height (pixels, optional, -1 = auto)
 
 Font:    font-family (string), font-size (px, default 12)
-         bold, under-line (true/false)
+         bold, underline (true/false)
 
 Layout:  v-align (top|center|bottom), h-align (left|center|right)
 
@@ -273,7 +286,7 @@ Wrap:    wrap (true/false), max-width (px — triggers word wrap)
       <xs:attribute name="font-family"     type="xs:string"/>
       <xs:attribute name="font-size"       type="nonNegativeDouble" default="12"/>
       <xs:attribute name="bold"            type="boolType"/>
-      <xs:attribute name="under-line"      type="boolType"/>
+      <xs:attribute name="underline"      type="boolType"/>
       <xs:attribute name="wrap"            type="boolType"/>
       <xs:attribute name="max-width"       type="nonNegativeDouble"/>
       <xs:attribute name="color"           type="colorType"/>
@@ -330,6 +343,7 @@ column — stacks children vertically.
 
 main-align:  start | center | end   (default: start)
 cross-align: start | center | end | stretch  (default: stretch)
+             ("baseline" is valid on row only; column has no baseline semantics)
 space:       gap between children in pixels (default: 0)
 main-stretch: true | false  (default: false) — stretch all children to max main-axis size
 
@@ -355,7 +369,9 @@ Control pseudo-attributes (b:of, b:as, b:prop) auto-wrap if present.
   <xs:element name="row">
     <xs:annotation>
       <xs:documentation>
-row — stacks children horizontally. Attributes identical to column.
+row — stacks children horizontally. Attributes identical to column,
+except cross-align additionally accepts "baseline" (baseline alignment;
+children without a baseline fall back to bottom-edge alignment).
       </xs:documentation>
     </xs:annotation>
     <xs:complexType>
@@ -364,7 +380,7 @@ row — stacks children horizontally. Attributes identical to column.
       </xs:sequence>
       <xs:attributeGroup ref="renderableAttrs"/>
       <xs:attribute name="main-align"   type="mainAlignType"  default="start"/>
-      <xs:attribute name="cross-align"  type="crossAlignType" default="stretch"/>
+      <xs:attribute name="cross-align"  type="rowCrossAlignType" default="stretch"/>
       <xs:attribute name="space"        type="nonNegativeDouble" default="0"/>
       <xs:attribute name="main-stretch" type="mainStretchBoolType" default="false"/>
     </xs:complexType>

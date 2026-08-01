@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root xmlns:b="urn:broaditem:binding">
+    <row cross-align="baseline" space="8" padding="12" background-color="#ffffff">
+        <image src="tests/assets/red.png" width="16" height="16"/>
+        <text font-size="24" color="#222">42</text>
+        <text font-size="12" color="#666">items</text>
+        <image src="tests/assets/blue.png" width="10" height="10"/>
+        <text font-size="16" color="#333">状态正常</text>
+    </row>
+</root>

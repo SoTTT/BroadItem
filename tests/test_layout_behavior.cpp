@@ -12,6 +12,7 @@
 #include <QPainter>
 #include <QImage>
 #include <QDebug>
+#include <algorithm>
 
 class TestLayoutBehavior : public QObject {
     Q_OBJECT
@@ -47,6 +48,14 @@ private slots:
 
     // font-size px
     void testFontSizeIsPixels();
+
+    // row cross-align="baseline"
+    void testRowBaselineAlignsDifferentFontSizes();
+    void testRowBaselineNonTextFallsBackToBottomEdge();
+    void testRowBaselineRowHeightWrapsAllChildren();
+    void testRowBaselineIncludesBoxDecorations();
+    void testRowBaselineDoesNotStretchExplicitHeight();
+    void testRowBaselineDegenerateCases();
 
     // space-row/space-column fallback
     void testGridSpaceRowFallsBackToSpace();
@@ -683,6 +692,193 @@ void TestLayoutBehavior::testColumnWithoutMainStretchKeepsOriginalBehavior()
     QVERIFY2(!qFuzzyCompare(h0, h1),
              QString("Without main-stretch, column children should have different heights, got %1 and %2")
                  .arg(h0).arg(h1).toUtf8());
+}
+
+// ── RowLayout cross-align="baseline" ──
+
+/// @brief 计算与 TextElement 内部一致的期望 ascent（默认字体 + setPixelSize）。
+/// @param pixelSize 像素字号。
+/// @return 该字体的 ascent。
+static double expectedAscent(int pixelSize)
+{
+    QFont font;
+    font.setPixelSize(pixelSize);
+    return QFontMetricsF(font).ascent();
+}
+
+/// @brief 不同字号的两个 text 按基线对齐：y 差等于 ascent 差
+void TestLayoutBehavior::testRowBaselineAlignsDifferentFontSizes()
+{
+    QString xml = R"(
+        <root>
+            <row cross-align="baseline">
+                <text font-size="12">small</text>
+                <text font-size="24">BIG</text>
+            </row>
+        </root>
+    )";
+
+    auto result = parseAndLayout(xml);
+    QVERIFY(result != nullptr);
+
+    const auto& children = result->node->children;
+    QCOMPARE(children.size(), size_t(2));
+
+    const double a12 = expectedAscent(12);
+    const double a24 = expectedAscent(24);
+    const double y0 = children[0]->rect.y();
+    const double y1 = children[1]->rect.y();
+
+    // 大字 ascent 更大成为对齐线，小字被下移：y0 - y1 == a24 - a12
+    QVERIFY2(qAbs((y0 - y1) - (a24 - a12)) < 0.5,
+             QString("baseline y-diff should equal ascent diff %1, got %2")
+                 .arg(a24 - a12).arg(y0 - y1).toUtf8());
+    // 两子基线重合
+    QVERIFY2(qAbs((y0 + a12) - (y1 + a24)) < 0.5,
+             "text baselines should coincide");
+}
+
+/// @brief 无基线元素（显式尺寸的 image）以底边参与基线对齐
+void TestLayoutBehavior::testRowBaselineNonTextFallsBackToBottomEdge()
+{
+    QString xml = R"(
+        <root>
+            <row cross-align="baseline">
+                <image width="16" height="16"/>
+                <text font-size="24">Xg</text>
+            </row>
+        </root>
+    )";
+
+    auto result = parseAndLayout(xml);
+    QVERIFY(result != nullptr);
+
+    const auto& children = result->node->children;
+    QCOMPARE(children.size(), size_t(2));
+
+    const double a24 = expectedAscent(24);
+    const QRectF imgRect = children[0]->rect;
+    const QRectF textRect = children[1]->rect;
+
+    // 文本基线 y = textRect.y() + a24；image 底边应落在该线上
+    QVERIFY2(qAbs(imgRect.bottom() - (textRect.y() + a24)) < 0.5,
+             QString("image bottom %1 should land on text baseline %2")
+                 .arg(imgRect.bottom()).arg(textRect.y() + a24).toUtf8());
+}
+
+/// @brief 行高 = maxAscent + maxDescent：所有子元素完整落在行内且行恰好包裹内容
+void TestLayoutBehavior::testRowBaselineRowHeightWrapsAllChildren()
+{
+    QString xml = R"(
+        <root>
+            <row cross-align="baseline">
+                <text font-size="12">Ag</text>
+                <text font-size="24">Ag</text>
+            </row>
+        </root>
+    )";
+
+    // 以测量尺寸作为布局矩形，行高即 baseline 模式下的行内容高
+    auto result = parseAndLayout(xml, QRectF());
+    QVERIFY(result != nullptr);
+
+    const auto& children = result->node->children;
+    QCOMPARE(children.size(), size_t(2));
+
+    const double rowHeight = result->node->rect.height();
+    double maxChildBottom = 0;
+    for (const auto& child : children) {
+        // 无子元素被裁掉：顶边不越界、底边不超过行高
+        QVERIFY2(child->rect.y() >= -0.5, "child top must stay inside the row");
+        QVERIFY2(child->rect.bottom() <= rowHeight + 0.5,
+                 QString("child bottom %1 exceeds row height %2")
+                     .arg(child->rect.bottom()).arg(rowHeight).toUtf8());
+        maxChildBottom = std::max(maxChildBottom, child->rect.bottom());
+    }
+    // 行恰好包裹内容：最大子底边 == 行高（maxAscent + maxDescent 的直接推论）
+    QVERIFY2(qAbs(rowHeight - maxChildBottom) < 0.5,
+             QString("row height %1 should equal max child bottom %2")
+                 .arg(rowHeight).arg(maxChildBottom).toUtf8());
+}
+
+/// @brief text 带 margin-top/padding-top 时基线含装饰偏移
+void TestLayoutBehavior::testRowBaselineIncludesBoxDecorations()
+{
+    QString xml = R"(
+        <root>
+            <row cross-align="baseline">
+                <text font-size="24" margin-top="5" padding-top="7">Ag</text>
+                <text font-size="24">Ag</text>
+            </row>
+        </root>
+    )";
+
+    auto result = parseAndLayout(xml);
+    QVERIFY(result != nullptr);
+
+    const auto& children = result->node->children;
+    QCOMPARE(children.size(), size_t(2));
+
+    // 同字号 ascent 相同，装饰子基线 = 5 + 7 + a24 成为对齐线：
+    // 无装饰子下移 12px，装饰子顶边在 0
+    const double y0 = children[0]->rect.y();
+    const double y1 = children[1]->rect.y();
+    QVERIFY2(qAbs(y0) < 0.5,
+             QString("decorated child should sit at row top, got y=%1").arg(y0).toUtf8());
+    QVERIFY2(qAbs((y1 - y0) - 12.0) < 0.5,
+             QString("decoration offset should be 12px, got %1").arg(y1 - y0).toUtf8());
+}
+
+/// @brief 显式 height 的 text 在 baseline 模式下不被拉伸，按固有（指定）尺寸参与
+void TestLayoutBehavior::testRowBaselineDoesNotStretchExplicitHeight()
+{
+    QString xml = R"(
+        <root>
+            <row cross-align="baseline">
+                <text height="60" font-size="12">A</text>
+                <text font-size="24">BIG</text>
+            </row>
+        </root>
+    )";
+
+    auto result = parseAndLayout(xml);
+    QVERIFY(result != nullptr);
+
+    const auto& children = result->node->children;
+    QCOMPARE(children.size(), size_t(2));
+
+    QVERIFY2(qAbs(children[0]->rect.height() - 60.0) < 0.5,
+             QString("explicit height=60 text should not be stretched, got %1")
+                 .arg(children[0]->rect.height()).toUtf8());
+}
+
+/// @brief 单子元素与空 row 的退化场景不崩溃
+void TestLayoutBehavior::testRowBaselineDegenerateCases()
+{
+    QString xmlSingle = R"(
+        <root>
+            <row cross-align="baseline">
+                <text font-size="24">only</text>
+            </row>
+        </root>
+    )";
+    auto single = parseAndLayout(xmlSingle, QRectF());
+    QVERIFY(single != nullptr);
+    QCOMPARE(single->node->children.size(), size_t(1));
+    // 单子元素：基线即自身，顶边为 0，行高 == 子高
+    QVERIFY2(qAbs(single->node->children[0]->rect.y()) < 0.5,
+             "single child should sit at row top");
+    QVERIFY2(qAbs(single->node->rect.height() - single->node->children[0]->rect.height()) < 0.5,
+             "single-child row height should equal child height");
+
+    QString xmlEmpty = R"(
+        <root>
+            <row cross-align="baseline"></row>
+        </root>
+    )";
+    auto empty = parseAndLayout(xmlEmpty);
+    QVERIFY(empty != nullptr);
+    QVERIFY(empty->node->children.empty());
 }
 
 QTEST_MAIN(TestLayoutBehavior)

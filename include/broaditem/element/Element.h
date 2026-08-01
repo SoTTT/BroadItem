@@ -67,6 +67,17 @@ public:
     /// 基类默认实现为 qFatal——控制元素永不出现在实例树中。
     virtual void render(QPainter* painter, const LayoutContext& ctx, const Node& node) const;
 
+    /// @brief 基线钩子：返回自身矩形顶边到基线的距离（px）。
+    ///
+    /// 供 RowLayout 的 cross-align="baseline" 分支在 measure/layout 阶段查询。
+    /// 基类返回 -1 表示"无基线"，调用方回退为底边对齐（以子节点高度参与，
+    /// 等价 CSS flexbox 的无基线元素 fallback 语义）。TextElement 覆写为
+    /// margin-top + border-width + padding-top + 首行 ascent。
+    /// @param ctx 布局上下文。
+    /// @param node 实例节点（含物化时固化的样式快照）。
+    /// @return 顶边到基线的距离；无基线时返回 -1。
+    virtual double baselineOffset(const LayoutContext& ctx, const Node& node) const;
+
     /// @brief 数据绑定：如果该元素使用了指定属性名，返回 true。
     /// 基类实现遍历通用绑定表 m_bindings（见 parseBindings）。
     virtual bool bindsProperty(const QString& name) const;
