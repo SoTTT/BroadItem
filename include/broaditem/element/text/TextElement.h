@@ -47,7 +47,7 @@ private:
     bool m_underLine = false;    ///< Whether text is underlined.
     bool m_wrap = false;         ///< Whether text wraps at the element width.
     double m_maxWidth = -1;      ///< Maximum width for text wrapping (-1 = no limit).
-    double m_fontSize = 12;      ///< Font size in points.
+    double m_fontSize = 12;      ///< Font size in pixels.
     QString m_fontFamily;        ///< Font family name.
     QColor m_color = Qt::black;  ///< Text color.
 

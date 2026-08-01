@@ -30,6 +30,7 @@
         background-color, background-radius, background-opacity
       size:         width, height
       text style:   color, font-size, bold, underline, font-family
+      image:        src, keep-aspect
     A literal attribute and its b: form are mutually exclusive
     (qCritical, binding ignored). Layout attributes (space/align/
     columns/rows) and text v-align/h-align/wrap/max-width will open
@@ -104,8 +105,6 @@
     <xs:restriction base="xs:string">
       <xs:enumeration value="none"/>
       <xs:enumeration value="solid"/>
-      <xs:enumeration value="dashed"/>
-      <xs:enumeration value="dotted"/>
     </xs:restriction>
   </xs:simpleType>
 
@@ -266,7 +265,7 @@ Static:  content="Hello"  OR  text between tags
 Binding: b:content="propName"  (e.g. "device.cpu")
          content and b:content are mutually exclusive.
 
-Size:    width / height (pixels, optional, -1 = auto)
+Size:    width / height (pixels, optional; omit = auto)
 
 Font:    font-family (string), font-size (px, default 12)
          bold, underline (true/false)
@@ -309,7 +308,7 @@ Static:  src=":/icons/red.png"  (Qt resource path, ":/" prefix)
          URLs are NOT supported (QPixmap load failure semantics apply).
 Binding: b:src="iconPath"  (reference semantics, mutually exclusive with src)
 
-Size:    width / height (pixels, optional, -1 = auto)
+Size:    width / height (pixels, optional; omit = auto)
          explicit size wins; single dimension derives the other from the
          image aspect ratio; no explicit size uses the pixmap's natural size.
 
@@ -430,8 +429,8 @@ space-column: override horizontal spacing
         <xs:element ref="cell" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
       <xs:attributeGroup ref="renderableAttrs"/>
-      <xs:attribute name="columns"       type="positiveInt" use="required"/>
-      <xs:attribute name="rows"          type="positiveInt" use="required"/>
+      <xs:attribute name="columns"       type="positiveInt"/>
+      <xs:attribute name="rows"          type="positiveInt"/>
       <xs:attribute name="space"         type="nonNegativeDouble" default="0"/>
       <xs:attribute name="space-row"     type="nonNegativeDouble"/>
       <xs:attribute name="space-column"  type="nonNegativeDouble"/>
