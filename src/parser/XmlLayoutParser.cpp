@@ -2,7 +2,6 @@
 #include <broaditem/diagnostics/Diagnostics.h>
 #include <broaditem/compat/QtCompat.h>
 #include <broaditem/element/Element.h>
-#include <broaditem/element/ContainerElement.h>
 #include <broaditem/element/text/TextElement.h>
 #include <broaditem/element/image/ImageElement.h>
 #include <broaditem/element/rect/RectElement.h>
@@ -86,9 +85,9 @@ ElementPtr XmlLayoutParser::parseStringInternal(const QString& xmlContent, const
     Diagnostics::ParseSession session(file, collector);
 
     QDomDocument doc;
-    /// Qt 命名空间处理会剥离纯空白文本节点（如用于对齐的缩进），
-    /// 这是预期行为，BroadItem 布局引擎不依赖这些空白。
-    /// setContent 的 Qt5/Qt6 重载差异集中在 domSetContent 兼容函数。
+    // Qt 命名空间处理会剥离纯空白文本节点（如用于对齐的缩进），
+    // 这是预期行为，BroadItem 布局引擎不依赖这些空白。
+    // setContent 的 Qt5/Qt6 重载差异集中在 domSetContent 兼容函数。
     const DomContentResult content = domSetContent(doc, xmlContent);
     if (!content.ok) {
         Diagnostics::reportParse(ErrorCode::XmlSyntaxError, content.errorMessage,
@@ -102,11 +101,7 @@ ElementPtr XmlLayoutParser::parseStringInternal(const QString& xmlContent, const
         return nullptr;
     }
 
-    QDomElement firstChild;
-    for (QDomElement child = root.firstChildElement(); !child.isNull(); child = child.nextSiblingElement()) {
-        firstChild = child;
-        break;
-    }
+    QDomElement firstChild = root.firstChildElement();
 
     if (firstChild.isNull()) {
         Diagnostics::reportParse(ErrorCode::RootChildCount,
@@ -136,8 +131,8 @@ ElementPtr XmlLayoutParser::parseStringInternal(const QString& xmlContent, const
 ///
 /// 未知标签报 BI-P-005（Error/Abort）；deprecated 装饰器标签报 BI-P-006 并忽略。
 ///
-/// @param tagName The XML tag name (e.g. "text", "column", "row").
-/// @return A new element of the corresponding type, or nullptr for unknown tags.
+/// @param tagName XML 标签名（如 "text"、"column"、"row"）。
+/// @return 对应类型的新元素；未知标签返回 nullptr。
 ElementPtr XmlLayoutParser::createElement(const QString& tagName)
 {
     if (tagName == QLatin1String("text"))
@@ -175,8 +170,8 @@ ElementPtr XmlLayoutParser::createElement(const QString& tagName)
 /// 返回 nullptr 仅表示该子树构造失败；全收集语义下父循环继续处理兄弟节点，
 /// 最终是否整体失败由会话 sawAbort 决定（见 parseStringInternal）。
 ///
-/// @param xml The DOM element to parse.
-/// @return The parsed element, or nullptr on error.
+/// @param xml 要解析的 DOM 元素。
+/// @return 解析出的元素；出错时返回 nullptr。
 ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
 {
     const SegmentGuard guard(segmentFor(xml));
@@ -200,7 +195,6 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
         return nullptr;
     }
 
-    auto container = std::dynamic_pointer_cast<ContainerElement>(element);
     auto column = std::dynamic_pointer_cast<ColumnLayout>(element);
     auto row = std::dynamic_pointer_cast<RowLayout>(element);
     auto grid = std::dynamic_pointer_cast<GridLayout>(element);
@@ -250,8 +244,7 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
             if (templ)
                 forEl->setTemplate(templ);
         }
-        if (xml.hasAttributeNS(BINDING_NS, "as"))
-            forEl->setAsVariable(xml.attributeNS(BINDING_NS, "as", QString()));
+        // b:of/b:as 已由 ForElement::parse() 解析，此处只补模板子元素。
     } else if (ifEl) {
         if (!ifEl->isConditionValid()) {
             Diagnostics::reportParse(ErrorCode::IfMissingProp,
@@ -264,9 +257,8 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
             if (childEl)
                 ifEl->setChild(childEl);
         }
-    } else if (container && xml.firstChildElement().isNull()) {
-        // Leaf container
     }
+    // 无子元素的叶子容器无需额外处理。
 
     if (wrapFor) {
         auto wrapper = std::make_shared<ForElement>();
@@ -280,7 +272,6 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
     if (wrapIf) {
         auto wrapper = std::make_shared<IfElement>();
         wrapper->setBindProperty(xml.attributeNS(BINDING_NS, "prop", QString()));
-        wrapper->setNot(false);
         wrapper->setChild(element);
         return wrapper;
     }

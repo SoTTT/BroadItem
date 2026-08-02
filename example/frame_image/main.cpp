@@ -6,7 +6,8 @@
 #include <broaditem/core/Frame.h>
 
 /// @brief 入口点。从命令行加载 XML 布局，渲染为 QImage 并保存为 PNG。
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
     QGuiApplication app(argc, argv);
 
     QString xmlPath = argc > 1 ? QString::fromLocal8Bit(argv[1]) : "frame_image.xml";
@@ -15,6 +16,10 @@ int main(int argc, char* argv[]) {
     double availableWidth = argc > 3 ? QString::fromLocal8Bit(argv[3]).toDouble() : -1.0;
 
     auto frame = BroadItem::Frame::fromFile(xmlPath);
+    if (!frame) {
+        qCritical() << "Failed to load layout:" << xmlPath;
+        return 1;
+    }
     frame->performLayout(availableWidth, -1);
 
     QImage image = frame->toImage(2.0);

@@ -7,13 +7,8 @@ namespace BroadItem {
 
 /// @brief GridLayout 的实例节点，缓存测量阶段的列宽/行高供布局阶段使用。
 struct GridNode : Node {
-    struct CellMeasure {
-        double width = 0;
-        double height = 0;
-    };
-    std::vector<CellMeasure> cellMeasures;  ///< Per-cell measure results.
-    std::vector<double> colWidths;          ///< Computed column widths.
-    std::vector<double> rowHeights;         ///< Computed row heights.
+    std::vector<double> colWidths;          ///< 计算得出的各列宽度。
+    std::vector<double> rowHeights;         ///< 计算得出的各行高度。
 };
 
 /// @brief 网格布局，在固定的行列网格中排列子元素。
@@ -39,11 +34,11 @@ public:
     const QSet<QString>& supportedAttributes() const override;
 
 private:
-    int m_columns = 1;                    ///< Number of columns in the grid.
-    int m_rows = 1;                       ///< Number of rows in the grid.
-    double m_space = 0;                   ///< Default spacing between all cells.
-    std::optional<double> m_rowSpace;     ///< Spacing between rows (overrides m_space if set).
-    std::optional<double> m_columnSpace;  ///< Spacing between columns (overrides m_space if set).
+    int m_columns = 1;                    ///< 网格列数。
+    int m_rows = 1;                       ///< 网格行数。
+    double m_space = 0;                   ///< 所有单元格之间的默认间距。
+    std::optional<double> m_rowSpace;     ///< 行间距（设置后覆盖 m_space）。
+    std::optional<double> m_columnSpace;  ///< 列间距（设置后覆盖 m_space）。
 };
 
 } // namespace BroadItem

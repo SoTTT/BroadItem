@@ -1,6 +1,7 @@
 #include <broaditem/diagnostics/Diagnostics.h>
 #include <broaditem/element/Element.h>
 #include <QDebug>
+#include <iterator>
 
 namespace BroadItem {
 
@@ -51,6 +52,11 @@ const CodeInfo kCodeTable[] = {
     { "BI-R-010", Severity::Warning, Recovery::Default },  // ImageLoadFailed
     { "BI-R-011", Severity::Error,   Recovery::Default },  // BoundValueTypeError
 };
+
+// 码表与 ErrorCode 枚举按声明顺序一一对应：新增/插入枚举值时必须同步维护码表，
+// 否则此断言编译失败，防止错位导致静默错配或越界。
+static_assert(std::size(kCodeTable) == static_cast<size_t>(ErrorCode::BoundValueTypeError) + 1,
+              "kCodeTable 与 ErrorCode 枚举项数不一致");
 
 const CodeInfo& infoOf(ErrorCode code)
 {

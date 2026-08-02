@@ -2,7 +2,6 @@
 
 #include <QString>
 #include <memory>
-#include <broaditem/context/LayoutContext.h>
 
 class QDomElement;
 

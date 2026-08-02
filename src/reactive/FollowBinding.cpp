@@ -1,4 +1,8 @@
+/// @file FollowBinding.cpp
+/// @brief FollowBinding 实现 —— 场景坐标相对位置跟随绑定。
+
 #include <broaditem/reactive/FollowBinding.h>
+#include <broaditem/reactive/ReactiveBinding.h>
 #include <broaditem/reactive/ReactiveProperty.h>
 
 #include <QDebug>
@@ -9,11 +13,11 @@ namespace BroadItem {
 /// @brief 创建 leader 与 follower 之间的场景坐标相对位置跟随绑定。
 ///
 /// 校验 leader 和 follower 非空，均为 QGraphicsObject 实例，且均支持 pos 属性。参数无效时返回 nullptr。
-/// 偏移量根据创建时 leader 与 follower 的实际场景位置计算：
+/// initialOffset 非零时直接采用；为零点（缺省值）时根据创建时 leader 与 follower 的实际场景位置计算：
 /// m_offset = follower->scenePos() - leader->scenePos()。
 /// @param leader 自由移动的领导对象。
 /// @param follower 跟随 leader 的目标对象。
-/// @param initialOffset 保留的初始偏移量参数（当前实现从实际场景位置计算偏移，不使用该参数）。
+/// @param initialOffset 初始偏移量；为零点时按实际场景位置自动计算。
 /// @param parent 父 QObject。
 /// @return FollowBinding* 新绑定实例；参数无效时返回 nullptr。
 FollowBinding* FollowBinding::create(QObject* leader,
@@ -21,8 +25,6 @@ FollowBinding* FollowBinding::create(QObject* leader,
                                      const QPointF& initialOffset,
                                      QObject* parent)
 {
-    Q_UNUSED(initialOffset)
-
     if (!leader) {
         qWarning() << "FollowBinding::create: leader is null";
         return nullptr;
@@ -55,7 +57,10 @@ FollowBinding* FollowBinding::create(QObject* leader,
         return nullptr;
     }
 
-    const QPointF offset = followerObj->scenePos() - leaderObj->scenePos();
+    // initialOffset 非零时采用调用方指定值；零点（缺省）按实际场景位置计算。
+    const QPointF offset = initialOffset.isNull()
+                               ? followerObj->scenePos() - leaderObj->scenePos()
+                               : initialOffset;
     return new FollowBinding(leaderObj, followerObj, offset, parent);
 }
 

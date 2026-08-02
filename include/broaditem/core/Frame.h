@@ -134,7 +134,7 @@ private:
     std::function<void()> m_relayoutAction = [this] { performLayout(); }; ///< 重布局动作，可被持有方替换。
     std::unique_ptr<QObject> m_timerContext;                        ///< singleShot 的 context，Frame 销毁时待定任务自动取消。
 
-    /// @brief 设置属性上下文（如果未提供则创建默认的 MapPropertyContext）。
+    /// @brief 连接属性上下文的变更回调（默认 MapPropertyContext 的创建在 fromFile/fromRegistry）。
     void setupPropertyContext();
 
     /// @brief 标脏并按更新策略调度重布局（同步立即执行 / 合并排入事件循环）。

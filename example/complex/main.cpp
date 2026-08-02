@@ -2,11 +2,8 @@
 #include <QGraphicsView>
 #include <QGraphicsScene>
 #include <broaditem/core/BroadItem.h>
-#include <QDebug>
 #include <QTimer>
 #include <QRandomGenerator>
-#include <QDateTime>
-#include <cmath>
 
 /// @brief 返回 [0, max) 范围内的随机整数。
 static int rnd(int max)
@@ -57,22 +54,22 @@ static QVariantList makeProcesses()
     {
         QVariantMap p;
         p["name"] = "com.apple.WebKit.WebContent";
-        p["pid"] = "87471";
-        p["cpu"] = "12.3";
+        p["pid"] = 87471;
+        p["cpu"] = 12.3;
         list.append(p);
     }
     {
         QVariantMap p;
         p["name"] = "kernel_task";
-        p["pid"] = "0";
-        p["cpu"] = "4.5";
+        p["pid"] = 0;
+        p["cpu"] = 4.5;
         list.append(p);
     }
     {
         QVariantMap p;
         p["name"] = "WindowServer";
-        p["pid"] = "199";
-        p["cpu"] = "3.1";
+        p["pid"] = 199;
+        p["cpu"] = 3.1;
         list.append(p);
     }
     return list;
@@ -140,6 +137,5 @@ int main(int argc, char* argv[])
     });
     timer->start(1500);
 
-    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
-    return app.exec();
+    return QApplication::exec();
 }

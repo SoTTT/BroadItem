@@ -1,14 +1,12 @@
 #include <broaditem/element/layout/GridLayout.h>
 #include <broaditem/diagnostics/Diagnostics.h>
 #include <algorithm>
-#include <QPainter>
 #include <QDomElement>
-#include <QDebug>
 
 namespace BroadItem {
 
 /// @brief 返回 GridLayout 支持的 XML 属性集合。
-/// @return Reference to a static set of attribute names.
+/// @return 属性名的静态集合引用。
 const QSet<QString>& GridLayout::supportedAttributes() const
 {
     static const QSet<QString> attrs = QSet<QString>{"columns", "rows", "space", "space-row", "space-column"} + boxModelAttributeNames();
@@ -16,7 +14,7 @@ const QSet<QString>& GridLayout::supportedAttributes() const
 }
 
 /// @brief 解析网格尺寸（列、行）和间距属性。
-/// @param xml The DOM element to parse.
+/// @param xml 要解析的 DOM 元素。
 void GridLayout::parse(const QDomElement& xml)
 {
     ContainerElement::parse(xml);
@@ -68,10 +66,10 @@ std::unique_ptr<Node> GridLayout::materialize(const LayoutContext& ctx) const
 }
 
 /// @brief 测量网格：从子节点尺寸计算列宽和行高，缓存进 GridNode。
-/// @param ctx The layout context.
-/// @param constraints Available width/height constraints.
+/// @param ctx 布局上下文。
+/// @param constraints 可用宽高约束。
 /// @param node 实例节点（GridNode）。
-/// @return The measured grid size including box model decoration.
+/// @return 含盒模型装饰的网格测量尺寸。
 MeasureResult GridLayout::measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const
 {
     auto& gridNode = static_cast<GridNode&>(node);
@@ -87,16 +85,14 @@ MeasureResult GridLayout::measure(const LayoutContext& ctx, const LayoutConstrai
 
     gridNode.colWidths.assign(m_columns, 0.0);
     gridNode.rowHeights.assign(m_rows, 0.0);
-    gridNode.cellMeasures.clear();
 
     const auto& children = node.children;
     for (size_t i = 0; i < children.size(); ++i) {
         auto result = children[i]->element->measure(ctx, childConstraints, *children[i]);
-        gridNode.cellMeasures.push_back({result.intrinsicSize.width(), result.intrinsicSize.height()});
         int col = static_cast<int>(i) % m_columns;
         int row = static_cast<int>(i) / m_columns;
-        if (col < m_columns)
-            gridNode.colWidths[col] = std::max(gridNode.colWidths[col], result.intrinsicSize.width());
+        // col 恒小于 m_columns（取模结果）；超出网格容量（row >= m_rows）的子节点只测不排。
+        gridNode.colWidths[col] = std::max(gridNode.colWidths[col], result.intrinsicSize.width());
         if (row < m_rows)
             gridNode.rowHeights[row] = std::max(gridNode.rowHeights[row], result.intrinsicSize.height());
     }
@@ -104,20 +100,20 @@ MeasureResult GridLayout::measure(const LayoutContext& ctx, const LayoutConstrai
     double totalWidth = 0;
     for (double w : gridNode.colWidths)
         totalWidth += w;
-    totalWidth += (m_columns - 1) * m_columnSpace.value_or(m_space);
+    totalWidth += (m_columns - 1) * columnSpace();
 
     double totalHeight = 0;
     for (double h : gridNode.rowHeights)
         totalHeight += h;
-    totalHeight += (m_rows - 1) * m_rowSpace.value_or(m_space);
+    totalHeight += (m_rows - 1) * rowSpace();
 
     QSizeF sz(totalWidth + decoW, totalHeight + decoH);
     return MeasureResult{sz};
 }
 
 /// @brief 以网格模式定位子节点，均匀分配额外空间。
-/// @param ctx The layout context.
-/// @param rect The bounding rectangle assigned to this grid.
+/// @param ctx 布局上下文。
+/// @param rect 分配给此网格的矩形。
 /// @param node 实例节点（GridNode，列宽/行高已在测量阶段缓存）。
 void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const
 {
@@ -130,12 +126,12 @@ void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect, Node& node
     double measuredWidth = 0;
     for (double w : gridNode.colWidths)
         measuredWidth += w;
-    measuredWidth += (m_columns - 1) * m_columnSpace.value_or(m_space);
+    measuredWidth += (m_columns - 1) * columnSpace();
 
     double measuredHeight = 0;
     for (double h : gridNode.rowHeights)
         measuredHeight += h;
-    measuredHeight += (m_rows - 1) * m_rowSpace.value_or(m_space);
+    measuredHeight += (m_rows - 1) * rowSpace();
 
     double extraW = cr.width() - measuredWidth;
     double extraH = cr.height() - measuredHeight;
@@ -162,9 +158,9 @@ void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect, Node& node
 
             QRectF cellRect(x, y, gridNode.colWidths[col], gridNode.rowHeights[row]);
             children[idx]->element->layout(ctx, cellRect, *children[idx]);
-            x += gridNode.colWidths[col] + m_columnSpace.value_or(m_space);
+            x += gridNode.colWidths[col] + columnSpace();
         }
-        y += gridNode.rowHeights[row] + m_rowSpace.value_or(m_space);
+        y += gridNode.rowHeights[row] + rowSpace();
     }
 }
 

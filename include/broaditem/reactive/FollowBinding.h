@@ -4,11 +4,11 @@
 #include <QPointF>
 #include <QMetaObject>
 
-#include <broaditem/reactive/ReactiveBinding.h>
-
 class QGraphicsObject;
 
 namespace BroadItem {
+
+class ReactiveBinding;
 
 /// @brief 场景坐标相对位置跟随绑定。
 ///
@@ -29,7 +29,7 @@ public:
     ///
     /// @param leader 自由移动的领导对象，必须是 QGraphicsObject 实例且支持 pos 属性。
     /// @param follower 跟随 leader 的目标对象，必须是 QGraphicsObject 实例且支持 pos 属性。
-    /// @param initialOffset 保留的初始偏移量参数（当前实现根据创建时 leader 与 follower 的实际场景位置计算偏移）。
+    /// @param initialOffset 初始偏移量；为零点（缺省值）时按创建时的实际场景位置自动计算。
     /// @param parent 父 QObject。
     /// @return FollowBinding* 新绑定实例；参数无效时返回 nullptr。
     static FollowBinding* create(QObject* leader,

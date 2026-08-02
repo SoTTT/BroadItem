@@ -21,9 +21,6 @@ public:
     /// @brief 返回 true：多子容器可以有子元素。
     bool canHaveChildren() const override { return true; }
 
-    /// @brief Virtual hook for subclasses to validate children before adding.
-    virtual bool validateChild(const ElementPtr& child) const { Q_UNUSED(child); return true; }
-
 protected:
     std::vector<ElementPtr> m_children;   ///< 模板子元素列表（含未展开的控制元素）。
 

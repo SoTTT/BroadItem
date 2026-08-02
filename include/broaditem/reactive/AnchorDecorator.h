@@ -39,8 +39,8 @@ class ReactiveBinding;
 /// - 当 decorated 被销毁时，装饰器通过 deleteLater() 自我调度删除。
 ///
 /// 装饰器通过 ReactiveBinding::createObserver 监听 decorated 的 pos 属性变化
-/// 以实现几何体实时跟动；在 decorated 具备带 NOTIFY 信号的 width/height 属性时
-/// 额外连接这两个属性的观察者。
+/// 以实现几何体实时跟动；在 decorated 具备可写且带 NOTIFY 信号的 width/height
+/// 属性时额外连接这两个属性的观察者。
 ///
 /// 其它说明：
 /// - 不参与 XML 元素树和 measure/layout/render 管线。
@@ -79,7 +79,7 @@ public:
     /// 4. 否则将 decorated 的 parentItem 直接设为装饰器。
     /// 5. setZValue(1)
     /// 6. 创建 ReactiveBinding observer 监听 pos（始终）
-    /// 7. 预检 decorated 的 width/height 属性，仅在其具备 NOTIFY 信号时创建 observer
+    /// 7. 预检 decorated 的 width/height 属性，仅在其可写且具备 NOTIFY 信号时创建 observer
     /// 8. 连接 decorated::destroyed 信号以触发 deleteLater
     /// 9. 调用 computeAndApplyGeometry() 初始布局
     ///
@@ -95,11 +95,13 @@ public:
     ///
     /// 执行顺序：
     /// 1. 断开 m_decoratedDestroyConnection
-    /// 2. 若 decorated 仍存活：
+    /// 2. destroy + delete 所有 ReactiveBinding observer（必须先于 reparent，
+    ///    避免恢复父级时触发 pos 变化回调）
+    /// 3. 若 decorated 仍存活：
     ///    - 若原始父节点仍存活，将其重新挂回原始父节点并保持 scenePos
     ///    - 否则将其重新挂回场景顶级并保持 scenePos
-    /// 3. 删除 8 个 AnchorPoint 实例
-    /// 4. destroy + delete 所有 ReactiveBinding observer
+    /// 4. 删除原始父节点下的占位图元（sentinel）
+    /// 5. 删除 8 个 AnchorPoint 实例
     ~AnchorDecorator() override;
 
     /// @brief 获取指定方位的锚点。
@@ -197,18 +199,12 @@ private:
     /// @brief 根据当前 m_width/m_height 重新计算 8 个锚点的位置。
     void updateAnchorPositions();
 
-    /// @brief 检查 QObject 的指定属性是否有 NOTIFY 信号。
-    ///
-    /// 用于预检 decorated 的 width/height 属性是否支持响应式监听，
-    /// 避免调用 ReactiveBinding::createObserver 时输出 qWarning。
-    /// @param obj 要检查的 QObject。
-    /// @param propName 属性名。
-    /// @return true 表示属性存在且有 NOTIFY 信号。
-    static bool hasNotifyProperty(const QObject* obj, const QString& propName);
+    /// @brief 锚点数量，对应 AnchorSide 的 8 个罗盘方向。
+    static constexpr int kAnchorCount = 8;
 
     QGraphicsObject* m_decorated;               ///< 被装饰的 QGraphicsObject。
     QPointer<QGraphicsObject> m_originalParent; ///< decorated 的原父节点（若是 QGraphicsObject 且仍存活）。
-    AnchorPoint* m_anchors[8];                   ///< 8 个方位锚点（N/NE/E/SE/S/SW/W/NW）。
+    AnchorPoint* m_anchors[kAnchorCount];        ///< 8 个方位锚点（N/NE/E/SE/S/SW/W/NW）。
     QPen m_pen;                                  ///< 外框画笔。
     qreal m_margin;                              ///< 边距。
     qreal m_width;                               ///< 装饰器宽度。
