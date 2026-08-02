@@ -21,9 +21,9 @@
 
     Reserved (control / text-content channels): b:content / b:of / b:as / b:prop
 
-    Generic property bindings: ANY literal attribute may be written as
-    b:<attr> (reference semantics, resolved from PropertyContext at
-    materialization time into the ResolvedStyle snapshot). First batch:
+    Generic property bindings: content-class literal attributes may be
+    written as b:<attr> (reference semantics, resolved from PropertyContext
+    at materialization time into the ResolvedStyle snapshot). Supported:
       box model (17): margin, margin-left/right/top/bottom,
         padding, padding-left/right/top/bottom,
         border-radius, border-style, border-width, border-color,
@@ -32,9 +32,10 @@
       text style:   color, font-size, bold, underline, font-family
       image:        src, keep-aspect
     A literal attribute and its b: form are mutually exclusive
-    (qCritical, binding ignored). Layout attributes (space/align/
-    columns/rows) and text v-align/h-align/wrap/max-width will open
-    for binding in later batches.
+    (qCritical, binding ignored). Layout/structure attributes
+    (space/align/columns/rows) and text v-align/h-align/wrap/max-width
+    do not participate in binding by design: their b: form is rejected
+    at parse time (BI-P-023, binding ignored, not registered).
 
     The parser auto-wraps any non-control element with b:of/b:as into <for>,
     and any with b:prop into <if>.
@@ -182,10 +183,10 @@ Reserved (control / text-content channels):
   b:prop    = property path for IfElement condition check
 
 Generic property bindings (reference semantics):
-  Any literal attribute may be written as b:&lt;attr&gt;; the value is a
-  property path resolved from PropertyContext at materialization time
-  and stored in the instance node's ResolvedStyle snapshot.
-  First batch supported:
+  Content-class literal attributes may be written as b:&lt;attr&gt;; the
+  value is a property path resolved from PropertyContext at
+  materialization time and stored in the instance node's ResolvedStyle
+  snapshot. Supported:
     box model : b:margin, b:margin-left/right/top/bottom,
                 b:padding, b:padding-left/right/top/bottom,
                 b:border-radius, b:border-style, b:border-width,
@@ -195,13 +196,16 @@ Generic property bindings (reference semantics):
     size      : b:width, b:height
     text style: b:color, b:font-size, b:bold, b:underline,
                 b:font-family
+    image     : b:src, b:keep-aspect
+    if        : b:equals (dedicated matcher channel of <if>)
 
   A literal attribute and its b: form are mutually exclusive:
   if both appear, the parser logs qCritical and ignores the binding
   (the literal wins). Missing path falls back to the attribute
   default silently; type mismatch logs qCritical and falls back.
-  Layout attributes (space/align/columns/rows) and text
-  v-align/h-align/wrap/max-width will open in later batches.
+  Layout/structure attributes (space/align/columns/rows) and text
+  v-align/h-align/wrap/max-width do not participate in binding by
+  design (rejected at parse time, BI-P-023).
 
 These are W3C-compliant namespace-qualified attributes.
 The b: prefix is the canonical prefix, but any prefix bound to
@@ -307,6 +311,7 @@ Static:  src=":/icons/red.png"  (Qt resource path, ":/" prefix)
          src="/abs/file.png" or "rel/file.png" (relative to process CWD)
          URLs are NOT supported (QPixmap load failure semantics apply).
 Binding: b:src="iconPath"  (reference semantics, mutually exclusive with src)
+         b:keep-aspect="keepAspect"  (bindable, resolved at materialization)
 
 Size:    width / height (pixels, optional; omit = auto)
          explicit size wins; single dimension derives the other from the

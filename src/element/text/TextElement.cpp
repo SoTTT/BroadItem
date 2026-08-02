@@ -21,8 +21,8 @@ const QSet<QString>& TextElement::supportedAttributes() const
 }
 
 /// @brief 返回有求值路径的绑定属性集合：文本字体/颜色属性并入 SizedElement 集合。
-/// @details content/v-align/h-align/wrap/max-width 暂无通用绑定求值路径，不在集合内，
-///          其绑定将被 parseBindings 标记为「已注册未解析」。
+/// @details content 走专用通道（不进通用绑定表）；v-align/h-align/wrap/max-width 为
+///          布局策略属性，不参与绑定，其 b: 形式将被 parseBindings 拒绝（BI-P-023）。
 /// @return 静态引用（沿用 supportedAttributes 的 static-union 写法）。
 const QSet<QString>& TextElement::resolvedAttributes() const
 {

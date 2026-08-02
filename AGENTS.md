@@ -69,7 +69,7 @@ ctest --test-dir build-qt6 --output-on-failure  # Qt6：16 个（test_golden_ren
 - **控制元素透明**：`<for>` 和 `<if>` 不产生 `Node`，不参与 measure/layout/render。`ColumnLayout`/`RowLayout`/`GridLayout` 在物化时调用 `materializeChildren()`，把控制元素结构性地展开为 0..N 个普通元素实例节点。
 - **盒模型**：margin → border → background → padding → content。容器尺寸 = content + 装饰层；拉伸时只有 content 区域扩展。
 - **数据上下文**：`LayoutContext` 基于 `QVariantMap`。`BroadItem::setDynamicProperty()` 仅当被绑定属性确实被使用时才触发重布局。变更合并：命中后标脏并按 `UpdatePolicy` 调度——默认 `Coalesced`（`QTimer::singleShot(0)` 合并同一事件循环回合内的多次变更为一次重布局），`Synchronous` 可选；`Frame`/`BroadItem` 均有 `flush()` 立即冲刷待定更新；headless 渲染（`toImage`）前须 `flush()` 或同步策略。
-- **通用属性绑定**：`b:` 前缀绑定语义适用于全部字面量属性（如 `b:color`、`b:background-color`），统一走"字面量 | 绑定"二分解析；解析结果快照在 `ResolvedStyle`（`include/broaditem/core/ResolvedStyle.h`）。
+- **通用属性绑定**：`b:` 前缀绑定语义适用于内容类字面量属性（如 `b:color`、`b:background-color`）；布局策略/结构性属性不参与绑定（解析期 BI-P-023 拒绝，不注册）。统一走"字面量 | 绑定"二分解析；解析结果快照在 `ResolvedStyle`（`include/broaditem/core/ResolvedStyle.h`）。
 
 ### 顶层结构
 

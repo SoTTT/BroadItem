@@ -29,7 +29,6 @@ const CodeInfo kCodeTable[] = {
     { "BI-P-010", Severity::Error,   Recovery::Abort   },  // IfMissingProp
     { "BI-P-011", Severity::Warning, Recovery::Default },  // UnknownAttribute
     { "BI-P-012", Severity::Warning, Recovery::Default },  // UnknownBindingAttribute
-    { "BI-P-013", Severity::Warning, Recovery::Default },  // BindingNotResolved
     { "BI-P-014", Severity::Error,   Recovery::Default },  // MutexLiteralBinding
     { "BI-P-015", Severity::Error,   Recovery::Default },  // LiteralTypeMismatch
     { "BI-P-016", Severity::Error,   Recovery::Default },  // LiteralOutOfRange
@@ -38,6 +37,7 @@ const CodeInfo kCodeTable[] = {
     { "BI-P-020", Severity::Warning, Recovery::Default },  // RegistryDirMissing
     { "BI-P-021", Severity::Warning, Recovery::Skip    },  // RegistryFileSkipped
     { "BI-P-022", Severity::Error,   Recovery::Abort   },  // RootChildDiscarded
+    { "BI-P-023", Severity::Warning, Recovery::Default },  // BindingNotSupported
     // ---- 运行时（BI-R-xxx） ----
     { "BI-R-001", Severity::Error,   Recovery::Default },  // ObjectFirstKeyMissing
     { "BI-R-002", Severity::Error,   Recovery::Default },  // NestedKeyMissing

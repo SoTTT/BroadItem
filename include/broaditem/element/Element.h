@@ -87,7 +87,8 @@ public:
     /// 遍历 xml.attributes()，命中绑定命名空间的属性取局部名（命名空间处理
     /// 开启时 QDomAttr::name() 返回不带前缀的局部名）。保留名 of/prop/as/content
     /// 与控制元素语义耦合，跳过；局部名不在 supportedAttributes() 中报告
-    /// BI-P-012 并跳过；与字面量同名属性互斥（BI-P-014，忽略该绑定）。
+    /// BI-P-012 并跳过；与字面量同名属性互斥（BI-P-014，忽略该绑定）；
+    /// 不在 resolvedAttributes() 中的布局策略属性报告 BI-P-023 并拒绝注册。
     /// @param xml The DOM element whose binding attributes to parse.
     void parseBindings(const QDomElement& xml);
 
@@ -139,11 +140,11 @@ public:
                              const QString& runtimePath = QString());
 
 protected:
-    /// @brief 返回本元素实际有求值路径的通用绑定属性集合。
+    /// @brief 返回本元素实际有求值路径的通用绑定属性集合（即"可绑定"判定集合）。
     ///
     /// 与 supportedAttributes()（声明"认识哪些属性"）区分：本集合声明"哪些
-    /// 绑定属性会被真正求值"。parseBindings 对不在本集合内的绑定发
-    /// 「已注册未解析」告警但仍照常注册（向前兼容：求值路径后续版本补齐）。
+    /// 绑定属性会被真正求值"。布局策略/结构性属性不参与绑定（语义收窄，
+    /// 2026-07）：parseBindings 对不在本集合内的绑定报 BI-P-023 并拒绝注册。
     /// 基类返回空集；各级元素按 static 引用 + 集合并集方式覆盖
     /// （同 supportedAttributes 的 static-union 写法，返回临时 QSet 会悬垂）。
     /// @return 有求值路径的绑定属性名集合的静态引用。

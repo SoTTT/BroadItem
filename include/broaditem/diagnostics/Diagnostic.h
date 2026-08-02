@@ -21,7 +21,6 @@ enum class ErrorCode {
     IfMissingProp,           ///< BI-P-010 <if> 缺 b:prop
     UnknownAttribute,        ///< BI-P-011 未知属性
     UnknownBindingAttribute, ///< BI-P-012 未知绑定属性
-    BindingNotResolved,      ///< BI-P-013 已注册但无求值路径的绑定
     MutexLiteralBinding,     ///< BI-P-014 字面量与 b: 绑定互斥
     LiteralTypeMismatch,     ///< BI-P-015 字面量类型错误（数字/整数/布尔校验失败）
     LiteralOutOfRange,       ///< BI-P-016 字面量数值越界（font-size≤0、columns/rows≤0 等）
@@ -30,6 +29,7 @@ enum class ErrorCode {
     RegistryDirMissing,      ///< BI-P-020 Registry 批量加载：目录不存在
     RegistryFileSkipped,     ///< BI-P-021 Registry 批量加载：单文件解析失败
     RootChildDiscarded,      ///< BI-P-022 根唯一子元素降级为空（如 deprecated 装饰器），无可用内容
+    BindingNotSupported,     ///< BI-P-023 布局策略属性不参与绑定（解析期拒绝，不注册）
     // ---- 运行时（BI-R-xxx） ----
     ObjectFirstKeyMissing,   ///< BI-R-001 绑定路径首段属性在 QObject 上不存在
     NestedKeyMissing,        ///< BI-R-002 路径中段键在 map 中不存在

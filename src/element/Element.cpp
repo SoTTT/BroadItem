@@ -272,12 +272,15 @@ void Element::parseBindings(const QDomElement& xml)
                                          .arg(xml.tagName(), local, attr.nodeName()));
             continue;
         }
-        // 「已注册未解析」提示：supported 但无求值路径的绑定仍照常注册（向前兼容），仅提示。
-        if (!resolvedAttributes().contains(local))
-            Diagnostics::reportParse(ErrorCode::BindingNotResolved,
-                                     QStringLiteral("%1: binding attribute %2 is registered but not resolved "
-                                                    "by this element (no evaluation path yet)")
+        // 布局策略/结构性属性不参与绑定（语义收窄，2026-07）：supported 但无求值路径
+        // 的绑定在解析期拒绝（BI-P-023），忽略且不注册。
+        if (!resolvedAttributes().contains(local)) {
+            Diagnostics::reportParse(ErrorCode::BindingNotSupported,
+                                     QStringLiteral("%1: attribute \"%2\" does not support binding "
+                                                    "(layout policy); binding ignored")
                                          .arg(xml.tagName(), attr.nodeName()));
+            continue;
+        }
         m_bindings.insert(local, Binding(attr.nodeName(), attr.value()));
     }
 }

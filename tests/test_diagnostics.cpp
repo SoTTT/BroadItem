@@ -234,16 +234,30 @@ private slots:
         QVERIFY(cap.find(ErrorCode::UnknownBindingAttribute) != nullptr);
     }
 
-    /// @brief BI-P-013：supported 但未 resolved 的绑定（grid 的 b:columns）→ Warning，照常注册。
-    void registeredNotResolved()
+    /// @brief BI-P-023：布局策略属性不参与绑定（grid 的 b:columns）→ Warning，拒绝注册。
+    void bindingNotSupported()
     {
         CaptureCollector cap;
         auto root = XmlLayoutParser::parseString(
             wrap(QStringLiteral("<grid rows=\"1\" b:columns=\"n\"><cell/></grid>")), &cap);
         QVERIFY(root != nullptr);
-        QVERIFY(cap.find(ErrorCode::BindingNotResolved) != nullptr);
-        // 照常注册：bindsProperty 命中
-        QVERIFY(root->bindsProperty(QStringLiteral("n")));
+        const Diagnostic* d = cap.find(ErrorCode::BindingNotSupported);
+        QVERIFY(d != nullptr);
+        QCOMPARE(severityOf(d->code), Severity::Warning);
+        QCOMPARE(recoveryOf(d->code), Recovery::Default);
+        // 解析期拒绝：绑定未注册，bindsProperty 不命中
+        QVERIFY(!root->bindsProperty(QStringLiteral("n")));
+    }
+
+    /// @brief BI-P-023：布局策略属性不参与绑定（text 的 b:wrap）→ Warning，拒绝注册。
+    void bindingNotSupportedText()
+    {
+        CaptureCollector cap;
+        auto root = XmlLayoutParser::parseString(
+            wrap(QStringLiteral("<text b:wrap=\"w\">x</text>")), &cap);
+        QVERIFY(root != nullptr);
+        QVERIFY(cap.find(ErrorCode::BindingNotSupported) != nullptr);
+        QVERIFY(!root->bindsProperty(QStringLiteral("w")));
     }
 
     /// @brief BI-P-014：content 与 b:content 互斥 → Error/Default，字面量生效。
