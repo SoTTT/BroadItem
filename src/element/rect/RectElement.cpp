@@ -19,7 +19,7 @@ const QSet<QString>& RectElement::supportedAttributes() const
 /// resolvedAttributes() 不覆写：继承 SizedElement 集合（盒模型 17 + width/height），
 /// 全部属性可绑定，不存在布局策略属性，BI-P-023 门控零调整。
 ///
-/// @param xml The DOM element to parse.
+/// @param xml 要解析的 DOM 元素。
 void RectElement::parse(const QDomElement& xml)
 {
     SizedElement::parse(xml);
@@ -44,10 +44,10 @@ std::unique_ptr<Node> RectElement::materialize(const LayoutContext& ctx) const
 /// 逐维度规则：显式给 → 用显式值；未给 → 取 0（交叉轴维度随后由
 /// fillsCrossAxis 恒填充拉满，主轴维度保持 0 不占位）；最后叠加盒模型装饰。
 ///
-/// @param ctx The layout context (unused).
-/// @param constraints Available width/height constraints (unused; 自计算不依赖约束)。
+/// @param ctx 布局上下文（未使用）。
+/// @param constraints 可用宽高约束（未使用；自计算不依赖约束）。
 /// @param node 实例节点（普通 Node）。
-/// @return The measured size including box model decoration.
+/// @return 含盒模型装饰的测量尺寸。
 MeasureResult RectElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const
 {
     Q_UNUSED(ctx)
@@ -60,8 +60,8 @@ MeasureResult RectElement::measure(const LayoutContext& ctx, const LayoutConstra
 }
 
 /// @brief 存储分配的矩形（无额外缓存需求）。
-/// @param ctx The layout context (unused).
-/// @param rect The bounding rectangle assigned to this rect element.
+/// @param ctx 布局上下文（未使用）。
+/// @param rect 分配给此色块元素的矩形。
 /// @param node 实例节点。
 void RectElement::layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const
 {
@@ -70,8 +70,8 @@ void RectElement::layout(const LayoutContext& ctx, const QRectF& rect, Node& nod
 }
 
 /// @brief 渲染色块元素：仅盒模型绘制——background 即色块本体，无内容层。
-/// @param painter The QPainter to render onto.
-/// @param ctx The layout context (unused).
+/// @param painter 目标 QPainter。
+/// @param ctx 布局上下文（未使用）。
 /// @param node 实例节点。
 void RectElement::render(QPainter* painter, const LayoutContext& ctx, const Node& node) const
 {

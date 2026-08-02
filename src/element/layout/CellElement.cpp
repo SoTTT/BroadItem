@@ -1,11 +1,10 @@
 #include <broaditem/element/layout/CellElement.h>
-#include <QPainter>
 #include <QDomElement>
 
 namespace BroadItem {
 
 /// @brief 返回 CellElement 支持的 XML 属性集合。
-/// @return Reference to a static set containing "v-align", "h-align", and box model attributes.
+/// @return 静态集合引用，含 "v-align"、"h-align" 与盒模型属性。
 const QSet<QString>& CellElement::supportedAttributes() const
 {
     static const QSet<QString> attrs = QSet<QString>{"v-align", "h-align"} + boxModelAttributeNames();
@@ -13,7 +12,7 @@ const QSet<QString>& CellElement::supportedAttributes() const
 }
 
 /// @brief 解析对齐设置的 XML 属性。
-/// @param xml The DOM element to parse.
+/// @param xml 要解析的 DOM 元素。
 void CellElement::parse(const QDomElement& xml)
 {
     ContainerElement::parse(xml);
@@ -26,8 +25,8 @@ void CellElement::parse(const QDomElement& xml)
 
 /// @brief 在单元格内布局子节点：多节点视为垂直堆叠块，块整体按对齐配置定位，
 ///        块内各子节点自上而下依次分配。
-/// @param ctx The layout context.
-/// @param rect The bounding rectangle assigned to this cell.
+/// @param ctx 布局上下文。
+/// @param rect 分配给此单元格的矩形。
 /// @param node 实例节点，rect 写入 node.rect。
 void CellElement::layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const
 {

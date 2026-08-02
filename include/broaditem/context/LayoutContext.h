@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QVariant>
-#include <QStringList>
 #include <QSizeF>
 #include <broaditem/context/PropertyContext.h>
 
@@ -10,7 +9,7 @@ namespace BroadItem {
 /// @brief 为布局流水线提供属性上下文访问。
 class LayoutContext {
 public:
-    PropertyContext* ctx = nullptr;  ///< Pointer to the active property context.
+    PropertyContext* ctx = nullptr;  ///< 当前生效的属性上下文指针。
 
     /// @brief 检查上下文中是否存在指定属性。
     bool hasProperty(const QString& name) const

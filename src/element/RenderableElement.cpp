@@ -5,7 +5,7 @@
 namespace BroadItem {
 
 /// @brief 返回盒模型 XML 属性名的集合。
-/// @return Reference to a static set of margin, padding, border, and background attribute names.
+/// @return 静态集合引用，含 margin、padding、border 与 background 属性名。
 const QSet<QString>& RenderableElement::boxModelAttributeNames()
 {
     static const QSet<QString> attrs = {
@@ -25,7 +25,7 @@ const QSet<QString>& RenderableElement::resolvedAttributes() const
 }
 
 /// @brief 从 XML 元素解析 margin、padding、border 和 background 属性。
-/// @param xml The DOM element to parse box model attributes from.
+/// @param xml 要解析盒模型属性的 DOM 元素。
 void RenderableElement::parseBoxModel(const QDomElement& xml)
 {
     if (hasLiteralAttribute(xml, "margin"))
@@ -130,8 +130,8 @@ void RenderableElement::resolveStyle(const LayoutContext& ctx, ResolvedStyle& ou
 }
 
 /// @brief 在给定矩形内渲染背景填充和边框描边。
-/// @param painter The QPainter to render onto.
-/// @param rect The outer rectangle (including margin).
+/// @param painter 目标 QPainter。
+/// @param rect 外部矩形（含 margin）。
 /// @param style 物化时求值得到的盒模型样式快照。
 void RenderableElement::renderBoxModel(QPainter* painter, const QRectF& rect, const ResolvedStyle& style) const
 {
@@ -179,9 +179,9 @@ void RenderableElement::renderBoxModel(QPainter* painter, const QRectF& rect, co
 }
 
 /// @brief 通过减去 margin、border 和 padding 计算内容区域矩形。
-/// @param outerRect The outer bounding rect.
+/// @param outerRect 外部边界矩形。
 /// @param style 物化时求值得到的盒模型样式快照。
-/// @return The inner content rect.
+/// @return 内部内容区域矩形。
 QRectF RenderableElement::contentRect(const QRectF& outerRect, const ResolvedStyle& style) const
 {
     return QRectF(outerRect.x() + style.margin.left + style.border.width + style.padding.left,

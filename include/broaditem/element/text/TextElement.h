@@ -36,28 +36,30 @@ protected:
     const QSet<QString>& resolvedAttributes() const override;
 
 private:
-    QString m_text;              ///< Static text content from the XML tag body.
-    QString m_contentLiteral;    ///< Literal content from XML (before binding interpolation).
-    bool m_hasContentLiteral = false; ///< Whether literal content was provided.
-    Binding m_binding{"b:content", QString{}}; ///< Binding for the b:content attribute.
-    QFont m_font;                ///< Font used for rendering.
-    QString m_vAlign = "top"; ///< Vertical alignment ("top", "center", "bottom").
-    QString m_hAlign = "left";   ///< Horizontal alignment ("left", "center", "right").
-    bool m_bold = false;         ///< Whether text is bold.
-    bool m_underLine = false;    ///< Whether text is underlined.
-    bool m_wrap = false;         ///< Whether text wraps at the element width.
-    double m_maxWidth = -1;      ///< Maximum width for text wrapping (-1 = no limit).
-    double m_fontSize = 12;      ///< Font size in pixels.
-    QString m_fontFamily;        ///< Font family name.
-    QColor m_color = Qt::black;  ///< Text color.
+    static constexpr double kDefaultFontSize = 12;  ///< 默认字号（px）：模板成员缺省与越界回退共用。
+
+    QString m_text;              ///< XML 标签体内的静态文本内容。
+    QString m_contentLiteral;    ///< XML 中的字面量 content（绑定插值前）。
+    bool m_hasContentLiteral = false; ///< 是否提供了字面量 content。
+    Binding m_binding{"b:content", QString{}}; ///< b:content 属性的绑定。
+    QFont m_font;                ///< 渲染所用的字体。
+    QString m_vAlign = "top"; ///< 垂直对齐（"top"、"center"、"bottom"）。
+    QString m_hAlign = "left";   ///< 水平对齐（"left"、"center"、"right"）。
+    bool m_bold = false;         ///< 是否加粗。
+    bool m_underLine = false;    ///< 是否下划线。
+    bool m_wrap = false;         ///< 是否在元素宽度处自动换行。
+    double m_maxWidth = -1;      ///< 换行的最大宽度（-1 = 无限制）。
+    double m_fontSize = kDefaultFontSize;  ///< 字号（px）。
+    QString m_fontFamily;        ///< 字体族名。
+    QColor m_color = Qt::black;  ///< 文字颜色。
 
     /// @brief 按优先级解析文本：content 字面量 > b:content 绑定 > 标签文本。
     QString resolveText(const LayoutContext& ctx) const;
     /// @brief 计算给定约束下的渲染文本尺寸，字体取自 TextNode 快照。
-    /// @param text The text to measure.
-    /// @param constraints Available width/height constraints.
+    /// @param text 要测量的文本。
+    /// @param constraints 可用宽高约束。
     /// @param node 实例节点，读取物化时求值的字体属性。
-    /// @return The computed text size.
+    /// @return 计算出的文本尺寸。
     QSizeF computeTextSize(const QString& text, const LayoutConstraints& constraints, const TextNode& node) const;
     /// @brief 从 TextNode 快照重建 QFont（fontSize/fontFamily/bold/underLine 覆盖 m_font 基准）。
     /// @param node 实例节点，读取物化时求值的字体属性。

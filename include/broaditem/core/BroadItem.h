@@ -1,11 +1,11 @@
 #pragma once
 
 #include <QGraphicsObject>
-#include <QVariantMap>
 #include <memory>
 
 #include <broaditem/core/Frame.h>
 #include <broaditem/context/PropertyContext.h>
+
 namespace BroadItem {
 
 /// @brief 顶层 QGraphicsItem，渲染 XML 定义的布局并支持数据绑定。
@@ -46,7 +46,7 @@ public:
     void setUpdatePolicy(UpdatePolicy policy) { m_frame->setUpdatePolicy(policy); }
 
     /// @brief 通过上下文访问属性的方括号运算符语法糖。
-    PropertyProxy operator[](const QString& key)
+    PropertyProxy operator[](const QString& key) const
     {
         auto ctx = m_frame->propertyContext();
         return ctx ? (*ctx)[key] : PropertyProxy(nullptr, QString());
@@ -55,6 +55,8 @@ public:
 private:
     std::unique_ptr<Frame> m_frame;     ///< 内部布局引擎，持有模板树、实例节点树、上下文和布局逻辑。
 
+    /// @brief 构造函数共用的初始化：注入重布局动作并开启几何/场景位置变更通知。
+    void init();
     /// @brief 向 Frame 注入重布局动作，连接布局执行与 QGraphicsItem 的几何通知和重绘。
     void setupRelayoutAction();
 };

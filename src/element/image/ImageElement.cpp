@@ -2,7 +2,6 @@
 #include <broaditem/diagnostics/Diagnostics.h>
 #include <QPainter>
 #include <QDomElement>
-#include <QDebug>
 
 namespace BroadItem {
 
@@ -31,7 +30,7 @@ const QSet<QString>& ImageElement::resolvedAttributes() const
 /// 此处只读取字面量；字面量读取一律走 hasLiteralAttribute/literalAttribute
 /// （QDom 命名空间陷阱：hasAttributeNS(QString(), ...) 匹配不到无命名空间字面量）。
 ///
-/// @param xml The DOM element to parse.
+/// @param xml 要解析的 DOM 元素。
 void ImageElement::parse(const QDomElement& xml)
 {
     SizedElement::parse(xml);
@@ -92,10 +91,10 @@ std::unique_ptr<Node> ImageElement::materialize(const LayoutContext& ctx) const
 /// 单尺寸指定时另一维按 pixmap 宽高比推导（pixmap 为空或退化时推导为 0）；
 /// 无显式尺寸时取 pixmap 原始尺寸（空 pixmap → 0×0）；最后叠加盒模型装饰。
 ///
-/// @param ctx The layout context (unused).
-/// @param constraints Available width/height constraints (unused; 自计算不依赖约束)。
+/// @param ctx 布局上下文（未使用）。
+/// @param constraints 可用宽高约束（未使用；自计算不依赖约束）。
 /// @param node 实例节点（ImageNode）。
-/// @return The measured size including box model decoration.
+/// @return 含盒模型装饰的测量尺寸。
 MeasureResult ImageElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const
 {
     Q_UNUSED(ctx)
@@ -125,8 +124,8 @@ MeasureResult ImageElement::measure(const LayoutContext& ctx, const LayoutConstr
 }
 
 /// @brief 存储分配的矩形（无额外缓存需求，基线即可）。
-/// @param ctx The layout context (unused).
-/// @param rect The bounding rectangle assigned to this image element.
+/// @param ctx 布局上下文（未使用）。
+/// @param rect 分配给此图像元素的矩形。
 /// @param node 实例节点（ImageNode）。
 void ImageElement::layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const
 {
@@ -140,8 +139,8 @@ void ImageElement::layout(const LayoutContext& ctx, const QRectF& rect, Node& no
 /// keepAspect=false：拉伸填满内容区。永不裁剪、不使用 QPainter 变换——
 /// drawPixmap(targetRect, pixmap, sourceRect) 重载已足够。
 ///
-/// @param painter The QPainter to render onto.
-/// @param ctx The layout context (unused; 图像已在物化时加载)。
+/// @param painter 目标 QPainter。
+/// @param ctx 布局上下文（未使用；图像已在物化时加载）。
 /// @param node 实例节点（ImageNode）。
 void ImageElement::render(QPainter* painter, const LayoutContext& ctx, const Node& node) const
 {

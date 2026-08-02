@@ -11,10 +11,10 @@ class RenderableElement : public Element {
 public:
     virtual ~RenderableElement() = default;
 
-    Margin  m_margin;       ///< Margin around the element.
-    Border  m_border;       ///< Border around the element.
-    Background m_background; ///< Background fill of the element.
-    Padding m_padding;      ///< Padding inside the element.
+    Margin  m_margin;       ///< 元素外边距。
+    Border  m_border;       ///< 元素边框。
+    Background m_background; ///< 元素背景填充。
+    Padding m_padding;      ///< 元素内边距。
 
     /// @brief 从 XML 解析盒模型属性（边距、边框、背景、内边距）。
     void parseBoxModel(const QDomElement& xml);

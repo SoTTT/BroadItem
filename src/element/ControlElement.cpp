@@ -1,5 +1,5 @@
 #include <broaditem/element/ControlElement.h>
-#include <QDebug>
+#include <QtGlobal>
 
 namespace BroadItem {
 

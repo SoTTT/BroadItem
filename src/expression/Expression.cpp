@@ -30,7 +30,7 @@ void Expression::parse()
         QChar ch = m_path[pos];
 
         if (ch == QLatin1Char('.')) {
-            // Empty segment before dot: leading dot or double dot
+            // 点号前为空分段：前导点或连续两点
             if (pos == segStart) {
                 m_valid = false;
                 m_segments.clear();
@@ -41,19 +41,19 @@ void Expression::parse()
             segStart = pos;
         } else if (ch == QLatin1Char('[')) {
             if (pos > segStart) {
-                // Push the key segment preceding the bracket
+                // 先压入方括号前的键名分段
                 m_segments.push_back(m_path.mid(segStart, pos - segStart));
             } else if (pos == 0 || (pos > 0 && m_path[pos - 1] == QLatin1Char('.'))) {
-                // Leading bracket or dot-immediately-before-bracket: empty key
+                // 前导方括号或点号紧接方括号：键名为空
                 m_valid = false;
                 m_segments.clear();
                 return;
             }
-            // else: consecutive brackets after a ']' — valid, no key to push
+            // 其余情形：']' 后紧跟的连续方括号——合法，无键名可压入
 
             int closePos = m_path.indexOf(QLatin1Char(']'), pos);
             if (closePos < 0) {
-                // Unmatched opening bracket
+                // 开括号未闭合
                 m_valid = false;
                 m_segments.clear();
                 return;
@@ -63,7 +63,7 @@ void Expression::parse()
             bool ok = false;
             int index = indexStr.toInt(&ok);
             if (!ok || index < 0) {
-                // Non-integer or negative index
+                // 非整数或负索引
                 m_valid = false;
                 m_segments.clear();
                 return;
@@ -72,7 +72,7 @@ void Expression::parse()
             m_segments.push_back(indexStr);
             pos = closePos + 1;
 
-            // Skip a dot immediately following a bracket close
+            // 跳过紧随闭括号的一个点号
             if (pos < len && m_path[pos] == QLatin1Char('.')) {
                 pos++;
             }
@@ -82,11 +82,11 @@ void Expression::parse()
         }
     }
 
-    // Handle the final accumulated segment (if any)
+    // 处理末尾累积的分段（如有）
     if (pos > segStart) {
         m_segments.push_back(m_path.mid(segStart, pos - segStart));
-    } else if (pos == segStart && !m_path.endsWith(QLatin1Char(']'))) {
-        // Trailing empty segment (e.g. trailing dot), unless path ends with a bracket
+    } else if (!m_path.endsWith(QLatin1Char(']'))) {
+        // 末尾空分段（如结尾点号）；路径以闭括号结尾时除外
         m_valid = false;
         m_segments.clear();
     }

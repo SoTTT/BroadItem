@@ -3,7 +3,6 @@
 #include <QGraphicsScene>
 #include <QGraphicsRectItem>
 #include <broaditem/core/BroadItem.h>
-#include <QDebug>
 
 /// @brief 创建一个用于标注的说明文字矩形（不是 BroadItem 的一部分，仅用于视觉分隔）。
 static QGraphicsRectItem* makeLabelRect(const QString& text, double x, double y, double w, double h)
@@ -47,6 +46,5 @@ int main(int argc, char* argv[])
     view.resize(720, 480);
     view.show();
 
-    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
-    return app.exec();
+    return QApplication::exec();
 }

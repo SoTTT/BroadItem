@@ -22,13 +22,13 @@ const QSet<QString>& IfElement::resolvedAttributes() const
 }
 
 /// @brief 从 XML 元素解析 b:prop、not 与 equals 属性。
-/// @param xml The DOM element to parse.
+/// @param xml 要解析的 DOM 元素。
 void IfElement::parse(const QDomElement& xml)
 {
     Element::parse(xml);
     validateAttributes(xml);
     if (xml.hasAttributeNS(BINDING_NS, "prop")) {
-        /// 获取实际的 XML 限定属性名（如 b:prop 或用户自定义前缀）
+        // 获取实际的 XML 限定属性名（如 b:prop 或用户自定义前缀）
         QDomNode attrNode = xml.attributes().namedItemNS(BINDING_NS, "prop");
         QString attrName = attrNode.isNull() ? "b:prop" : attrNode.nodeName();
         m_binding = Binding(attrName, xml.attributeNS(BINDING_NS, "prop", QString()));
@@ -47,14 +47,14 @@ void IfElement::parse(const QDomElement& xml)
 }
 
 /// @brief 设置条件作用的属性路径。
-/// @param bind The property path.
+/// @param bind 属性路径。
 void IfElement::setBindProperty(const QString& bind)
 {
     m_binding = Binding("b:prop", bind);
 }
 
 /// @brief 设置条件是否整体取反。
-/// @param notValue If true, the element is shown when the condition does NOT hold.
+/// @param notValue 为 true 时，条件不成立才显示元素。
 void IfElement::setNot(bool notValue)
 {
     m_not = notValue;
@@ -69,7 +69,7 @@ void IfElement::setEquals(const QString& equals)
 }
 
 /// @brief 设置要条件显示的子元素。
-/// @param child The child element.
+/// @param child 子元素。
 void IfElement::setChild(ElementPtr child)
 {
     m_child = std::move(child);
@@ -80,8 +80,8 @@ void IfElement::setChild(ElementPtr child)
 /// 值比较为字符串化比较：两侧取 QVariant::toString() 后区分大小写比较。
 /// 绑定比较值不可解析（路径不存在或绑定无效）时该次求值条件不成立。
 ///
-/// @param ctx The layout context to query.
-/// @return True if the child should be shown (respecting the "not" flag).
+/// @param ctx 要查询的布局上下文。
+/// @return 子元素应显示时返回 true（尊重 not 取反标志）。
 bool IfElement::shouldShow(const LayoutContext& ctx) const
 {
     bool base = ctx.hasProperty(m_binding.path());
@@ -105,7 +105,7 @@ bool IfElement::shouldShow(const LayoutContext& ctx) const
 }
 
 /// @brief 条件满足时物化子元素，否则返回空向量。
-/// @param ctx The layout context.
+/// @param ctx 布局上下文。
 /// @return 子元素的物化节点序列，或空。
 std::vector<std::unique_ptr<Node>> IfElement::materializeChildren(const LayoutContext& ctx) const
 {
@@ -115,8 +115,8 @@ std::vector<std::unique_ptr<Node>> IfElement::materializeChildren(const LayoutCo
 }
 
 /// @brief 检查此元素是否绑定指定属性（b:prop 路径、b:equals 等通用绑定、或子元素内）。
-/// @param name The property name to check.
-/// @return True if the property is bound.
+/// @param name 要检查的属性名。
+/// @return 属性被绑定时返回 true。
 bool IfElement::bindsProperty(const QString& name) const
 {
     return m_binding.bindsProperty(name) || Element::bindsProperty(name)

@@ -40,8 +40,8 @@ protected:
     /// @return 静态引用（resolveSize 求值 width/height；盒模型继承自 RenderableElement）。
     const QSet<QString>& resolvedAttributes() const override;
 
-    double m_width = -1;   ///< Explicit width in pixels, -1 means not specified.
-    double m_height = -1;  ///< Explicit height in pixels, -1 means not specified.
+    double m_width = -1;   ///< 显式宽度（px），-1 表示未指定。
+    double m_height = -1;  ///< 显式高度（px），-1 表示未指定。
 };
 
 } // namespace BroadItem

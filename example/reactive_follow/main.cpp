@@ -188,15 +188,15 @@ int main(int argc, char* argv[])
     // 删除 secondFollower 后，其 AnchorDecorator 通过 QObject::destroyed 信号
     // 触发 deleteLater()，装饰器及其 8 个锚点自动销毁。
     // line2 因端点（锚点）销毁而自动 setVisible(false)。
-    QObject::connect(&view, &InteractiveView::deleteRequested, [&]() {
+    QObject::connect(&view, &InteractiveView::deleteRequested,
+                     [&secondFollower, line2]() {
         if (secondFollower) {
+            // 删除矩形后其装饰器经 QObject::destroyed 信号 deleteLater 级联销毁
             delete secondFollower;
             secondFollower = nullptr;
-            secondFollowerDecorator =
-                nullptr;  // 装饰器已通过 deleteLater 自动销毁
             qDebug()
                 << "yellowRect destroyed (decorator also destroyed), line2 visible="
-                << (line2 ? line2->isVisible() : false);
+                << line2->isVisible();
         }
     });
 
@@ -207,62 +207,32 @@ int main(int argc, char* argv[])
     // secondFollowerDecorator）均因锚点 destroyed 而自动 setVisible(false)。
     // secondFollower 仍在场景中但不再跟随
     // （secondFollowBinding 的 leader 被销毁后自动失效）。
-    QObject::connect(&view, &InteractiveView::deleteBlueRequested, [&]() {
+    QObject::connect(&view, &InteractiveView::deleteBlueRequested,
+                     [&follower, line1, line2]() {
         if (follower) {
+            // 删除矩形后其装饰器经 QObject::destroyed 信号 deleteLater 级联销毁
             delete follower;
             follower = nullptr;
-            followerDecorator =
-                nullptr;  // 装饰器已通过 deleteLater 自动销毁
             qDebug()
                 << "blueRect destroyed (decorator also destroyed), line1 visible="
-                << (line1 ? line1->isVisible() : false)
+                << line1->isVisible()
                 << ", line2 visible="
-                << (line2 ? line2->isVisible() : false);
+                << line2->isVisible();
         }
     });
 
-    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
-    const int result = app.exec();
+    const int result = QApplication::exec();
 
-    // 清理：先删连接线，再删 FollowBinding。
-    // 装饰器在删除矩形时自动销毁，此处仅判空清理。
-    if (line1) {
-        delete line1;
-        line1 = nullptr;
-    }
-    if (line2) {
-        delete line2;
-        line2 = nullptr;
-    }
-
-    // 清理绑定
+    // 矩形、装饰器、锚点、连接线均为场景项（或场景项的子项），随 scene 析构自动释放。
+    // 仅 FollowBinding 是 create() 未传 parent 的裸 QObject，不在任何对象树上，
+    // 退出前需手工 destroy() 断开信号连接并 delete。
     if (followBinding != nullptr) {
         followBinding->destroy();
         delete followBinding;
-        followBinding = nullptr;
     }
     if (secondFollowBinding != nullptr) {
         secondFollowBinding->destroy();
         delete secondFollowBinding;
-        secondFollowBinding = nullptr;
-    }
-
-    // 清理矩形（secondFollower 可能已通过 D 键删除）。
-    // 删除矩形后装饰器通过 deleteLater 自动销毁，仅需置空本地指针。
-    if (leader) {
-        delete leader;
-        leader = nullptr;
-        leaderDecorator = nullptr;
-    }
-    if (follower) {
-        delete follower;
-        follower = nullptr;
-        followerDecorator = nullptr;
-    }
-    if (secondFollower) {
-        delete secondFollower;
-        secondFollower = nullptr;
-        secondFollowerDecorator = nullptr;
     }
 
     return result;

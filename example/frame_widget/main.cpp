@@ -40,10 +40,10 @@ private:
 };
 
 /// @brief 入口点。创建 FrameWidget 并进入事件循环。
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
     QApplication app(argc, argv);
     FrameWidget widget;
     widget.show();
-    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
-    return app.exec();
+    return QApplication::exec();
 }

@@ -6,9 +6,10 @@
 #include <broaditem/reactive/ReactiveBinding.h>
 #include <broaditem/reactive/ReactiveProperty.h>
 
+#include "ZOrder.h"
+
 #include <QGraphicsScene>
 #include <QGraphicsObject>
-#include <QMetaProperty>
 #include <QPainter>
 #include <QDebug>
 
@@ -61,28 +62,6 @@ private:
 };
 
 // ══════════════════════════════════════════════════════════════════
-// 静态辅助函数
-// ══════════════════════════════════════════════════════════════════
-
-/// @brief 检查 QObject 的指定属性是否有 NOTIFY 信号。
-///
-/// 用于预检 decorated 的 width/height 属性是否支持响应式监听。
-/// ReactiveBinding::isValidProperty 为 private，不可直接调用，
-/// 因此通过 QMetaObject 的 indexOfProperty + hasNotifySignal 自建预检逻辑，
-/// 避免在属性无效时调用 createObserver 产生 qWarning。
-/// @param obj 要检查的 QObject。
-/// @param propName 属性名。
-/// @return true 表示属性存在且有 NOTIFY 信号。
-bool AnchorDecorator::hasNotifyProperty(const QObject* obj, const QString& propName)
-{
-    if (!obj) return false;
-    const QMetaObject* meta = obj->metaObject();
-    int idx = meta->indexOfProperty(propName.toLatin1().constData());
-    if (idx < 0) return false;
-    return meta->property(idx).hasNotifySignal();
-}
-
-// ══════════════════════════════════════════════════════════════════
 // 静态工厂 create()
 // ══════════════════════════════════════════════════════════════════
 
@@ -103,9 +82,8 @@ AnchorDecorator* AnchorDecorator::create(QGraphicsScene* scene,
     }
 
     // 校验 decorated 当前未被另一个 AnchorDecorator 直接父化（避免双重装饰）
-    if (auto* existingDecorator = dynamic_cast<AnchorDecorator*>(decorated->parentItem())) {
+    if (dynamic_cast<AnchorDecorator*>(decorated->parentItem())) {
         qWarning() << "AnchorDecorator::create: decorated is already wrapped by another AnchorDecorator";
-        Q_UNUSED(existingDecorator)
         return nullptr;
     }
 
@@ -141,7 +119,8 @@ AnchorDecorator* AnchorDecorator::create(QGraphicsScene* scene,
     if (originalParentItem) {
         decorated->setPos(originalScenePos - decorator->scenePos());
     }
-    decorator->setZValue(1);
+    // z 值层级约定见 ZOrder.h：装饰器外框与连接线同为 z=1
+    decorator->setZValue(kDecorationZValue);
 
     // 创建 pos 观察者——始终连接，因 pos 属性的 NOTIFY 信号天然存在
     decorator->m_posObserver = ReactiveBinding::createObserver(
@@ -163,11 +142,11 @@ AnchorDecorator* AnchorDecorator::create(QGraphicsScene* scene,
         return nullptr;
     }
 
-    // 创建 width 观察者——仅当 decorated 有 width 属性且带 NOTIFY 信号时
+    // 创建 width 观察者——仅当 decorated 的 width 属性可写且带 NOTIFY 信号时
     // 预检避免 createObserver 因属性无效而输出 qWarning
-    if (hasNotifyProperty(decorated, QStringLiteral("width"))) {
+    if (ReactiveBinding::isValidProperty(decorated, Property::Width)) {
         decorator->m_widthObserver = ReactiveBinding::createObserver(
-            decorated, QStringLiteral("width"),
+            decorated, Property::Width,
             [decorator](const QVariant&) -> QVariant {
                 if (!decorator->m_inGeometryUpdate) {
                     QMetaObject::invokeMethod(decorator, "resync", Qt::QueuedConnection);
@@ -181,10 +160,10 @@ AnchorDecorator* AnchorDecorator::create(QGraphicsScene* scene,
         }
     }
 
-    // 创建 height 观察者——仅当 decorated 有 height 属性且带 NOTIFY 信号时
-    if (hasNotifyProperty(decorated, QStringLiteral("height"))) {
+    // 创建 height 观察者——仅当 decorated 的 height 属性可写且带 NOTIFY 信号时
+    if (ReactiveBinding::isValidProperty(decorated, Property::Height)) {
         decorator->m_heightObserver = ReactiveBinding::createObserver(
-            decorated, QStringLiteral("height"),
+            decorated, Property::Height,
             [decorator](const QVariant&) -> QVariant {
                 if (!decorator->m_inGeometryUpdate) {
                     QMetaObject::invokeMethod(decorator, "resync", Qt::QueuedConnection);
@@ -230,14 +209,14 @@ AnchorDecorator::AnchorDecorator(QGraphicsScene* scene,
     : QGraphicsObject(nullptr)          // QGraphicsItem parent 始终为 nullptr（顶级场景项）
     , m_decorated(decorated)
     , m_originalParent(nullptr)
-    , m_originalParentDestroyed(false)
     , m_anchors{}                        // 零初始化指针数组
     , m_pen(Qt::black, 1.0)
-    , m_margin(4.0)                     // 默认边距 4px，与计划一致
+    , m_margin(4.0)                     // 默认边距 4px
     , m_width(0)
     , m_height(0)
     , m_anchorVisible(true)
     , m_inGeometryUpdate(false)
+    , m_originalParentDestroyed(false)
     , m_posObserver(nullptr)
     , m_widthObserver(nullptr)
     , m_heightObserver(nullptr)
@@ -257,7 +236,7 @@ AnchorDecorator::AnchorDecorator(QGraphicsScene* scene,
     // 创建 8 个 AnchorPoint：均为顶级场景图元，QObject parent = this
     // AnchorPoint 构造签名为 AnchorPoint(QGraphicsScene*, QObject*)
     // 锚点通过 QObject 父子关系随装饰器析构自动销毁
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < kAnchorCount; ++i) {
         m_anchors[i] = new AnchorPoint(scene, this);
         // 双重所有权防护：锚点既是顶级场景项（~QGraphicsScene 会删除，
         // 且 z=2 高于装饰器的 z=1，场景拆除时先死）又是装饰器的子节点。
@@ -315,7 +294,7 @@ AnchorDecorator::~AnchorDecorator()
 
     // 显式删除 8 个 AnchorPoint
     // AnchorPoint 的 QObject parent 已设为 this，delete 将递归释放
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < kAnchorCount; ++i) {
         if (m_anchors[i]) {
             delete m_anchors[i];
             m_anchors[i] = nullptr;
@@ -330,7 +309,7 @@ AnchorDecorator::~AnchorDecorator()
 AnchorPoint* AnchorDecorator::anchor(AnchorSide side) const
 {
     int idx = static_cast<int>(side);
-    if (idx >= 0 && idx < 8) {
+    if (idx >= 0 && idx < kAnchorCount) {
         return m_anchors[idx];
     }
     return nullptr;
@@ -358,9 +337,9 @@ void AnchorDecorator::setAnchorVisible(bool visible)
 {
     if (m_anchorVisible == visible) return;
     m_anchorVisible = visible;
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < kAnchorCount; ++i) {
         if (m_anchors[i]) {
-            m_anchors[i]->setAnchorVisible(visible);
+            m_anchors[i]->setVisible(visible);
         }
     }
 }
@@ -468,7 +447,7 @@ void AnchorDecorator::updateAnchorPositions()
     const qreal hw = w / 2.0;
     const qreal hh = h / 2.0;
 
-    QPointF positions[8] = {
+    QPointF positions[kAnchorCount] = {
         base + QPointF(hw, 0),    // North —— 上边中点
         base + QPointF(w, 0),     // NorthEast —— 右上角
         base + QPointF(w, hh),    // East —— 右边中点
@@ -479,7 +458,7 @@ void AnchorDecorator::updateAnchorPositions()
         base + QPointF(0, 0)      // NorthWest —— 左上角
     };
 
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < kAnchorCount; ++i) {
         if (m_anchors[i]) {
             m_anchors[i]->setPos(positions[i]);
         }

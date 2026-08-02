@@ -34,8 +34,8 @@ public:
     void setProperty(const QString& name, const QVariant& value) override;
 
 private:
-    MapPropertyContext* m_itemContext;   ///< Per-item context（只读）。
-    PropertyContext*    m_globalContext; ///< 全局 fallback context。
+    MapPropertyContext* m_itemContext;   ///< 迭代项上下文（只读）。
+    PropertyContext*    m_globalContext; ///< 全局回退上下文。
     QString             m_asVariable;    ///< `<for as="...">` 变量名。
 
     /** @brief 剥离 asVariable 前缀。若不以 "asVariable." 开头则原样返回。 */

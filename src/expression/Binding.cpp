@@ -22,8 +22,8 @@ bool Binding::bindsProperty(const QString& propName) const
 
     const QString& bindPath = path();
     return bindPath == propName
-        || bindPath.startsWith(propName + QStringLiteral("."))
-        || bindPath.startsWith(propName + QStringLiteral("["));
+        || bindPath.startsWith(propName + QLatin1Char('.'))
+        || bindPath.startsWith(propName + QLatin1Char('['));
 }
 
 } // namespace BroadItem

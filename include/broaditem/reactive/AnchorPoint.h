@@ -44,14 +44,6 @@ public:
     /// @param color 新的填充颜色。
     void setColor(const QColor& color);
 
-    /// @brief 获取锚点可见性（委托至 QGraphicsItem::isVisible）。
-    /// @return true 表示锚点可见。
-    [[nodiscard]] bool anchorVisible() const;
-
-    /// @brief 设置锚点可见性（委托至 QGraphicsItem::setVisible）。
-    /// @param visible true 显示，false 隐藏。
-    void setAnchorVisible(bool visible);
-
     /// @brief 返回锚点的边界矩形（以自身坐标系原点为中心的正方形）。
     /// @return QRectF(-d/2, -d/2, d, d)，其中 d 为当前直径。
     [[nodiscard]] QRectF boundingRect() const override;

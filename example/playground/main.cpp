@@ -2,7 +2,6 @@
 #include <QGraphicsView>
 #include <QGraphicsScene>
 #include <QDebug>
-#include <QDir>
 #include <QFileInfo>
 #include <broaditem/core/BroadItem.h>
 #include <broaditem/context/MapPropertyContext.h>

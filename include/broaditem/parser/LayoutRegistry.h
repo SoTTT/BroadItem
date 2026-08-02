@@ -24,8 +24,8 @@ public:
 
 private:
     LayoutRegistry() = default;
-    QMap<int, ElementPtr> m_layouts;  ///< Map of registered layout ID to element tree root.
-    int m_nextId = 1;                  ///< Auto-incrementing ID counter for layouts without explicit IDs.
+    QMap<int, ElementPtr> m_layouts;  ///< 已注册布局 ID 到元素树根的映射。
+    int m_nextId = 1;                  ///< 未显式指定 ID 的布局所用的自增 ID 计数器。
 };
 
 /// @brief 全局辅助函数，从目录加载布局。

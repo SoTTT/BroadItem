@@ -2,12 +2,11 @@
 #include <broaditem/parser/XmlLayoutParser.h>
 #include <broaditem/diagnostics/Diagnostics.h>
 #include <QDir>
-#include <QDebug>
 
 namespace BroadItem {
 
 /// @brief 返回布局注册表的单例实例。
-/// @return Reference to the global LayoutRegistry.
+/// @return 全局 LayoutRegistry 的引用。
 LayoutRegistry& LayoutRegistry::instance()
 {
     static LayoutRegistry inst;
@@ -19,8 +18,8 @@ LayoutRegistry& LayoutRegistry::instance()
 /// 目录不存在报 BI-P-020（按空目录处理）；单文件解析失败报 BI-P-021 并
 /// 跳过该文件（其内部错误已由 parse 会话各自报告）。
 ///
-/// @param dirPath Path to the directory containing .xml layout files.
-/// @return Number of layouts successfully loaded.
+/// @param dirPath 包含 .xml 布局文件的目录路径。
+/// @return 成功加载的布局数量。
 int LayoutRegistry::loadLayoutsFromDirectory(const QString& dirPath)
 {
     QDir dir(dirPath);
@@ -51,24 +50,24 @@ int LayoutRegistry::loadLayoutsFromDirectory(const QString& dirPath)
 }
 
 /// @brief 在给定 ID 下注册布局元素树。
-/// @param id The identifier to associate with the layout.
-/// @param root The root element of the layout tree.
+/// @param id 与布局关联的标识符。
+/// @param root 布局树的根元素。
 void LayoutRegistry::registerLayout(int id, const ElementPtr& root)
 {
     m_layouts.insert(id, root);
 }
 
 /// @brief 按 ID 检索注册的布局。
-/// @param id The layout identifier.
-/// @return The root element, or nullptr if not found.
+/// @param id 布局标识符。
+/// @return 根元素；未找到时返回 nullptr。
 ElementPtr LayoutRegistry::getLayout(int id) const
 {
     return m_layouts.value(id, nullptr);
 }
 
 /// @brief 从目录加载布局的便捷自由函数包装。
-/// @param dirPath Path to the directory containing .xml layout files.
-/// @return Number of layouts successfully loaded.
+/// @param dirPath 包含 .xml 布局文件的目录路径。
+/// @return 成功加载的布局数量。
 int loadLayoutsFromDirectory(const QString& dirPath)
 {
     return LayoutRegistry::instance().loadLayoutsFromDirectory(dirPath);

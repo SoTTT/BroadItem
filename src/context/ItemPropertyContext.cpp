@@ -35,23 +35,23 @@ QVariant ItemPropertyContext::property(const QString& name) const
     QString stripped = stripAsPrefix(name);
     bool hasPrefix = (stripped != name);
 
-    // 1. If name starts with "asVariable.", strip prefix and look up in item context.
-    //    MapPropertyContext::property() internally uses resolveFirstThenWalk
-    //    which invokes PropertyContext::walkNested for nested path traversal.
+    // 1. 名称以 "asVariable." 开头：剥离前缀后在迭代项上下文中查找。
+    //    MapPropertyContext::property() 内部走 resolveFirstThenWalk，
+    //    嵌套路径遍历由 PropertyContext::walkNested 完成。
     if (hasPrefix && m_itemContext) {
         QVariant v = m_itemContext->property(stripped);
         if (v.isValid())
             return v;
     }
 
-    // 2. Without prefix, check item context for exact match (flat or dotted).
+    // 2. 无前缀：在迭代项上下文中精确匹配（扁平键或点号路径）。
     if (!hasPrefix && m_itemContext) {
         QVariant v = m_itemContext->property(name);
         if (v.isValid())
             return v;
     }
 
-    // 3. Fallback to global context.
+    // 3. 回退到全局上下文。
     if (m_globalContext)
         return m_globalContext->property(name);
 

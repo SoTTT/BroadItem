@@ -26,7 +26,7 @@ public:
     ElementPtr content() const { return m_content; }
 
 private:
-    ElementPtr m_content;  ///< The child content element wrapped by this container.
+    ElementPtr m_content;  ///< 此容器包裹的内容子元素。
 };
 
 } // namespace BroadItem

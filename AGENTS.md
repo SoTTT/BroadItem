@@ -41,6 +41,8 @@ ctest --test-dir build-qt6 --output-on-failure  # Qt6：18 个（含金图，基
 
 注意：
 
+- 普通测试目标经 `tests/CMakeLists.txt` 的 `bi_add_plain_test(<name>)` 函数注册（`BI_PLAIN_TESTS` 列表 + foreach），新增测试只需在列表加一行；qrc、金图等特例在该函数之外单独处理。
+- 跨套件共享的测试辅助收敛在 `tests/helpers/`（`binding_helpers.h`/`layout_helpers.h`/`diagnostics_helpers.h`/`reactive_helpers.h`，`BroadItem::TestHelpers` 命名空间），新增重复 helper 时优先放这里。注意：`reactive_helpers.h` 含 Q_OBJECT 类，AUTOMOC 不会自动 moc 子目录头文件，消费该头的 cpp 须在末尾 `#include "helpers/moc_reactive_helpers.cpp"`；新增含 Q_OBJECT 的共享头沿用此模式。
 - 示例/测试使用的 XML 布局文件经 `configure_file` 拷入构建目录（见 `example/CMakeLists.txt`、`tests/CMakeLists.txt`）。测试报找不到 XML 时先重新构建。
 - 黄金基线 PNG 按 Qt 版本分套：`tests/golden/golden/`（Qt5）、`tests/golden/golden-qt6/`（Qt6），对应布局在 `tests/golden/layouts/`。
 - 布局 XML 的结构约束由仓库根目录的 `broaditem.xsd` 描述；新增/修改部件时应同步更新 XSD 与设计文档。
@@ -60,7 +62,7 @@ ctest --test-dir build-qt6 --output-on-failure  # Qt6：18 个（含金图，基
 ./build/example/badges            # README 标牌画廊集中展示（--shot <png> 离屏出图后退出）
 ```
 
-`example/badges/` 布局集由 `badges` 可执行集中展示；单张 PNG 用 `./build/example/frame_image <布局.xml> <输出.png>` 渲染（存于 `doc/images/badges/`）。`frame_image` 第三参数可指定布局可用宽度，缺省 -1 为内容驱动。
+`example/badges/` 布局集由 `badges` 可执行集中展示；单张 PNG 用 `./build/example/frame_image <布局.xml> <输出.png>` 渲染（存于 `doc/images/badges/`）。`frame_image` 第三参数可指定布局可用宽度，缺省 -1 为内容驱动。示例间共享的离屏渲染/`--smoke`/`--shot` 参数处理收敛在 `example/common/scene_shot.h`。
 
 ## 架构
 
@@ -78,19 +80,19 @@ ctest --test-dir build-qt6 --output-on-failure  # Qt6：18 个（含金图，基
 
 ### 模块划分（`include/broaditem/` 与 `src/` 镜像对应）
 
-- `core/`：`BroadItem`、`Frame`、`LayoutEngine`、`Node`、`ResolvedStyle`
+- `core/`：`BroadItem`、`Frame`、`LayoutEngine`（管线唯一入口，`Frame::performLayout`/`paint` 委托其静态方法，经 `Node::element` 派发）、`Node`、`ResolvedStyle`
 - `context/`：属性上下文体系——`PropertyContext`（接口）、`MapPropertyContext`（默认，map 存储）、`QPropertyContext`（proxy 模式，连接目标对象全部 Q_PROPERTY NOTIFY 信号）、`ItemPropertyContext`、`LayoutContext`
 - `diagnostics/`：结构化诊断——`Diagnostic`（错误码枚举 BI-P-xxx/BI-R-xxx，级别与恢复策略由码表唯一决定）、`ErrorCollector`（可注入收集器，默认转发 qWarning/qCritical）、`Diagnostics`（`reportParse`/`reportRuntime` 入口；`ParseSession` 解析会话提供元素路径与 Abort 标记，`RuntimeScope` 由 Frame 管线安装、承担模板级去重）。错误码总表见 `doc/设计.md`「诊断」节
 - `compat/`：Qt5/Qt6 兼容层（P1-3）。版本差异点唯一落点：`variantIsNull()`（null 语义统一）、`domSetContent()`（setContent 新旧重载）。新增版本差异一律收进本模块，源码中禁止散落的 `QT_VERSION_CHECK`（测试断言除外）
 - `expression/`：`Expression`（路径字符串解析）、`Binding`
 - `element/`：元素基类层级——`Element` → `ControlElement` / `RenderableElement` → `SizedElement` / `ContainerElement`；`BoxModel`
-  - `element/layout/`：`MultiChildContainer`、`ColumnLayout`、`RowLayout`、`GridLayout`、`CellElement`
+  - `element/layout/`：`MultiChildContainer`、`ColumnLayout`、`RowLayout`、`GridLayout`、`CellElement`；Row/Column 的轴无关公共实现（parse、main-align 分发布、main-stretch 双遍测量）收口在 src 内部单元 `src/element/layout/LinearLayoutCommon.h/.cpp`（不进公共 include 树）
   - `element/control/`：`ForElement`、`IfElement`（`<if>`：裸 `b:prop` 存在性 / `equals`|`b:equals` 字符串化值比较 / `not` 整体取反不可绑定）
   - `element/text/`：`TextElement`
   - `element/image/`：`ImageElement`（自计算部件；`src` 支持 `:/` Qt 资源路径与文件系统路径；模板级 `QPixmap` 缓存，同一模板多次物化共享）
   - `element/rect/`：`RectElement`（自计算部件；作者定尺寸纯色块，零自有属性；`fillsCrossAxis()` 覆写 true——未给交叉轴尺寸时恒填充，统一覆盖分割线/方形色块/圆形指示灯）
 - `parser/`：`XmlLayoutParser`、`LayoutRegistry`
-- `reactive/`：QGraphicsItem 实例间纯元对象驱动的属性同步。`ReactiveBinding`（静态 `create()` 工厂，经 `QMetaProperty::notifySignal()` 自动发现 NOTIFY 信号，`QObject::property()`/`setProperty()` 读写，`pos` 走 `xChanged()`/`yChanged()` 特判；支持可选 transform、环检测、源/目标销毁自动清理）、`FollowBinding`、`ConnectionLine`、`AnchorPoint`、`AnchorDecorator`、`ReactiveProperty`（`Property` 属性键常量）。**本版本未与 XML 布局或 `PropertyContext` 集成。**
+- `reactive/`：QGraphicsItem 实例间纯元对象驱动的属性同步。`ReactiveBinding`（静态 `create()` 工厂，经 `QMetaProperty::notifySignal()` 自动发现 NOTIFY 信号，`QObject::property()`/`setProperty()` 读写，`pos` 走 `xChanged()`/`yChanged()` 特判；支持可选 transform、环检测、源/目标销毁自动清理）、`FollowBinding`、`ConnectionLine`、`AnchorPoint`、`AnchorDecorator`、`ReactiveProperty`（`Property` 属性键常量）。z 值层级约定（连接线与装饰器 1、锚点 2）收口在 src 内部头 `src/reactive/ZOrder.h`。**本版本未与 XML 布局或 `PropertyContext` 集成。**
 
 ⚠️ **共存注意**：`QPropertyContext`（proxy 模式）连接目标对象的所有 Q_PROPERTY NOTIFY 信号（`setupNotifyConnections()`），与 `ReactiveBinding` 的元对象连接重叠。当前默认隔离（`BroadItem` 使用 `MapPropertyContext`），但若显式混用需注意 `visible`/`opacity` 等可叠加属性的级联反馈环风险。
 

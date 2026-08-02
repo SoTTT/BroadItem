@@ -3,12 +3,11 @@
 #include <broaditem/context/ItemPropertyContext.h>
 #include <broaditem/diagnostics/Diagnostics.h>
 #include <QDomElement>
-#include <QDebug>
 
 namespace BroadItem {
 
 /// @brief 返回 ForElement 支持的 XML 属性集合。
-/// @return Reference to a static set (binding attributes b:of/b:as are namespace-aware, not listed here).
+/// @return 静态集合引用（绑定属性 b:of/b:as 走命名空间，不在此列出）。
 const QSet<QString>& ForElement::supportedAttributes() const
 {
     static const QSet<QString> attrs = {};
@@ -16,7 +15,7 @@ const QSet<QString>& ForElement::supportedAttributes() const
 }
 
 /// @brief 从 XML 元素解析 b:of 和 b:as 属性。
-/// @param xml The DOM element to parse.
+/// @param xml 要解析的 DOM 元素。
 void ForElement::parse(const QDomElement& xml)
 {
     Element::parse(xml);
@@ -32,14 +31,14 @@ void ForElement::parse(const QDomElement& xml)
 }
 
 /// @brief 设置提供迭代列表的绑定属性。
-/// @param bind The property name for the data source (QStringList).
+/// @param bind 数据源的属性名（QStringList）。
 void ForElement::setBindProperty(const QString& bind)
 {
-        m_binding = Binding("b:of", bind);
+    m_binding = Binding("b:of", bind);
 }
 
 /// @brief 设置每次迭代要物化的模板元素。
-/// @param templ The template element.
+/// @param templ 模板元素。
 void ForElement::setTemplate(ElementPtr templ)
 {
     m_template = std::move(templ);
@@ -52,7 +51,7 @@ void ForElement::setTemplate(ElementPtr templ)
 /// 并以 itemCtx 递归调用模板的 materializeChildren() 后拼接——嵌套 for 由此
 /// 能拿到外层的 as 变量。
 ///
-/// @param ctx The layout context providing the data property.
+/// @param ctx 提供数据属性的布局上下文。
 /// @return 物化后的实例节点向量。
 std::vector<std::unique_ptr<Node>> ForElement::materializeChildren(const LayoutContext& ctx) const
 {
@@ -114,20 +113,20 @@ std::vector<std::unique_ptr<Node>> ForElement::materializeChildren(const LayoutC
 }
 
 /// @brief 检查此元素是否绑定指定属性（通过 b:of 或在模板中）。
-/// @param name The property name to check.
-/// @return True if the property is bound.
+/// @param name 要检查的属性名。
+/// @return 属性被绑定时返回 true。
 bool ForElement::bindsProperty(const QString& name) const
 {
-    // 1. Check if the b:of data source property changed → always triggers relayout
+    // 1. 检查 b:of 数据源属性是否变更 → 命中即触发重布局
     if (m_binding.bindsProperty(name))
         return true;
 
-    // 2. Check template bindings, but strip b:as prefix — per-item variables
-    //    are not global properties and should not trigger relayout.
+    // 2. 检查模板内的绑定，但剥离 b:as 前缀——迭代项变量
+    //    不是全局属性，不应触发重布局。
     if (m_template) {
         if (!m_asVariable.isEmpty()) {
-            // The b:as variable itself (e.g. "item") and per-item paths
-            // (e.g. "item.name") are NOT global — do not trigger relayout
+            // b:as 变量本身（如 "item"）与迭代项路径（如 "item.name"）
+            // 都不是全局属性——不触发重布局
             QString prefix = m_asVariable + ".";
             if (name == m_asVariable || name.startsWith(prefix))
                 return false;

@@ -2,11 +2,10 @@
 #include <QGraphicsView>
 #include <QGraphicsScene>
 #include <broaditem/core/BroadItem.h>
-#include <broaditem/parser/LayoutRegistry.h>
-#include <QDebug>
 
 /// @brief 入口点。加载 XML 布局并在 QGraphicsView 中显示。
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[])
+{
     QApplication app(argc, argv);
 
     QGraphicsScene scene;
@@ -24,6 +23,5 @@ int main(int argc, char *argv[]) {
     view.resize(420, 320);
     view.show();
 
-    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
-    return app.exec();
+    return QApplication::exec();
 }

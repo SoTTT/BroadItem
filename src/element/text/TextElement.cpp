@@ -3,12 +3,11 @@
 #include <QPainter>
 #include <QTextLayout>
 #include <QDomElement>
-#include <QDebug>
 
 namespace BroadItem {
 
 /// @brief 返回 TextElement 支持的 XML 属性集合。
-/// @return Reference to a static set including content, font, alignment, and box model attributes.
+/// @return 静态集合引用，含 content、字体、对齐与盒模型属性。
 const QSet<QString>& TextElement::supportedAttributes() const
 {
     static const QSet<QString> attrs = QSet<QString>{
@@ -33,7 +32,7 @@ const QSet<QString>& TextElement::resolvedAttributes() const
 }
 
 /// @brief 解析文本特定属性：content、b:content 绑定、字体、对齐、换行等。
-/// @param xml The DOM element to parse.
+/// @param xml 要解析的 DOM 元素。
 void TextElement::parse(const QDomElement& xml)
 {
     SizedElement::parse(xml);
@@ -71,7 +70,7 @@ void TextElement::parse(const QDomElement& xml)
                 Diagnostics::reportParse(ErrorCode::LiteralOutOfRange,
                                          QStringLiteral("TextElement: font-size must be positive, got %1")
                                              .arg(m_fontSize));
-                m_fontSize = 12;
+                m_fontSize = kDefaultFontSize;
             }
         }
     }
@@ -93,8 +92,8 @@ void TextElement::parse(const QDomElement& xml)
 /// 黄金镜像基线即以此采集；旧静态路径的 "expected QString" qCritical
 /// 随双模式删除一并移除）。
 ///
-/// @param ctx The layout context for property lookup.
-/// @return The resolved text string.
+/// @param ctx 用于属性查找的布局上下文。
+/// @return 解析后的文本字符串。
 QString TextElement::resolveText(const LayoutContext& ctx) const
 {
     if (m_hasContentLiteral)
@@ -120,13 +119,13 @@ std::unique_ptr<Node> TextElement::materialize(const LayoutContext& ctx) const
     node->color = resolveColor("color", ctx, m_color);
     node->fontSize = resolveDouble("font-size", ctx, m_fontSize);
     if (node->fontSize <= 0) {
-        // 与 parse 行为对齐：非正字号回退为 12 并报告诊断（运行时绑定值越界同 BI-R-011 族）。
+        // 与 parse 行为对齐：非正字号回退为默认字号并报告诊断（运行时绑定值越界同 BI-R-011 族）。
         Diagnostics::reportRuntime(ErrorCode::BoundValueTypeError,
                                    bindingFor(QStringLiteral("font-size"))
                                        ? bindingFor(QStringLiteral("font-size"))->path() : QString(),
                                    QStringLiteral("TextElement: font-size must be positive, got %1")
                                        .arg(node->fontSize));
-        node->fontSize = 12;
+        node->fontSize = kDefaultFontSize;
     }
     node->bold = resolveBool("bold", ctx, m_bold);
     node->underLine = resolveBool("underline", ctx, m_underLine);
@@ -148,10 +147,10 @@ QFont TextElement::fontFromNode(const TextNode& node) const
 }
 
 /// @brief 计算给定文本的渲染尺寸，考虑字体、换行和 max-width 约束。
-/// @param text The text to measure.
-/// @param constraints Available width/height constraints.
+/// @param text 要测量的文本。
+/// @param constraints 可用宽高约束。
 /// @param node 实例节点，读取物化时求值的字体属性（fontSize/fontFamily/bold/underLine）。
-/// @return The computed text size.
+/// @return 计算出的文本尺寸。
 QSizeF TextElement::computeTextSize(const QString& text, const LayoutConstraints& constraints, const TextNode& node) const
 {
     QFont font = fontFromNode(node);
@@ -186,10 +185,10 @@ QSizeF TextElement::computeTextSize(const QString& text, const LayoutConstraints
 }
 
 /// @brief 测量文本元素：读取节点文本、计算尺寸、应用显式宽度/高度。
-/// @param ctx The layout context.
-/// @param constraints Available width/height constraints.
+/// @param ctx 布局上下文。
+/// @param constraints 可用宽高约束。
 /// @param node 实例节点（TextNode）。
-/// @return The measured size including box model decoration.
+/// @return 含盒模型装饰的测量尺寸。
 MeasureResult TextElement::measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const
 {
     Q_UNUSED(ctx)
@@ -210,8 +209,8 @@ MeasureResult TextElement::measure(const LayoutContext& ctx, const LayoutConstra
 }
 
 /// @brief 存储分配的矩形并计算文本渲染的内容区域（缓存进 TextNode）。
-/// @param ctx The layout context (unused).
-/// @param rect The bounding rectangle assigned to this text element.
+/// @param ctx 布局上下文（未使用）。
+/// @param rect 分配给此文本元素的矩形。
 /// @param node 实例节点（TextNode）。
 void TextElement::layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const
 {
@@ -237,8 +236,8 @@ double TextElement::baselineOffset(const LayoutContext& ctx, const Node& node) c
 }
 
 /// @brief 渲染文本元素：盒模型装饰，然后使用字体、对齐和换行渲染节点文本。
-/// @param painter The QPainter to render onto.
-/// @param ctx The layout context (unused; 文本已在物化时解析)。
+/// @param painter 目标 QPainter。
+/// @param ctx 布局上下文（未使用；文本已在物化时解析）。
 /// @param node 实例节点（TextNode）。
 void TextElement::render(QPainter* painter, const LayoutContext& ctx, const Node& node) const
 {
@@ -331,8 +330,8 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx, const Node
 }
 
 /// @brief 检查此文本元素是否通过通用绑定或 b:content 绑定指定属性。
-/// @param name The property name to check.
-/// @return True if the property matches a generic binding or the b:content binding.
+/// @param name 要检查的属性名。
+/// @return 属性命中通用绑定或 b:content 绑定时返回 true。
 bool TextElement::bindsProperty(const QString& name) const
 {
     return Element::bindsProperty(name) || m_binding.bindsProperty(name);

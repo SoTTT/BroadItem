@@ -1,7 +1,7 @@
 #include <broaditem/element/Element.h>
 #include <broaditem/diagnostics/Diagnostics.h>
 #include <QDomElement>
-#include <QDebug>
+#include <QtGlobal>
 
 namespace BroadItem {
 
@@ -9,23 +9,23 @@ namespace BroadItem {
 const QString BINDING_NS = QStringLiteral("urn:broaditem:binding");
 
 /// @brief 判断属性是否为 xmlns 命名空间声明。
-/// @param attr The DOM attribute to check.
-/// @return True if the attribute name starts with "xmlns".
+/// @param attr 要检查的 DOM 属性。
+/// @return 属性名以 "xmlns" 开头时返回 true。
 bool isNamespaceDeclaration(const QDomAttr& attr)
 {
     return attr.name().startsWith(QLatin1String("xmlns"));
 }
 
 /// @brief 判断属性是否属于绑定命名空间。
-/// @param attr The DOM attribute to check.
-/// @return True if attr.namespaceURI() == BINDING_NS.
+/// @param attr 要检查的 DOM 属性。
+/// @return attr.namespaceURI() == BINDING_NS 时返回 true。
 bool isBindingAttribute(const QDomAttr& attr)
 {
     return attr.namespaceURI() == BINDING_NS;
 }
 
 /// @brief 基础解析方法；子类覆盖以提取其属性。
-/// @param xml The DOM element to parse.
+/// @param xml 要解析的 DOM 元素。
 void Element::parse(const QDomElement& xml)
 {
     Q_UNUSED(xml)
@@ -84,9 +84,9 @@ bool Element::fillsCrossAxis() const
 }
 
 /// @brief 安全地将字符串解析为 double。
-/// @param value The string to parse.
-/// @param defaultVal Value returned if parsing fails.
-/// @return The parsed double, or defaultVal on failure.
+/// @param value 要解析的字符串。
+/// @param defaultVal 解析失败时的返回值。
+/// @return 解析出的 double；失败时返回 defaultVal。
 double Element::parseDouble(const QString& value, double defaultVal)
 {
     bool ok = false;
@@ -95,32 +95,30 @@ double Element::parseDouble(const QString& value, double defaultVal)
 }
 
 /// @brief 将字符串解析为 QColor。
-/// @param value The color string (any format QColor accepts).
-/// @return The parsed QColor.
+/// @param value 颜色字符串（QColor 接受的任意格式）。
+/// @return 解析出的 QColor。
 QColor Element::parseColor(const QString& value)
 {
     return {value};
 }
 
 /// @brief 将字符串解析为布尔值。
-/// @param value "true"/"1" returns true, everything else false.
-/// @return The parsed boolean value.
+/// @param value "true"/"1" 返回 true，其余返回 false。
+/// @return 解析出的布尔值。
 bool Element::parseBool(const QString& value)
 {
     return value.compare("true", Qt::CaseInsensitive) == 0 || value == "1";
 }
 
 /// @brief 检查属性名是否匹配绑定路径（支持点和括号子路径）。
-/// @param bindPath The binding path (e.g. "user.name" or "items[0]").
-/// @param propName The property name to match.
-/// @return True if propName is a prefix match for bindPath.
+/// @param bindPath 绑定路径（如 "user.name" 或 "items[0]"）。
+/// @param propName 要匹配的属性名。
+/// @return propName 是 bindPath 的前缀匹配时返回 true。
 bool Element::matchesProperty(const QString& bindPath, const QString& propName)
 {
-    if (bindPath == propName)
-        return true;
-    if (bindPath.startsWith(propName + ".") || bindPath.startsWith(propName + "["))
-        return true;
-    return false;
+    return bindPath == propName
+        || bindPath.startsWith(propName + ".")
+        || bindPath.startsWith(propName + "[");
 }
 
 /// @brief 通过与 supportedAttributes() 比较来报告未知 XML 属性（BI-P-011）。
@@ -128,7 +126,7 @@ bool Element::matchesProperty(const QString& bindPath, const QString& propName)
 /// 遍历所有 XML 属性，跳过 xmlns 声明属性和绑定命名空间属性，
 /// 其余属性若不在 supportedAttributes() 集合中则报告诊断。
 ///
-/// @param xml The DOM element whose attributes to validate.
+/// @param xml 要校验属性的 DOM 元素。
 void Element::validateAttributes(const QDomElement& xml) const
 {
     const QSet<QString>& known = supportedAttributes();
@@ -161,11 +159,11 @@ static void reportValueMismatch(const QString& runtimePath, const QString& messa
 }
 
 /// @brief 验证并将字符串解析为 double，失败时报告诊断。
-/// @param value The string to parse.
-/// @param attrName Attribute name for error messages.
-/// @param out Output parameter for the parsed value.
+/// @param value 要解析的字符串。
+/// @param attrName 用于错误消息的属性名。
+/// @param out 解析值的输出参数。
 /// @param runtimePath 绑定路径（非空表示运行时绑定值求值）。
-/// @return True if parsing succeeded.
+/// @return 解析成功时返回 true。
 bool Element::validateDouble(const QString& value, const QString& attrName, double& out,
                              const QString& runtimePath)
 {
@@ -181,11 +179,11 @@ bool Element::validateDouble(const QString& value, const QString& attrName, doub
 }
 
 /// @brief 验证并将字符串解析为整数，失败时报告诊断。
-/// @param value The string to parse.
-/// @param attrName Attribute name for error messages.
-/// @param out Output parameter for the parsed value.
+/// @param value 要解析的字符串。
+/// @param attrName 用于错误消息的属性名。
+/// @param out 解析值的输出参数。
 /// @param runtimePath 绑定路径（非空表示运行时绑定值求值）。
-/// @return True if parsing succeeded.
+/// @return 解析成功时返回 true。
 bool Element::validateInt(const QString& value, const QString& attrName, int& out,
                           const QString& runtimePath)
 {
@@ -201,11 +199,11 @@ bool Element::validateInt(const QString& value, const QString& attrName, int& ou
 }
 
 /// @brief 验证并将字符串解析为布尔值（"true"/"false"/"1"/"0"），失败时报告诊断。
-/// @param value The string to parse.
-/// @param attrName Attribute name for error messages.
-/// @param out Output parameter for the parsed value.
+/// @param value 要解析的字符串。
+/// @param attrName 用于错误消息的属性名。
+/// @param out 解析值的输出参数。
 /// @param runtimePath 绑定路径（非空表示运行时绑定值求值）。
-/// @return True if parsing succeeded.
+/// @return 解析成功时返回 true。
 bool Element::validateBool(const QString& value, const QString& attrName, bool& out,
                            const QString& runtimePath)
 {
@@ -239,7 +237,7 @@ const QSet<QString>& Element::resolvedAttributes() const
 /// 同一属性将被两套机制重复解析。"not" 是 <if> 的结构性修饰符（取反），
 /// 如同代码中只修改变量而不修改条件表达式的取反，永不参与绑定。
 ///
-/// @param xml The DOM element whose binding attributes to parse.
+/// @param xml 要解析绑定属性的 DOM 元素。
 void Element::parseBindings(const QDomElement& xml)
 {
     static const QSet<QString> reserved{QStringLiteral("of"), QStringLiteral("prop"),
@@ -301,8 +299,8 @@ const Binding* Element::bindingFor(const QString& attribute) const
 }
 
 /// @brief 基类 bindsProperty：遍历通用绑定表，任一绑定匹配即返回 true。
-/// @param name The property name to check.
-/// @return True if any generic binding matches the property.
+/// @param name 要检查的属性名。
+/// @return 任一通用绑定匹配该属性时返回 true。
 bool Element::bindsProperty(const QString& name) const
 {
     for (const Binding& b : m_bindings) {

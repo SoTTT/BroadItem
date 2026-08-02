@@ -4,10 +4,12 @@
 #include <QImage>
 #include <QPainter>
 #include <QStringList>
+#include <QDebug>
 #include <broaditem/core/BroadItem.h>
 
 /// @brief 入口点。集中展示 example/badges/ 画廊标牌，纵向堆叠于同一场景。
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[])
+{
     QApplication app(argc, argv);
 
     QGraphicsScene scene;
@@ -24,8 +26,14 @@ int main(int argc, char *argv[]) {
     // 依次加载画廊布局，flush 后按实际高度纵向堆叠。
     qreal y = 0.0;
     for (const QString &name : layouts) {
-        auto *item = new BroadItem::BroadItem(dir + QLatin1Char('/') + name);
+        auto* item = new BroadItem::BroadItem(dir + QLatin1Char('/') + name);
         item->flush();
+        // 加载失败（布局为空）时告警并跳过该布局，避免把空 item 叠进场景
+        if (item->boundingRect().isEmpty()) {
+            qWarning() << "布局加载失败，跳过:" << name;
+            delete item;
+            continue;
+        }
         item->setPos(0.0, y);
         scene.addItem(item);
         y += item->boundingRect().height() + 12.0;
@@ -51,6 +59,5 @@ int main(int argc, char *argv[]) {
     view.resize(400, static_cast<int>(scene.sceneRect().height()) + 24);
     view.show();
 
-    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
-    return app.exec();
+    return QApplication::exec();
 }

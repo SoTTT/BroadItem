@@ -3,6 +3,8 @@
 
 #include <broaditem/reactive/AnchorPoint.h>
 
+#include "ZOrder.h"
+
 #include <QGraphicsScene>
 #include <QPainter>
 
@@ -30,8 +32,8 @@ AnchorPoint::AnchorPoint(QGraphicsScene* scene, QObject* parent)
     setFlag(ItemIsSelectable, false);
     setFlag(ItemIsMovable, false);
 
-    // 锚点绘制在连接线（zValue=1）之上
-    setZValue(2);
+    // 锚点绘制在连接线与装饰器外框（z=1）之上，z 值层级约定见 ZOrder.h
+    setZValue(kAnchorZValue);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -67,16 +69,6 @@ void AnchorPoint::setColor(const QColor& color)
     if (m_color == color) return;
     m_color = color;
     update();
-}
-
-bool AnchorPoint::anchorVisible() const
-{
-    return isVisible();
-}
-
-void AnchorPoint::setAnchorVisible(bool visible)
-{
-    setVisible(visible);
 }
 
 // ══════════════════════════════════════════════════════════════════

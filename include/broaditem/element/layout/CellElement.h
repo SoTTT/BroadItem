@@ -14,8 +14,8 @@ public:
     bool canHaveChildren() const override { return true; }
 
 private:
-    QString m_vAlign = "center";  ///< Vertical alignment of content ("top", "center", "bottom").
-    QString m_hAlign = "center";  ///< Horizontal alignment of content ("left", "center", "right").
+    QString m_vAlign = "center";  ///< 内容的垂直对齐（"top"、"center"、"bottom"）。
+    QString m_hAlign = "center";  ///< 内容的水平对齐（"left"、"center"、"right"）。
 };
 
 } // namespace BroadItem

@@ -3,7 +3,6 @@
 #include <QPainter>
 #include <QDomElement>
 #include <QDomAttr>
-#include <QStringList>
 #include <QSet>
 #include <QHash>
 #include <QRectF>
@@ -19,13 +18,13 @@ namespace BroadItem {
 extern const QString BINDING_NS;
 
 /// @brief 判断属性是否为 xmlns 命名空间声明。
-/// @param attr The DOM attribute to check.
-/// @return True if the attribute name starts with "xmlns".
+/// @param attr 要检查的 DOM 属性。
+/// @return 属性名以 "xmlns" 开头时返回 true。
 bool isNamespaceDeclaration(const QDomAttr& attr);
 
 /// @brief 判断属性是否属于绑定命名空间。
-/// @param attr The DOM attribute to check.
-/// @return True if attr.namespaceURI() == BINDING_NS.
+/// @param attr 要检查的 DOM 属性。
+/// @return attr.namespaceURI() == BINDING_NS 时返回 true。
 bool isBindingAttribute(const QDomAttr& attr);
 
 class Element;
@@ -100,7 +99,7 @@ public:
     /// 与控制元素语义耦合，跳过；局部名不在 supportedAttributes() 中报告
     /// BI-P-012 并跳过；与字面量同名属性互斥（BI-P-014，忽略该绑定）；
     /// 不在 resolvedAttributes() 中的布局策略属性报告 BI-P-023 并拒绝注册。
-    /// @param xml The DOM element whose binding attributes to parse.
+    /// @param xml 要解析绑定属性的 DOM 元素。
     void parseBindings(const QDomElement& xml);
 
     /// @brief 按局部属性名查找通用绑定。
@@ -174,13 +173,13 @@ protected:
     /// b:xxx 绑定属性自身），hasAttributeNS(QString(), ...) 又匹配不到无命名
     /// 空间字面量——parseBindings 已实证该陷阱。字面量读取一律走本辅助：
     /// 遍历属性，命中条件 namespaceURI().isEmpty() && name() == local。
-    /// @param xml The DOM element to inspect.
+    /// @param xml 要检查的 DOM 元素。
     /// @param name 字面量属性名（如 "color"）。
     /// @return 存在无命名空间的同名字面量属性时返回 true。
     static bool hasLiteralAttribute(const QDomElement& xml, const QString& name);
 
     /// @brief 命名空间感知的字面量属性取值（判定语义同 hasLiteralAttribute）。
-    /// @param xml The DOM element to inspect.
+    /// @param xml 要检查的 DOM 元素。
     /// @param name 字面量属性名。
     /// @param def 属性不存在时的默认返回值。
     /// @return 字面量属性值；不存在时返回 def。

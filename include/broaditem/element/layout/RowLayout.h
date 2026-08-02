@@ -17,10 +17,10 @@ public:
     const QSet<QString>& supportedAttributes() const override;
 
 private:
-    QString m_mainAlign = "start";       ///< Main-axis alignment ("start", "center", "end").
-    QString m_crossAlign = "stretch";    ///< Cross-axis alignment ("start", "center", "end", "stretch").
-    double m_space = 0;                  ///< Spacing between children in pixels.
-    bool m_mainStretch = false;          ///< Whether to stretch all children to the same main-axis size.
+    QString m_mainAlign = "start";       ///< 主轴对齐（"start"、"center"、"end"）。
+    QString m_crossAlign = "stretch";    ///< 交叉轴对齐（"start"、"center"、"end"、"stretch"）。
+    double m_space = 0;                  ///< 子元素间距（px）。
+    bool m_mainStretch = false;          ///< 是否将所有子元素拉伸为相同的主轴尺寸。
 
     /// @brief 在计算出的内容矩形内布局子节点。
     void layoutChildren(const LayoutContext& ctx, const QRectF& contentRect, Node& node) const;

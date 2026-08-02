@@ -6,6 +6,8 @@
 #include <broaditem/reactive/FollowBinding.h>
 #include <broaditem/reactive/ReactiveProperty.h>
 
+#include "ZOrder.h"
+
 #include <QGraphicsScene>
 #include <QGraphicsObject>
 #include <QPainter>
@@ -138,7 +140,8 @@ ConnectionLine::ConnectionLine(QObject* a, QObject* b, QObject* parent)
 
     setAcceptedMouseButtons(Qt::NoButton);
     setFlag(ItemIsSelectable, false);
-    setZValue(1);
+    // z 值层级约定见 ZOrder.h：连接线与装饰器外框同为 z=1
+    setZValue(kDecorationZValue);
 
     auto* aObj = qobject_cast<QGraphicsObject*>(a);
     auto* bObj = qobject_cast<QGraphicsObject*>(b);
@@ -151,8 +154,10 @@ ConnectionLine::~ConnectionLine()
     disconnect(m_aDestroyConnection);
     disconnect(m_bDestroyConnection);
 
-    // FollowBinding 和 ReactiveBinding 的析构不会自动清理内部连接，
-    // 必须显式 destroy() 再 delete
+    // 显式 destroy() 再 delete：严格说并非必须——QObject 析构会自动断开
+    // 以自身为 receiver 的连接，且这些 binding 以 this 为 QObject parent，
+    // 本就会随父对象删除。此处提前断开是防御性写法，确保析构期间不再有
+    // observer 回调访问正在销毁的本对象。
     if (m_followBinding) {
         m_followBinding->destroy();
         delete m_followBinding;
@@ -192,6 +197,7 @@ void ConnectionLine::setPen(const QPen& pen)
 
 QRectF ConnectionLine::boundingRect() const
 {
+    // adjusted(-1, -1, 1, 1)：画笔宽度补偿，确保描边线段的完整绘制区域被包围盒覆盖
     return QRectF(m_lastAPos, m_lastBPos).normalized().adjusted(-1, -1, 1, 1);
 }
 

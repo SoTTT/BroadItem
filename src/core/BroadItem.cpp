@@ -4,37 +4,42 @@
 namespace BroadItem {
 
 /// @brief 从 XML 文件路径构造 BroadItem。
-/// @param xmlFilePath Path to the XML layout file.
-/// @param ctx Optional property context; Frame creates default if null.
-/// @param parent Optional QGraphicsItem parent.
+/// @param xmlFilePath XML 布局文件路径。
+/// @param ctx 属性上下文，为 nullptr 时由 Frame 创建默认上下文。
+/// @param parent 可选的 QGraphicsItem 父项。
 BroadItem::BroadItem(const QString& xmlFilePath,
                      std::shared_ptr<PropertyContext> ctx,
                      QGraphicsItem* parent)
     : QGraphicsObject(parent)
     , m_frame(Frame::fromFile(xmlFilePath, std::move(ctx)))
 {
-    setupRelayoutAction();
-    setFlags(flags() | QGraphicsItem::ItemSendsGeometryChanges
-                     | QGraphicsItem::ItemSendsScenePositionChanges);
+    init();
 }
 
 /// @brief 从注册的布局 ID 构造 BroadItem。
-/// @param layoutId Identifier of a pre-registered layout.
-/// @param ctx Optional property context; Frame creates default if null.
-/// @param parent Optional QGraphicsItem parent.
+/// @param layoutId 预注册布局的标识符。
+/// @param ctx 属性上下文，为 nullptr 时由 Frame 创建默认上下文。
+/// @param parent 可选的 QGraphicsItem 父项。
 BroadItem::BroadItem(int layoutId,
                      std::shared_ptr<PropertyContext> ctx,
                      QGraphicsItem* parent)
     : QGraphicsObject(parent)
     , m_frame(Frame::fromRegistry(layoutId, std::move(ctx)))
 {
-    setupRelayoutAction();
-    setFlags(flags() | QGraphicsItem::ItemSendsGeometryChanges
-                     | QGraphicsItem::ItemSendsScenePositionChanges);
+    init();
 }
 
 /// @brief 析构函数。
 BroadItem::~BroadItem() = default;
+
+/// @brief 构造函数共用初始化：注入重布局动作并开启几何/场景位置变更通知，
+///        使 Qt 内部 Q_PROPERTY 的 NOTIFY 信号可发射。
+void BroadItem::init()
+{
+    setupRelayoutAction();
+    setFlags(flags() | QGraphicsItem::ItemSendsGeometryChanges
+                     | QGraphicsItem::ItemSendsScenePositionChanges);
+}
 
 /// @brief 向 Frame 注入重布局动作：布局执行前通知 QGraphicsScene 几何变更，布局后触发重绘。
 ///
@@ -51,7 +56,7 @@ void BroadItem::setupRelayoutAction()
 }
 
 /// @brief 替换属性上下文并重新连接变更通知。
-/// @param ctx The new property context.
+/// @param ctx 新的属性上下文。
 void BroadItem::setPropertyContext(std::shared_ptr<PropertyContext> ctx)
 {
     m_frame->setPropertyContext(std::move(ctx));
@@ -59,24 +64,24 @@ void BroadItem::setPropertyContext(std::shared_ptr<PropertyContext> ctx)
 }
 
 /// @brief 设置动态属性值，如已绑定则通过 onChanged 回调触发重新布局。
-/// @param name Property name.
-/// @param value Property value.
+/// @param name 属性名。
+/// @param value 属性值。
 void BroadItem::setDynamicProperty(const QString& name, const QVariant& value)
 {
     m_frame->setDynamicProperty(name, value);
 }
 
 /// @brief 返回动态属性值。
-/// @param name Property name.
-/// @return The property value, or invalid QVariant if not found.
+/// @param name 属性名。
+/// @return 属性值；未找到时返回无效 QVariant。
 QVariant BroadItem::dynamicProperty(const QString& name) const
 {
     return m_frame->dynamicProperty(name);
 }
 
 /// @brief 检查动态属性是否存在。
-/// @param name Property name.
-/// @return True if the property context has the property.
+/// @param name 属性名。
+/// @return 属性上下文中存在该属性时返回 true。
 bool BroadItem::hasDynamicProperty(const QString& name) const
 {
     return m_frame->hasDynamicProperty(name);
@@ -90,16 +95,16 @@ void BroadItem::updateLayout()
 }
 
 /// @brief 返回项目的边界矩形。
-/// @return The computed bounding rect from the layout phase.
+/// @return 布局阶段计算出的边界矩形。
 QRectF BroadItem::boundingRect() const
 {
     return QRectF(QPointF(), m_frame->size());
 }
 
 /// @brief 将元素树绘制到指定的 painter 上。
-/// @param painter The QPainter to render onto.
-/// @param option Style options (unused).
-/// @param widget Widget (unused).
+/// @param painter 目标 QPainter。
+/// @param option 样式选项（未使用）。
+/// @param widget 目标 Widget（未使用）。
 void BroadItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget)
 {
     Q_UNUSED(option)

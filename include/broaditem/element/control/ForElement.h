@@ -25,9 +25,9 @@ public:
     bool canHaveChildren() const override { return true; }
 
 private:
-    Binding m_binding{"b:of", QString{}}; ///< Binding for the b:of attribute (data source).
-    QString m_asVariable;   ///< The alias variable name bound to each iteration value.
-    ElementPtr m_template;  ///< The template element to materialize for each iteration.
+    Binding m_binding{"b:of", QString{}}; ///< b:of 属性（数据源）的绑定。
+    QString m_asVariable;   ///< 绑定到每个迭代值的别名变量名。
+    ElementPtr m_template;  ///< 每次迭代要物化的模板元素。
 };
 
 } // namespace BroadItem
