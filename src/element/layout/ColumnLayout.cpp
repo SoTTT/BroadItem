@@ -162,7 +162,9 @@ void ColumnLayout::layoutChildren(const LayoutContext& ctx, const QRectF& conten
         double childHeight = childSizes[i].height();
         double childWidth = childSizes[i].width();
 
-        if (m_crossAlign == "stretch") {
+        // 交叉轴拉伸：cross-align=stretch 或子元素自报恒填充（fillsCrossAxis）；
+        // 内层显式宽度豁免判断不受 fillsCrossAxis 影响
+        if (m_crossAlign == "stretch" || children[i]->element->fillsCrossAxis()) {
             if (children[i]->style.width < 0)
                 childWidth = contentRect.width();
         }

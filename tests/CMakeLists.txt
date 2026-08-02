@@ -56,6 +56,9 @@ endif()
 add_executable(test_image_element test_image_element.cpp ${test_image_element_RCC})
 target_link_libraries(test_image_element PRIVATE BroadItem Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Xml Qt${QT_VERSION_MAJOR}::Test)
 
+add_executable(test_rect_element test_rect_element.cpp)
+target_link_libraries(test_rect_element PRIVATE BroadItem Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Xml Qt${QT_VERSION_MAJOR}::Test)
+
 # 黄金镜像采集/校验工具（P4 起注册 ctest：--verify 等价组逐像素比对）
 add_executable(golden_render golden/golden_render.cpp)
 target_link_libraries(golden_render PRIVATE BroadItem Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Xml)
@@ -76,6 +79,7 @@ add_test(NAME test_bound_attributes COMMAND test_bound_attributes WORKING_DIRECT
 add_test(NAME test_update_coalescing COMMAND test_update_coalescing WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME test_diagnostics COMMAND test_diagnostics WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME test_image_element COMMAND test_image_element WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+add_test(NAME test_rect_element COMMAND test_rect_element WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # golden 基线按 Qt 版本分套（Qt6 字体度量/光栅化与 Qt5 有亚像素级漂移，
 # 逐像素比对不可跨栈共用）：

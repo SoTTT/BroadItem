@@ -77,6 +77,12 @@ double Element::baselineOffset(const LayoutContext& ctx, const Node& node) const
     return -1;
 }
 
+/// @brief 基类交叉轴填充默认实现：false 表示不请求恒填充（容器行为照旧）。
+bool Element::fillsCrossAxis() const
+{
+    return false;
+}
+
 /// @brief 安全地将字符串解析为 double。
 /// @param value The string to parse.
 /// @param defaultVal Value returned if parsing fails.

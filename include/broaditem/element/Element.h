@@ -78,6 +78,17 @@ public:
     /// @return 顶边到基线的距离；无基线时返回 -1。
     virtual double baselineOffset(const LayoutContext& ctx, const Node& node) const;
 
+    /// @brief 交叉轴填充钩子：未显式指定交叉轴尺寸时请求恒填充。
+    ///
+    /// 供 RowLayout/ColumnLayout 的交叉轴拉伸分支查询（与 baselineOffset
+    /// 同款的元素级钩子模式，容器无需窥探子元素类型）：返回 true 的元素，
+    /// 即使容器 cross-align 非 stretch，其未显式指定交叉轴尺寸的维度也按
+    /// stretch 处理；显式指定交叉轴尺寸的豁免规则不变（交 cross-align 定位）。
+    /// 基类默认 false（不请求恒填充，容器行为完全照旧）；
+    /// RectElement 覆写为 true（作者声明即内容，未给交叉轴尺寸即通栏/通高色块）。
+    /// @return 未显式指定交叉轴尺寸时请求恒填充返回 true。
+    virtual bool fillsCrossAxis() const;
+
     /// @brief 数据绑定：如果该元素使用了指定属性名，返回 true。
     /// 基类实现遍历通用绑定表 m_bindings（见 parseBindings）。
     virtual bool bindsProperty(const QString& name) const;

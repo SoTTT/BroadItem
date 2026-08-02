@@ -87,6 +87,10 @@ add_library(BroadItem STATIC
     src/element/image/ImageElement.cpp
     include/broaditem/element/image/ImageElement.h
 
+    # rect — author-sized solid color block leaf element
+    src/element/rect/RectElement.cpp
+    include/broaditem/element/rect/RectElement.h
+
     # parser — XML layout parsing and registry
     src/parser/XmlLayoutParser.cpp
     src/parser/LayoutRegistry.cpp

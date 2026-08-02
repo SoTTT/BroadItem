@@ -230,6 +230,7 @@ urn:broaditem:binding is accepted by the parser.
     <xs:choice>
       <xs:element ref="text"/>
       <xs:element ref="image"/>
+      <xs:element ref="rect"/>
       <xs:element ref="column"/>
       <xs:element ref="row"/>
       <xs:element ref="grid"/>
@@ -250,6 +251,7 @@ urn:broaditem:binding is accepted by the parser.
           <xs:element ref="grid"/>
           <xs:element ref="text"/>
           <xs:element ref="image"/>
+          <xs:element ref="rect"/>
         </xs:choice>
       </xs:sequence>
     </xs:complexType>
@@ -334,6 +336,50 @@ Formats follow QPixmap: PNG/JPEG built-in; SVG via Qt imageformats plugin.
       <xs:attribute name="keep-aspect" type="boolType" default="true"/>
       <xs:attribute name="width"       type="nonNegativeDouble"/>
       <xs:attribute name="height"      type="nonNegativeDouble"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ================================================================ -->
+  <!--  <rect> — author-sized solid color block                         -->
+  <!-- ================================================================ -->
+  <xs:element name="rect">
+    <xs:annotation>
+      <xs:documentation>
+rect — author-sized solid color block. One widget covers dividers,
+square color blocks, and circular indicator dots.
+
+Semantics: the content is "a stroke of color"; the intrinsic size is
+taken from the author's declaration — the third source of intrinsic
+size among self-measuring widgets (text = font metrics, image = pixmap
+pixels, rect = author declaration).
+
+Per-dimension size rule:
+  explicit width/height  → used as-is (exempt from cross-axis filling;
+                           positioned by the container's cross-align)
+  omitted                → cross-axis dimension ALWAYS fills (ignores the
+                           container's cross-align, via the fillsCrossAxis
+                           hook); main-axis dimension is 0
+
+Recipes:
+  horizontal divider: &lt;rect height="1" background-color="#313244"/&gt;
+    (in a column, width auto-fills the column)
+  vertical divider:   &lt;rect width="1" background-color="#313244"/&gt;
+    (in a row, height auto-fills the row)
+  square block:       &lt;rect width="12" height="12" background-color="#f00"/&gt;
+  circular dot:       &lt;rect width="10" height="10" background-color="#0f0"
+                        background-radius="5"/&gt;
+    (radius = half the edge length)
+
+Zero attributes of its own: width/height + the full box model set, all
+bindable (b:width, b:height, b:background-color, ...). Renders box model
+only — the background IS the block. No layout-policy attributes, so no
+binding is rejected on rect by BI-P-023.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attributeGroup ref="renderableAttrs"/>
+      <xs:attribute name="width"  type="nonNegativeDouble"/>
+      <xs:attribute name="height" type="nonNegativeDouble"/>
     </xs:complexType>
   </xs:element>
 

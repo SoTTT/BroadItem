@@ -5,6 +5,7 @@
 #include <broaditem/element/ContainerElement.h>
 #include <broaditem/element/text/TextElement.h>
 #include <broaditem/element/image/ImageElement.h>
+#include <broaditem/element/rect/RectElement.h>
 #include <broaditem/element/layout/ColumnLayout.h>
 #include <broaditem/element/layout/RowLayout.h>
 #include <broaditem/element/layout/GridLayout.h>
@@ -143,6 +144,8 @@ ElementPtr XmlLayoutParser::createElement(const QString& tagName)
         return std::make_shared<TextElement>();
     if (tagName == QLatin1String("image"))
         return std::make_shared<ImageElement>();
+    if (tagName == QLatin1String("rect"))
+        return std::make_shared<RectElement>();
     if (tagName == QLatin1String("column"))
         return std::make_shared<ColumnLayout>();
     if (tagName == QLatin1String("row"))

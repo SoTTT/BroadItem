@@ -25,8 +25,8 @@ cmake -B build-qt6 -S . -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt@6 && cmake --bu
 ## 测试
 
 ```bash
-ctest --test-dir build --output-on-failure      # Qt5：全部 17 个 ctest 条目
-ctest --test-dir build-qt6 --output-on-failure  # Qt6：16 个（test_golden_render 条件跳过）
+ctest --test-dir build --output-on-failure      # Qt5：全部 18 个 ctest 条目
+ctest --test-dir build-qt6 --output-on-failure  # Qt6：18 个（含金图，基线为 tests/golden/golden-qt6/）
 ./build/tests/test_parser                       # 运行单个测试套件
 ```
 
@@ -36,6 +36,7 @@ ctest --test-dir build-qt6 --output-on-failure  # Qt6：16 个（test_golden_ren
 - `test_update_coalescing`：P0-4 变更合并（`UpdatePolicy`/`flush()`/守卫位）
 - `test_diagnostics`：P1-1 结构化诊断。码表 32 个错误码逐一一个用例 + 行为用例（嵌套 Abort 整文件失败、全收集、运行时模板级去重、静默清单、Default 语义回归）
 - `test_image_element`：`<image>` 部件测试，首个 qrc 测试基建（`tests/assets/icons.qrc` 经 `qt5/qt6_add_resources` 编入该目标）
+- `test_rect_element`：`<rect>` 部件测试（逐维度 measure、fillsCrossAxis 交叉轴恒填充、显式尺寸豁免与居中、绑定求值与拒绝路径、cell/根退化、BI-P-007）
 - `test_golden_render`：黄金镜像校验。`tests/golden/golden_render.cpp` 是采集/校验工具（`--capture <dir>` 按内置 manifest 渲染 PNG；`--verify <dir>` 逐像素比对，等价组不一致则退出码 1）。**该测试固定 `QT_QPA_PLATFORM=offscreen`**（`set_tests_properties`），cocoa 下字体光栅化不确定性会破坏逐像素比对，改金图基建时不得去掉此环境变量。**基线按 Qt 版本分套**：`tests/golden/golden/`（Qt5）与 `tests/golden/golden-qt6/`（Qt6，字体度量/光栅化有亚像素级漂移，逐像素比对不可跨栈共用），`tests/CMakeLists.txt` 按 `QT_VERSION_MAJOR` 指向对应基线；改渲染行为时两套都要重新采集。
 
 注意：
@@ -87,6 +88,7 @@ ctest --test-dir build-qt6 --output-on-failure  # Qt6：16 个（test_golden_ren
   - `element/control/`：`ForElement`、`IfElement`（`<if>`：裸 `b:prop` 存在性 / `equals`|`b:equals` 字符串化值比较 / `not` 整体取反不可绑定）
   - `element/text/`：`TextElement`
   - `element/image/`：`ImageElement`（自计算部件；`src` 支持 `:/` Qt 资源路径与文件系统路径；模板级 `QPixmap` 缓存，同一模板多次物化共享）
+  - `element/rect/`：`RectElement`（自计算部件；作者定尺寸纯色块，零自有属性；`fillsCrossAxis()` 覆写 true——未给交叉轴尺寸时恒填充，统一覆盖分割线/方形色块/圆形指示灯）
 - `parser/`：`XmlLayoutParser`、`LayoutRegistry`
 - `reactive/`：QGraphicsItem 实例间纯元对象驱动的属性同步。`ReactiveBinding`（静态 `create()` 工厂，经 `QMetaProperty::notifySignal()` 自动发现 NOTIFY 信号，`QObject::property()`/`setProperty()` 读写，`pos` 走 `xChanged()`/`yChanged()` 特判；支持可选 transform、环检测、源/目标销毁自动清理）、`FollowBinding`、`ConnectionLine`、`AnchorPoint`、`AnchorDecorator`、`ReactiveProperty`（`Property` 属性键常量）。**本版本未与 XML 布局或 `PropertyContext` 集成。**
 

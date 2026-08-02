@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root xmlns:b="urn:broaditem:binding">
+    <column space="8" padding="12" background-color="#ffffff" cross-align="center">
+        <!-- 通栏分割线：未给宽度，fillsCrossAxis 恒填充至列宽（无视容器 cross-align="center"） -->
+        <rect height="1" background-color="#313244"/>
+        <!-- 状态行：圆形指示灯 + 文字 baseline 对齐（圆点为显式尺寸，豁免填充） -->
+        <row space="8" cross-align="baseline">
+            <rect width="10" height="10" background-color="#a6e3a1" background-radius="5"/>
+            <text font-size="14" color="#333333">服务运行中</text>
+        </row>
+        <!-- 居中 accent bar：显式尺寸豁免填充，交 cross-align 居中定位 -->
+        <rect width="40" height="3" background-color="#89b4fa" background-radius="1"/>
+    </column>
+</root>

@@ -3,7 +3,7 @@
  * @brief 黄金镜像采集/校验工具。
  *
  * 用法：
- *   golden_render --capture <dir>  按内置 manifest 渲染 11 张 PNG 到 <dir>。
+ *   golden_render --capture <dir>  按内置 manifest 渲染 12 张 PNG 到 <dir>。
  *   golden_render --verify <dir>   重新渲染并与 <dir> 中的黄金 PNG 逐像素比对。
  *
  * verify 语义：等价组（intentionalChange=false）必须像素完全一致，否则退出码 1；
@@ -92,7 +92,7 @@ static QVariantMap makeControlProps(bool withExtra)
     return props;
 }
 
-/// @brief 返回硬编码的 11 条黄金镜像 manifest。
+/// @brief 返回硬编码的 12 条黄金镜像 manifest。
 static QVector<GoldenCase> manifest()
 {
     QVariantMap complexProps{
@@ -134,6 +134,7 @@ static QVector<GoldenCase> manifest()
         { QStringLiteral("broaditem_basic"), QStringLiteral("example/basic/layout.xml"), makeBasicProps(), false, true },
         { QStringLiteral("image_icon"), QStringLiteral("inline:<root xmlns:b='urn:broaditem:binding'><row space='8' padding='12' background-color='#ffffff'><image src='tests/assets/red.png' width='16' height='16'/><text font-size='12' color='#333'>图标</text></row></root>"), {}, false, false },
         { QStringLiteral("baseline_row"), QStringLiteral("tests/golden/layouts/baseline.xml"), {}, false, false },
+        { QStringLiteral("rect"), QStringLiteral("tests/golden/layouts/rect.xml"), {}, false, false },
     };
 }
 
