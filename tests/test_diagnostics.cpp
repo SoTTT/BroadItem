@@ -260,6 +260,43 @@ private slots:
         QVERIFY(!root->bindsProperty(QStringLiteral("w")));
     }
 
+    /// @brief BI-P-023 全量覆盖：一个 XML 装齐全部 19 处合法但不可绑定的布局策略属性
+    ///        （column 4 + row 4 + text 4 + grid 5 + cell 2），断言收集器逐条收齐。
+    void bindingNotSupportedExhaustive()
+    {
+        CaptureCollector cap;
+        const QString inner = QStringLiteral(
+            "<column b:main-align=\"a\" b:cross-align=\"b\" b:space=\"c\" b:main-stretch=\"d\">"
+            "<row b:main-align=\"e\" b:cross-align=\"f\" b:space=\"g\" b:main-stretch=\"h\">"
+            "<text b:v-align=\"i\" b:h-align=\"j\" b:wrap=\"k\" b:max-width=\"l\">x</text>"
+            "</row>"
+            "<grid b:columns=\"m\" b:rows=\"n\" b:space=\"o\" b:space-row=\"p\" b:space-column=\"q\">"
+            "<cell b:v-align=\"r\" b:h-align=\"s\"><text>y</text></cell>"
+            "</grid>"
+            "</column>");
+        auto root = XmlLayoutParser::parseString(wrap(inner), &cap);
+        QVERIFY(root != nullptr);
+        // 全收集语义：19 处逐一报告，不多不少
+        QCOMPARE(cap.count(ErrorCode::BindingNotSupported), 19);
+        // 每个被拒绝的属性限定名都应出现在某条诊断消息中（12 个去重名）
+        const QStringList attrs = {QStringLiteral("b:main-align"), QStringLiteral("b:cross-align"),
+                                   QStringLiteral("b:space"), QStringLiteral("b:main-stretch"),
+                                   QStringLiteral("b:v-align"), QStringLiteral("b:h-align"),
+                                   QStringLiteral("b:wrap"), QStringLiteral("b:max-width"),
+                                   QStringLiteral("b:columns"), QStringLiteral("b:rows"),
+                                   QStringLiteral("b:space-row"), QStringLiteral("b:space-column")};
+        for (const QString& a : attrs) {
+            bool found = false;
+            for (const auto& d : cap.list) {
+                if (d.code == ErrorCode::BindingNotSupported && d.message.contains(a)) {
+                    found = true;
+                    break;
+                }
+            }
+            QVERIFY2(found, qPrintable(a));
+        }
+    }
+
     /// @brief BI-P-014：content 与 b:content 互斥 → Error/Default，字面量生效。
     void mutexLiteralWins()
     {
