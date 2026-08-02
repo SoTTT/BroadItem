@@ -45,6 +45,7 @@ class TestUpdateCoalescing : public QObject {
     Q_OBJECT
 
 private slots:
+    // NOLINTBEGIN(readability-convert-member-functions-to-static)
     /// @brief 用例1：默认 Coalesced——同回合 3 次绑定变更只触发一次重布局。
     void coalescedMergesMultipleChanges()
     {
@@ -145,6 +146,7 @@ private slots:
         QVERIFY(frame->hasPendingUpdate());
         QTRY_COMPARE(fx.relayoutCount, 2);
     }
+    // NOLINTEND(readability-convert-member-functions-to-static)
 };
 
 QTEST_MAIN(TestUpdateCoalescing)

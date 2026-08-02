@@ -25,28 +25,28 @@ private slots:
     void testBindsPropertyDotPrefix()
     {
         Binding binding("b:content", "device.cpu");
-        // "device.cpu" starts with "device." → prefix match
+        // "device.cpu" 以 "device." 开头 → 前缀匹配
         QVERIFY(binding.bindsProperty("device"));
     }
 
     void testBindsPropertyBracketPrefix()
     {
         Binding binding("b:content", "items[0]");
-        // "items[0]" starts with "items[" → prefix match
+        // "items[0]" 以 "items[" 开头 → 前缀匹配
         QVERIFY(binding.bindsProperty("items"));
     }
 
     void testBindsPropertyNoMatch()
     {
         Binding binding("b:content", "device.cpu");
-        // "cpu" is NOT a prefix of "device.cpu"
+        // "cpu" 不是 "device.cpu" 的前缀
         QVERIFY(!binding.bindsProperty("cpu"));
     }
 
     void testBindsPropertyNoSubstringMatch()
     {
         Binding binding("b:content", "device");
-        // "devices" is not a prefix of "device" and "device" does not start with "devices."
+        // "devices" 不是 "device" 的前缀，且 "device" 也不以 "devices." 开头
         QVERIFY(!binding.bindsProperty("devices"));
     }
 
@@ -71,13 +71,13 @@ private slots:
     {
         std::vector<Binding> bindings;
         bindings.emplace_back("b:content", "title");
-        bindings.emplace_back(":width", "size.w");
-        bindings.emplace_back(":height", "size.h");
+        bindings.emplace_back("b:width", "size.w");
+        bindings.emplace_back("b:height", "size.h");
 
         QCOMPARE(bindings.size(), size_t(3));
         QCOMPARE(bindings[0].attributeName(), QString("b:content"));
-        QCOMPARE(bindings[1].attributeName(), QString(":width"));
-        QCOMPARE(bindings[2].attributeName(), QString(":height"));
+        QCOMPARE(bindings[1].attributeName(), QString("b:width"));
+        QCOMPARE(bindings[2].attributeName(), QString("b:height"));
         QCOMPARE(bindings[0].path(), QString("title"));
         QCOMPARE(bindings[1].path(), QString("size.w"));
         QCOMPARE(bindings[2].path(), QString("size.h"));

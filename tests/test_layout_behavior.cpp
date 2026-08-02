@@ -11,45 +11,51 @@
 #include <broaditem/element/text/TextElement.h>
 #include <QPainter>
 #include <QImage>
-#include <QDebug>
 #include <algorithm>
+
+#include "helpers/layout_helpers.h"
+
+using namespace BroadItem;
+using BroadItem::TestHelpers::LayoutResult;
+using BroadItem::TestHelpers::parseAndLayout;
 
 class TestLayoutBehavior : public QObject {
     Q_OBJECT
 
 private slots:
-    // Stretch exclusion: RowLayout
+    // NOLINTBEGIN(readability-convert-member-functions-to-static)
+    // 拉伸豁免：RowLayout
     void testRowDoesNotStretchSpecifiedHeight();
     void testRowStretchesUnspecifiedHeight();
 
-    // Stretch exclusion: ColumnLayout
+    // 拉伸豁免：ColumnLayout
     void testColumnDoesNotStretchSpecifiedWidth();
     void testColumnStretchesUnspecifiedWidth();
 
-    // Main-stretch: RowLayout
+    // 主轴拉伸：RowLayout
     void testRowMainStretchEqualWidths();
     void testRowMainStretchRespectsExplicitWidth();
 
-    // Main-stretch: ColumnLayout
+    // 主轴拉伸：ColumnLayout
     void testColumnMainStretchEqualHeights();
     void testColumnMainStretchRespectsExplicitHeight();
 
-    // Main-stretch: default/disabled
+    // 主轴拉伸：默认/关闭
     void testRowWithoutMainStretchKeepsOriginalBehavior();
     void testColumnWithoutMainStretchKeepsOriginalBehavior();
 
-    // Grid cell count validation
+    // Grid 单元格数量校验
     void testGridValidCellCount();
     void testGridInvalidCellCountFails();
 
-    // background-opacity
+    // background-opacity 背景透明度
     void testBackgroundOpacityParses();
     void testBackgroundOpacityRendersTransparent();
 
-    // font-size px
+    // font-size 像素单位
     void testFontSizeIsPixels();
 
-    // row cross-align="baseline"
+    // row cross-align="baseline" 基线对齐
     void testRowBaselineAlignsDifferentFontSizes();
     void testRowBaselineNonTextFallsBackToBottomEdge();
     void testRowBaselineRowHeightWrapsAllChildren();
@@ -57,49 +63,16 @@ private slots:
     void testRowBaselineDoesNotStretchExplicitHeight();
     void testRowBaselineDegenerateCases();
 
-    // space-row/space-column fallback
+    // space-row/space-column 回退
     void testGridSpaceRowFallsBackToSpace();
     void testGridSpaceRowExplicitZero();
     void testGridSpaceColumnExplicitValue();
 
-    // strict grid validation
+    // 严格 grid 校验
     void testGridRejectsForChild();
     void testGridRejectsIfChild();
     void testGridRejectsNonCellChild();
 };
-
-/// @brief 一次性格式的布局结果包：模板树 + 属性上下文 + 物化实例节点树。
-///
-/// 模板/实例分离架构下，Node::element 为指向模板的非拥有指针，
-/// 因此模板树（root）必须与节点树（node）同生命周期持有。
-struct LayoutResult {
-    BroadItem::ElementPtr root;              ///< 模板树（持有以保 Node::element 指针有效）。
-    BroadItem::MapPropertyContext propCtx;   ///< 属性上下文（LayoutContext 指向它）。
-    std::unique_ptr<BroadItem::Node> node;   ///< 物化后的实例节点树根（控制元素已展开）。
-};
-
-/// @brief 解析、物化、测量、布局一体化辅助。
-/// @param xmlStr XML 布局字符串。
-/// @param layoutRect 布局矩形；传入 null 矩形时以测量结果作为布局矩形。
-/// @return 布局结果包；解析或物化失败时返回 nullptr。
-static std::unique_ptr<LayoutResult> parseAndLayout(const QString& xmlStr, QRectF layoutRect = QRectF(0, 0, 300, 200))
-{
-    auto result = std::make_unique<LayoutResult>();
-    result->root = BroadItem::XmlLayoutParser::parseString(xmlStr);
-    if (!result->root)
-        return nullptr;
-
-    BroadItem::LayoutContext lctx{&result->propCtx};
-    result->node = BroadItem::LayoutEngine::materialize(result->root, lctx);
-    if (!result->node)
-        return nullptr;
-
-    auto measured = BroadItem::LayoutEngine::measure(result->root, lctx, BroadItem::LayoutConstraints{}, *result->node);
-    if (layoutRect.isNull())
-        layoutRect = QRectF(0, 0, measured.width(), measured.height());
-    BroadItem::LayoutEngine::layout(result->root, lctx, layoutRect, *result->node);
-    return result;
-}
 
 /// @brief 判定实例节点是否由 TextElement 物化而来。
 /// @param node 实例节点（可为 nullptr）。
@@ -109,7 +82,7 @@ static const BroadItem::TextElement* asText(const BroadItem::Node* node)
     return node ? dynamic_cast<const BroadItem::TextElement*>(node->element) : nullptr;
 }
 
-// ── RowLayout stretch tests ──
+// ── RowLayout 拉伸测试 ──
 
 /// @brief RowLayout 不拉伸指定 height 的子元素
 void TestLayoutBehavior::testRowDoesNotStretchSpecifiedHeight()
@@ -122,7 +95,7 @@ void TestLayoutBehavior::testRowDoesNotStretchSpecifiedHeight()
         </root>
     )";
 
-    QRectF bigRect(0, 0, 300, 100); // Row gets height 100
+    QRectF bigRect(0, 0, 300, 100); // Row 获得高度 100
     auto result = parseAndLayout(xml, bigRect);
     QVERIFY(result != nullptr);
 
@@ -134,11 +107,11 @@ void TestLayoutBehavior::testRowDoesNotStretchSpecifiedHeight()
     QVERIFY(!children.empty());
     QVERIFY(asText(children[0].get()) != nullptr);
 
-    // Text has specified height=20; row should NOT stretch it to 100
-    // Allow for decorator height (default 0) — just check it's not 100
+    // 文本指定了 height=20；row 不应将其拉伸到 100
+    // 装饰层高度默认为 0——只校验高度不等于 100
     double h = children[0]->rect.height();
     QVERIFY2(h < 50,
-             QString("Text with height=20 should not be stretched, got %1").arg(h).toUtf8());
+             QString("height=20 的文本不应被拉伸，实际为 %1").arg(h).toUtf8());
 }
 
 /// @brief RowLayout 拉伸未指定 height 的子元素
@@ -163,14 +136,14 @@ void TestLayoutBehavior::testRowStretchesUnspecifiedHeight()
     QVERIFY(!children.empty());
     QVERIFY(asText(children[0].get()) != nullptr);
 
-    // Text has no specified height; row should stretch it
-    // It should be close to the content area height (100 - decorators)
+    // 文本未指定 height；row 应拉伸它
+    // 应接近内容区高度（100 减去装饰层）
     double h = children[0]->rect.height();
     QVERIFY2(h > h * 0.3 || h >= 50,
-             QString("Text without height should be stretched, got %1").arg(h).toUtf8());
+             QString("未指定 height 的文本应被拉伸，实际为 %1").arg(h).toUtf8());
 }
 
-// ── ColumnLayout stretch tests ──
+// ── ColumnLayout 拉伸测试 ──
 
 /// @brief ColumnLayout 不拉伸指定 width 的子元素
 void TestLayoutBehavior::testColumnDoesNotStretchSpecifiedWidth()
@@ -183,7 +156,7 @@ void TestLayoutBehavior::testColumnDoesNotStretchSpecifiedWidth()
         </root>
     )";
 
-    QRectF bigRect(0, 0, 300, 200); // Column gets width 300
+    QRectF bigRect(0, 0, 300, 200); // Column 获得宽度 300
     auto result = parseAndLayout(xml, bigRect);
     QVERIFY(result != nullptr);
 
@@ -194,10 +167,10 @@ void TestLayoutBehavior::testColumnDoesNotStretchSpecifiedWidth()
     QVERIFY(!children.empty());
     QVERIFY(asText(children[0].get()) != nullptr);
 
-    // Text has specified width=50; column should NOT stretch it to 300
+    // 文本指定了 width=50；column 不应将其拉伸到 300
     double w = children[0]->rect.width();
     QVERIFY2(w < 200,
-             QString("Text with width=50 should not be stretched, got %1").arg(w).toUtf8());
+             QString("width=50 的文本不应被拉伸，实际为 %1").arg(w).toUtf8());
 }
 
 /// @brief ColumnLayout 拉伸未指定 width 的子元素
@@ -222,13 +195,13 @@ void TestLayoutBehavior::testColumnStretchesUnspecifiedWidth()
     QVERIFY(!children.empty());
     QVERIFY(asText(children[0].get()) != nullptr);
 
-    // Text has no specified width; column should stretch it
+    // 文本未指定 width；column 应拉伸它
     double w = children[0]->rect.width();
     QVERIFY2(w > 50,
-             QString("Text without width should be stretched, got %1").arg(w).toUtf8());
+             QString("未指定 width 的文本应被拉伸，实际为 %1").arg(w).toUtf8());
 }
 
-// ── Grid cell count validation ──
+// ── Grid 单元格数量校验 ──
 
 /// @brief Grid 合法单元格数量（columns×rows）解析成功
 void TestLayoutBehavior::testGridValidCellCount()
@@ -260,12 +233,12 @@ void TestLayoutBehavior::testGridInvalidCellCountFails()
         </root>
     )";
 
-    // Expected 2×2=4 cells, but only 2 provided -> should fail
+    // 期望 2×2=4 个 cell，但只提供了 2 个 → 应解析失败
     auto root = BroadItem::XmlLayoutParser::parseString(xml);
     QVERIFY(root == nullptr);
 }
 
-// ── background-opacity ──
+// ── background-opacity 背景透明度 ──
 
 /// @brief 测试 background-opacity 属性解析
 void TestLayoutBehavior::testBackgroundOpacityParses()
@@ -307,13 +280,13 @@ void TestLayoutBehavior::testBackgroundOpacityRendersTransparent()
     auto transparentResult = parseAndLayout(xmlTransparent);
     QVERIFY(transparentResult != nullptr);
 
-    // Render to images and sample background pixel
+    // 渲染到图像并采样背景像素
     QImage opaqueImg(200, 60, QImage::Format_ARGB32);
     opaqueImg.fill(Qt::white);
     {
         QPainter painter(&opaqueImg);
         BroadItem::LayoutContext lctx{&opaqueResult->propCtx};
-        BroadItem::LayoutEngine::render(opaqueResult->root, &painter, lctx, *opaqueResult->node);
+        BroadItem::LayoutEngine::render(&painter, lctx, *opaqueResult->node);
     }
 
     QImage transparentImg(200, 60, QImage::Format_ARGB32);
@@ -321,31 +294,31 @@ void TestLayoutBehavior::testBackgroundOpacityRendersTransparent()
     {
         QPainter painter(&transparentImg);
         BroadItem::LayoutContext lctx{&transparentResult->propCtx};
-        BroadItem::LayoutEngine::render(transparentResult->root, &painter, lctx, *transparentResult->node);
+        BroadItem::LayoutEngine::render(&painter, lctx, *transparentResult->node);
     }
 
-    // Sample center pixel (inside the text background area)
+    // 采样中心像素（位于文本背景区域内）
     QColor opaqueColor = opaqueImg.pixelColor(100, 30);
     QColor transparentColor = transparentImg.pixelColor(100, 30);
 
-    // opaque=1.0 → background fully covers → red dominates
+    // opaque=1.0 → 背景完全覆盖 → 红色占主导
     QVERIFY2(opaqueColor.red() > 200,
-             QString("Opaque bg should be red, got r=%1 g=%2 b=%3")
+             QString("不透明背景应为红色，实际 r=%1 g=%2 b=%3")
                  .arg(opaqueColor.red()).arg(opaqueColor.green()).arg(opaqueColor.blue()).toUtf8());
 
-    // transparent=0.3 → white bleed-through → less red
+    // transparent=0.3 → 白色透出 → 红色减弱
     QVERIFY2(transparentColor.red() < opaqueColor.red() || transparentColor.green() > 0,
-             QString("Transparent bg should show white bleed-through, got r=%1 g=%2 b=%3")
+             QString("半透明背景应有白色透出，实际 r=%1 g=%2 b=%3")
                  .arg(transparentColor.red()).arg(transparentColor.green()).arg(transparentColor.blue()).toUtf8());
 }
 
-// ── font-size px ──
+// ── font-size 像素单位 ──
 
 void TestLayoutBehavior::testFontSizeIsPixels()
 {
-    // Visual verification: render text at font-size=40 to a QImage,
-    // scan pixel rows to measure actual rendered glyph height.
-    // With setPixelSize(40), the visual height should be ~40px (not ~53px like pt).
+    // 可视化验证：以 font-size=40 渲染文本到 QImage，
+    // 逐行扫描像素测量实际渲染的字形高度。
+    // 使用 setPixelSize(40) 时可视高度应约 40px（而非 pt 模式下的 ~53px）。
     QString xml = R"(
         <root>
             <text font-size="40">Xg</text>
@@ -355,18 +328,18 @@ void TestLayoutBehavior::testFontSizeIsPixels()
     auto result = parseAndLayout(xml);
     QVERIFY(result != nullptr);
 
-    // Render to a tall image so nothing clips
+    // 渲染到足够高的图像，避免内容被裁剪
     QImage img(200, 80, QImage::Format_ARGB32);
     img.fill(Qt::white);
     {
         QPainter painter(&img);
         BroadItem::LayoutContext lctx{&result->propCtx};
-        BroadItem::LayoutEngine::render(result->root, &painter, lctx, *result->node);
+        BroadItem::LayoutEngine::render(&painter, lctx, *result->node);
     }
 
-    // Scan a column near the left edge (x=15) vertically for non-white pixels.
-    // The text is positioned at (0,0), and "Xg" at font-size=40 is ~30px wide.
-    // Scan every column in a 30px band to handle glyph positioning variance.
+    // 在靠近左边缘的列（x=15）纵向扫描非白像素。
+    // 文本位于 (0,0)，font-size=40 时 "Xg" 约 30px 宽。
+    // 扫描 30px 带内的每一列以容忍字形定位差异。
     int firstRow = -1;
     int lastRow = -1;
     for (int x = 5; x < 35; ++x) {
@@ -380,20 +353,20 @@ void TestLayoutBehavior::testFontSizeIsPixels()
         }
     }
 
-    QVERIFY2(firstRow >= 0, "No non-white pixels found — text not rendered");
+    QVERIFY2(firstRow >= 0, "未找到非白像素——文本未渲染");
     int visualHeight = lastRow - firstRow + 1;
 
-    // With setPixelSize(40), the rendered glyph height should be
-    // roughly 40px (typically 30-50px for a 40px font, with descenders).
-    // With setPointSizeF(40), the height would be ~53px+.
-    // We assert it's well under 60px to catch pt-vs-px discrepancy.
+    // setPixelSize(40) 时渲染字形高度应约为 40px
+    // （40px 字体含降部一般 30-50px）。
+    // setPointSizeF(40) 时高度会是 ~53px+。
+    // 断言显著低于 60px 以捕捉 pt/px 混淆。
     QVERIFY2(visualHeight < 55,
-             QString("font-size=40 should render at ~40px (pixel-sized), "
-                     "got visual height %1px — too tall for px mode")
+             QString("font-size=40 应按像素渲染（~40px），"
+                     "实际可视高度 %1px——超出 px 模式合理范围")
                  .arg(visualHeight).toUtf8());
 }
 
-// ── space-row/space-column fallback ──
+// ── space-row/space-column 回退 ──
 
 void TestLayoutBehavior::testGridSpaceRowFallsBackToSpace()
 {
@@ -411,9 +384,9 @@ void TestLayoutBehavior::testGridSpaceRowFallsBackToSpace()
     QVERIFY(root != nullptr);
     auto grid = std::dynamic_pointer_cast<BroadItem::GridLayout>(root);
     QVERIFY(grid != nullptr);
-    // space-row not set -> should fall back to space=10
+    // 未设置 space-row → 应回退到 space=10
     QCOMPARE(grid->rowSpace(), 10.0);
-    // space-column not set -> should fall back to space=10
+    // 未设置 space-column → 应回退到 space=10
     QCOMPARE(grid->columnSpace(), 10.0);
 }
 
@@ -433,7 +406,7 @@ void TestLayoutBehavior::testGridSpaceRowExplicitZero()
     QVERIFY(root != nullptr);
     auto grid = std::dynamic_pointer_cast<BroadItem::GridLayout>(root);
     QVERIFY(grid != nullptr);
-    // space-row explicitly set to 0 -> should be 0, NOT fall back to space=10
+    // space-row 显式设为 0 → 应为 0，不回退到 space=10
     QCOMPARE(grid->rowSpace(), 0.0);
 }
 
@@ -453,11 +426,11 @@ void TestLayoutBehavior::testGridSpaceColumnExplicitValue()
     QVERIFY(root != nullptr);
     auto grid = std::dynamic_pointer_cast<BroadItem::GridLayout>(root);
     QVERIFY(grid != nullptr);
-    // space-column explicitly set to 5 -> should be 5, NOT fall back to space=10
+    // space-column 显式设为 5 → 应为 5，不回退到 space=10
     QCOMPARE(grid->columnSpace(), 5.0);
 }
 
-// ── strict grid validation ──
+// ── 严格 grid 校验 ──
 
 void TestLayoutBehavior::testGridRejectsForChild()
 {
@@ -502,7 +475,7 @@ void TestLayoutBehavior::testGridRejectsNonCellChild()
     QVERIFY(root == nullptr);
 }
 
-// ── Main-stretch: RowLayout ──
+// ── 主轴拉伸：RowLayout ──
 
 void TestLayoutBehavior::testRowMainStretchEqualWidths()
 {
@@ -525,16 +498,16 @@ void TestLayoutBehavior::testRowMainStretchEqualWidths()
     const auto& children = result->node->children;
     QCOMPARE(children.size(), size_t(3));
 
-    // All three children should have the same width (max among them = "BBBB")
+    // 三个子元素应有相同宽度（取最大值 = "BBBB"）
     double w0 = children[0]->rect.width();
     double w1 = children[1]->rect.width();
     double w2 = children[2]->rect.width();
 
     QVERIFY2(qFuzzyCompare(w0, w1) && qFuzzyCompare(w1, w2),
-             QString("Main-stretch row children should have equal widths, got %1, %2, %3")
+             QString("main-stretch 的 row 子元素宽度应相等，实际为 %1, %2, %3")
                  .arg(w0).arg(w1).arg(w2).toUtf8());
 
-    // The width should be > 0 (text was rendered)
+    // 宽度应 > 0（文本已渲染）
     QVERIFY(w0 > 0);
 }
 
@@ -561,15 +534,15 @@ void TestLayoutBehavior::testRowMainStretchRespectsExplicitWidth()
     double w0 = children[0]->rect.width();
     double w1 = children[1]->rect.width();
 
-    // First child has explicit width=50; it should keep its width
+    // 第一个子元素显式 width=50；应保持其宽度
     QVERIFY2(w0 > 0 && w0 < 60,
-             QString("Explicit width=50 child should keep ~50px, got %1").arg(w0).toUtf8());
+             QString("显式 width=50 的子元素应保持 ~50px，实际为 %1").arg(w0).toUtf8());
 
-    // Second child should be stretched (or at least laid out)
+    // 第二个子元素应被拉伸（或至少完成布局）
     QVERIFY(w1 > 0);
 }
 
-// ── Main-stretch: ColumnLayout ──
+// ── 主轴拉伸：ColumnLayout ──
 
 void TestLayoutBehavior::testColumnMainStretchEqualHeights()
 {
@@ -592,13 +565,13 @@ void TestLayoutBehavior::testColumnMainStretchEqualHeights()
     const auto& children = result->node->children;
     QCOMPARE(children.size(), size_t(3));
 
-    // All three children should have the same height (max among them = font-size 24)
+    // 三个子元素应有相同高度（取最大值 = font-size 24）
     double h0 = children[0]->rect.height();
     double h1 = children[1]->rect.height();
     double h2 = children[2]->rect.height();
 
     QVERIFY2(qFuzzyCompare(h0, h1) && qFuzzyCompare(h1, h2),
-             QString("Main-stretch column children should have equal heights, got %1, %2, %3")
+             QString("main-stretch 的 column 子元素高度应相等，实际为 %1, %2, %3")
                  .arg(h0).arg(h1).arg(h2).toUtf8());
 
     QVERIFY(h0 > 0);
@@ -627,14 +600,14 @@ void TestLayoutBehavior::testColumnMainStretchRespectsExplicitHeight()
     double h0 = children[0]->rect.height();
     double h1 = children[1]->rect.height();
 
-    // First child has explicit height=30; it should keep roughly that height
+    // 第一个子元素显式 height=30；应大致保持该高度
     QVERIFY2(h0 > 0 && h0 < 40,
-             QString("Explicit height=30 child should keep ~30px, got %1").arg(h0).toUtf8());
+             QString("显式 height=30 的子元素应保持 ~30px，实际为 %1").arg(h0).toUtf8());
 
     QVERIFY(h1 > 0);
 }
 
-// ── Main-stretch: default/disabled ──
+// ── 主轴拉伸：默认/关闭 ──
 
 void TestLayoutBehavior::testRowWithoutMainStretchKeepsOriginalBehavior()
 {
@@ -659,9 +632,9 @@ void TestLayoutBehavior::testRowWithoutMainStretchKeepsOriginalBehavior()
     double w0 = children[0]->rect.width();
     double w1 = children[1]->rect.width();
 
-    // Without main-stretch, children should NOT have equal widths (different text)
+    // 无 main-stretch 时，子元素宽度不应相等（文本不同）
     QVERIFY2(!qFuzzyCompare(w0, w1),
-             QString("Without main-stretch, row children should have different widths, got %1 and %2")
+             QString("无 main-stretch 时 row 子元素宽度应不同，实际为 %1 和 %2")
                  .arg(w0).arg(w1).toUtf8());
 }
 
@@ -688,13 +661,13 @@ void TestLayoutBehavior::testColumnWithoutMainStretchKeepsOriginalBehavior()
     double h0 = children[0]->rect.height();
     double h1 = children[1]->rect.height();
 
-    // Without main-stretch, children should NOT have equal heights (different font sizes)
+    // 无 main-stretch 时，子元素高度不应相等（字号不同）
     QVERIFY2(!qFuzzyCompare(h0, h1),
-             QString("Without main-stretch, column children should have different heights, got %1 and %2")
+             QString("无 main-stretch 时 column 子元素高度应不同，实际为 %1 和 %2")
                  .arg(h0).arg(h1).toUtf8());
 }
 
-// ── RowLayout cross-align="baseline" ──
+// ── RowLayout cross-align="baseline" 基线对齐 ──
 
 /// @brief 计算与 TextElement 内部一致的期望 ascent（默认字体 + setPixelSize）。
 /// @param pixelSize 像素字号。
@@ -731,11 +704,11 @@ void TestLayoutBehavior::testRowBaselineAlignsDifferentFontSizes()
 
     // 大字 ascent 更大成为对齐线，小字被下移：y0 - y1 == a24 - a12
     QVERIFY2(qAbs((y0 - y1) - (a24 - a12)) < 0.5,
-             QString("baseline y-diff should equal ascent diff %1, got %2")
+             QString("基线 y 差应等于 ascent 差 %1，实际为 %2")
                  .arg(a24 - a12).arg(y0 - y1).toUtf8());
     // 两子基线重合
     QVERIFY2(qAbs((y0 + a12) - (y1 + a24)) < 0.5,
-             "text baselines should coincide");
+             "文本基线应重合");
 }
 
 /// @brief 无基线元素（显式尺寸的 image）以底边参与基线对齐
@@ -762,7 +735,7 @@ void TestLayoutBehavior::testRowBaselineNonTextFallsBackToBottomEdge()
 
     // 文本基线 y = textRect.y() + a24；image 底边应落在该线上
     QVERIFY2(qAbs(imgRect.bottom() - (textRect.y() + a24)) < 0.5,
-             QString("image bottom %1 should land on text baseline %2")
+             QString("image 底边 %1 应落在文本基线 %2 上")
                  .arg(imgRect.bottom()).arg(textRect.y() + a24).toUtf8());
 }
 
@@ -789,15 +762,15 @@ void TestLayoutBehavior::testRowBaselineRowHeightWrapsAllChildren()
     double maxChildBottom = 0;
     for (const auto& child : children) {
         // 无子元素被裁掉：顶边不越界、底边不超过行高
-        QVERIFY2(child->rect.y() >= -0.5, "child top must stay inside the row");
+        QVERIFY2(child->rect.y() >= -0.5, "子元素顶边必须落在行内");
         QVERIFY2(child->rect.bottom() <= rowHeight + 0.5,
-                 QString("child bottom %1 exceeds row height %2")
+                 QString("子元素底边 %1 超出行高 %2")
                      .arg(child->rect.bottom()).arg(rowHeight).toUtf8());
         maxChildBottom = std::max(maxChildBottom, child->rect.bottom());
     }
     // 行恰好包裹内容：最大子底边 == 行高（maxAscent + maxDescent 的直接推论）
     QVERIFY2(qAbs(rowHeight - maxChildBottom) < 0.5,
-             QString("row height %1 should equal max child bottom %2")
+             QString("行高 %1 应等于最大子元素底边 %2")
                  .arg(rowHeight).arg(maxChildBottom).toUtf8());
 }
 
@@ -824,9 +797,9 @@ void TestLayoutBehavior::testRowBaselineIncludesBoxDecorations()
     const double y0 = children[0]->rect.y();
     const double y1 = children[1]->rect.y();
     QVERIFY2(qAbs(y0) < 0.5,
-             QString("decorated child should sit at row top, got y=%1").arg(y0).toUtf8());
+             QString("带装饰的子元素应位于行顶，实际 y=%1").arg(y0).toUtf8());
     QVERIFY2(qAbs((y1 - y0) - 12.0) < 0.5,
-             QString("decoration offset should be 12px, got %1").arg(y1 - y0).toUtf8());
+             QString("装饰偏移应为 12px，实际为 %1").arg(y1 - y0).toUtf8());
 }
 
 /// @brief 显式 height 的 text 在 baseline 模式下不被拉伸，按固有（指定）尺寸参与
@@ -848,7 +821,7 @@ void TestLayoutBehavior::testRowBaselineDoesNotStretchExplicitHeight()
     QCOMPARE(children.size(), size_t(2));
 
     QVERIFY2(qAbs(children[0]->rect.height() - 60.0) < 0.5,
-             QString("explicit height=60 text should not be stretched, got %1")
+             QString("显式 height=60 的文本不应被拉伸，实际为 %1")
                  .arg(children[0]->rect.height()).toUtf8());
 }
 
@@ -867,9 +840,9 @@ void TestLayoutBehavior::testRowBaselineDegenerateCases()
     QCOMPARE(single->node->children.size(), size_t(1));
     // 单子元素：基线即自身，顶边为 0，行高 == 子高
     QVERIFY2(qAbs(single->node->children[0]->rect.y()) < 0.5,
-             "single child should sit at row top");
+             "单子元素应位于行顶");
     QVERIFY2(qAbs(single->node->rect.height() - single->node->children[0]->rect.height()) < 0.5,
-             "single-child row height should equal child height");
+             "单子元素的行高应等于子元素高度");
 
     QString xmlEmpty = R"(
         <root>
@@ -880,6 +853,8 @@ void TestLayoutBehavior::testRowBaselineDegenerateCases()
     QVERIFY(empty != nullptr);
     QVERIFY(empty->node->children.empty());
 }
+
+// NOLINTEND(readability-convert-member-functions-to-static)
 
 QTEST_MAIN(TestLayoutBehavior)
 #include "test_layout_behavior.moc"

@@ -14,7 +14,7 @@ find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Widgets Xml)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets Xml)
 
 add_library(BroadItem STATIC
-    # core — top-level orchestration
+    # core — 顶层编排
     src/core/BroadItem.cpp
     src/core/LayoutEngine.cpp
     src/core/Frame.cpp
@@ -23,7 +23,8 @@ add_library(BroadItem STATIC
     include/broaditem/core/Frame.h
     include/broaditem/core/Node.h
 
-    # context — property context hierarchy
+    # context — 属性上下文体系
+    src/context/PropertyContext.cpp
     src/context/QPropertyContext.cpp
     src/context/ItemPropertyContext.cpp
     include/broaditem/context/PropertyContext.h
@@ -32,7 +33,7 @@ add_library(BroadItem STATIC
     include/broaditem/context/QPropertyContext.h
     include/broaditem/context/LayoutContext.h
 
-    # diagnostics — structured diagnostics (error codes, collector, scopes)
+    # diagnostics — 结构化诊断（错误码、收集器、作用域）
     src/diagnostics/Diagnostics.cpp
     include/broaditem/diagnostics/Diagnostic.h
     include/broaditem/diagnostics/ErrorCollector.h
@@ -42,13 +43,13 @@ add_library(BroadItem STATIC
     src/compat/QtCompat.cpp
     include/broaditem/compat/QtCompat.h
 
-    # expression — path-string parser and binding
+    # expression — 路径字符串解析与绑定
     src/expression/Expression.cpp
     src/expression/Binding.cpp
     include/broaditem/expression/Expression.h
     include/broaditem/expression/Binding.h
 
-    # element — base element class hierarchy
+    # element — 元素基类层级
     src/element/Element.cpp
     src/element/RenderableElement.cpp
     src/element/ControlElement.cpp
@@ -61,8 +62,10 @@ add_library(BroadItem STATIC
     include/broaditem/element/BoxModel.h
     include/broaditem/element/ContainerElement.h
 
-    # layout — multi-child layout containers
+    # layout — 多子布局容器
     src/element/layout/MultiChildContainer.cpp
+    src/element/layout/LinearLayoutCommon.cpp
+    src/element/layout/LinearLayoutCommon.h
     src/element/layout/ColumnLayout.cpp
     src/element/layout/RowLayout.cpp
     src/element/layout/GridLayout.cpp
@@ -73,31 +76,31 @@ add_library(BroadItem STATIC
     include/broaditem/element/layout/GridLayout.h
     include/broaditem/element/layout/CellElement.h
 
-    # control — control-flow elements
+    # control — 控制流元素
     src/element/control/ForElement.cpp
     src/element/control/IfElement.cpp
     include/broaditem/element/control/ForElement.h
     include/broaditem/element/control/IfElement.h
 
-    # text — text rendering leaf element
+    # text — 文本渲染叶子元素
     src/element/text/TextElement.cpp
     include/broaditem/element/text/TextElement.h
 
-    # image — self-measuring image leaf element
+    # image — 自计算图片叶子元素
     src/element/image/ImageElement.cpp
     include/broaditem/element/image/ImageElement.h
 
-    # rect — author-sized solid color block leaf element
+    # rect — 作者定尺寸纯色块叶子元素
     src/element/rect/RectElement.cpp
     include/broaditem/element/rect/RectElement.h
 
-    # parser — XML layout parsing and registry
+    # parser — XML 布局解析与注册表
     src/parser/XmlLayoutParser.cpp
     src/parser/LayoutRegistry.cpp
     include/broaditem/parser/XmlLayoutParser.h
     include/broaditem/parser/LayoutRegistry.h
 
-    # reactive — property keys and reactive binding
+    # reactive — 属性键与响应式绑定
     src/reactive/ReactiveBinding.cpp
     src/reactive/FollowBinding.cpp
     src/reactive/ConnectionLine.cpp
@@ -176,7 +179,7 @@ install(FILES
     DESTINATION ${BroadItem_CMAKE_CONFIG_DIR}
 )
 
-# Tests
+# 测试
 enable_testing()
 add_subdirectory(example)
 add_subdirectory(tests)

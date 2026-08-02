@@ -10,6 +10,8 @@
 #include <QDomDocument>
 #include <QDomElement>
 
+using namespace BroadItem;
+
 /// @brief 以编程方式创建带 b:content 绑定的 TextElement 模板。
 /// @param binding 绑定路径（如 "n"、"p.name"）。
 /// @param fontSize 字体大小（点）。
@@ -385,7 +387,7 @@ private slots:
         QCOMPARE(nodeText(nodes[2]), QString("world"));
     }
 
-    /// @brief testRowLayoutResolvesBindingsInFor: ForElement+RowLayout → TextNodes resolve per-item data
+    /// @brief testRowLayoutResolvesBindingsInFor：ForElement+RowLayout → TextNode 逐项解析数据
     void testRowLayoutResolvesBindingsInFor()
     {
         BroadItem::MapPropertyContext mapCtx;
@@ -432,7 +434,7 @@ private slots:
         }
     }
 
-    /// @brief testColumnLayoutResolvesBindingsInFor: ForElement+ColumnLayout → TextNodes resolve per-item data
+    /// @brief testColumnLayoutResolvesBindingsInFor：ForElement+ColumnLayout → TextNode 逐项解析数据
     void testColumnLayoutResolvesBindingsInFor()
     {
         BroadItem::MapPropertyContext mapCtx;
@@ -470,10 +472,10 @@ private slots:
         }
     }
 
-    /// @brief testIfResolvesBindingsInClonedChild: positive + negative cases for IfElement with TextElement
+    /// @brief testIfResolvesBindingsInClonedChild：IfElement 含 TextElement 的成立/不成立两组用例
     void testIfResolvesBindingsInClonedChild()
     {
-        // Positive: warning property exists → TextNode resolves "System alert"
+        // 成立：warning 属性存在 → TextNode 解析出 "System alert"
         {
             BroadItem::MapPropertyContext mapCtx;
             mapCtx.setProperty("warning", QString("System alert"));
@@ -490,7 +492,7 @@ private slots:
             QVERIFY(mr.intrinsicSize.width() > 10);
         }
 
-        // Negative: no warning property → materializeChildren returns empty
+        // 不成立：无 warning 属性 → materializeChildren 返回空
         {
             BroadItem::MapPropertyContext mapCtx;
             BroadItem::LayoutContext ctx{&mapCtx};
@@ -504,7 +506,7 @@ private slots:
         }
     }
 
-    /// @brief testNestedContainerResolvesBindings: GridLayout→ColumnLayout→TextElement in ForElement (covers GridLayout)
+    /// @brief testNestedContainerResolvesBindings：ForElement 内 GridLayout→ColumnLayout→TextElement（覆盖 GridLayout）
     void testNestedContainerResolvesBindings()
     {
         BroadItem::MapPropertyContext mapCtx;
@@ -547,7 +549,7 @@ private slots:
         }
     }
 
-    /// @brief testGlobalBindingsStillWorkInContainers: plain RowLayout without ForElement resolves global properties
+    /// @brief testGlobalBindingsStillWorkInContainers：无 ForElement 的普通 RowLayout 解析全局属性
     void testGlobalBindingsStillWorkInContainers()
     {
         BroadItem::MapPropertyContext mapCtx;
@@ -563,10 +565,10 @@ private slots:
         QCOMPARE(node->children.size(), size_t(1));
         QCOMPARE(nodeText(node->children[0]), QString("45%"));
 
-        // Verify text resolved: measure must return non-zero width
+        // 验证文本已解析：测量应返回非零宽度
         auto mr = row->measure(ctx, {500, 500}, *node);
         QVERIFY2(mr.intrinsicSize.width() > 10,
-                 qPrintable(QString("Expected non-zero width for resolved '45%', got %1")
+                 qPrintable(QString("解析出的 '45%' 应有非零宽度，实际为 %1")
                             .arg(mr.intrinsicSize.width())));
     }
 

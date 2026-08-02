@@ -8,6 +8,8 @@
 #include <broaditem/context/LayoutContext.h>
 #include <broaditem/context/MapPropertyContext.h>
 
+using namespace BroadItem;
+
 namespace {
 
 /// @brief 最小叶子元素：仅实现纯虚 materialize()，用作 for 模板或普通子元素。

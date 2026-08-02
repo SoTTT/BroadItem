@@ -1,7 +1,8 @@
 #include <broaditem/context/QPropertyContext.h>
 #include <broaditem/diagnostics/Diagnostics.h>
 #include <QDynamicPropertyChangeEvent>
-#include <QDebug>
+#include <QMetaProperty>
+#include <QTimer>
 
 namespace BroadItem {
 
@@ -14,8 +15,8 @@ QPropertyContext::QPropertyContext()
 }
 
 /// @brief 构造一个代理目标 QObject 属性的上下文。
-/// @param target The QObject whose Qt properties are exposed.
-/// @param parent Optional QObject parent.
+/// @param target 其 Qt 属性被暴露的 QObject。
+/// @param parent 可选的 QObject 父对象。
 QPropertyContext::QPropertyContext(QObject* target, QObject* parent)
     : QObject(parent)
     , m_target(target)
@@ -37,7 +38,7 @@ QPropertyContext::~QPropertyContext()
 }
 
 /// @brief 确保通知信号连接已建立（首次访问时调用一次）。
-void QPropertyContext::ensureConnected()
+void QPropertyContext::ensureConnected() const
 {
     if (m_connected)
         return;
@@ -46,7 +47,7 @@ void QPropertyContext::ensureConnected()
 }
 
 /// @brief 连接目标对象的所有 Q_PROPERTY NOTIFY 信号到 onNotify()。
-void QPropertyContext::setupNotifyConnections()
+void QPropertyContext::setupNotifyConnections() const
 {
     const QObject* obj = m_target ? m_target : this;
     const QMetaObject* mo = obj->metaObject();
@@ -79,8 +80,8 @@ void QPropertyContext::onNotify()
 }
 
 /// @brief 处理独立（非代理）情况下的 DynamicPropertyChange 事件。
-/// @param e The incoming event.
-/// @return True if the event was handled.
+/// @param e 传入的事件。
+/// @return 事件已处理时返回 true。
 bool QPropertyContext::event(QEvent* e)
 {
     if (e->type() == QEvent::DynamicPropertyChange) {
@@ -95,9 +96,9 @@ bool QPropertyContext::event(QEvent* e)
 }
 
 /// @brief 安装在目标对象上的事件过滤器，用于捕获 DynamicPropertyChange 事件。
-/// @param obj The object the event originated from.
-/// @param event The incoming event.
-/// @return False to allow normal event processing to continue.
+/// @param obj 事件来源对象。
+/// @param event 传入的事件。
+/// @return 恒返回 false，让正常的事件处理继续。
 bool QPropertyContext::eventFilter(QObject* obj, QEvent* event)
 {
     if (event->type() == QEvent::DynamicPropertyChange && obj == m_target) {
@@ -113,20 +114,11 @@ bool QPropertyContext::eventFilter(QObject* obj, QEvent* event)
 }
 
 /// @brief 使用点/括号表示法设置嵌套属性值（如 "obj.field[0].prop"）。
-/// @param path The dotted/bracketed property path.
-/// @param value The value to assign.
+/// @param path 点号/括号形式的属性路径。
+/// @param value 待设置的值。
 void QPropertyContext::setPropertyNested(const QString& path, const QVariant& value)
 {
-    int len = path.length();
-    int dotPos = path.indexOf('.');
-    int bracketPos = path.indexOf('[');
-    int segEnd = len;
-    if (dotPos >= 0 && bracketPos >= 0)
-        segEnd = qMin(dotPos, bracketPos);
-    else if (dotPos >= 0)
-        segEnd = dotPos;
-    else if (bracketPos >= 0)
-        segEnd = bracketPos;
+    int segEnd = segmentEnd(path, 0);
 
     QString firstKey = path.left(segEnd);
     if (firstKey.isEmpty()) {
@@ -157,8 +149,8 @@ void QPropertyContext::setPropertyNested(const QString& path, const QVariant& va
     } else {
         obj->setProperty(firstKeyBa.constData(), root);
     }
-    // Notification is delivered automatically via Q_PROPERTY NOTIFY signal
-    // (for declared properties) or QDynamicPropertyChangeEvent (for dynamic ones).
+    // 变更通知自动投递：声明属性走 Q_PROPERTY NOTIFY 信号，
+    // 动态属性走 QDynamicPropertyChangeEvent。
 }
 
 } // namespace BroadItem

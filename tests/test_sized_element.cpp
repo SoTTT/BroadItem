@@ -7,12 +7,14 @@
 #include <broaditem/element/SizedElement.h>
 #include <broaditem/element/text/TextElement.h>
 #include <broaditem/element/layout/RowLayout.h>
-#include <QDebug>
+
+using namespace BroadItem;
 
 class TestSizedElement : public QObject {
     Q_OBJECT
 
 private slots:
+    // NOLINTBEGIN(readability-convert-member-functions-to-static)
     void testParseWidthHeight();
     void testMeasureWithSize();
     void testMeasureWithoutSize();
@@ -50,7 +52,7 @@ void TestSizedElement::testMeasureWithSize()
 
     auto node = BroadItem::LayoutEngine::materialize(root, layoutCtx);
     QVERIFY(node != nullptr);
-    auto result = BroadItem::LayoutEngine::measure(root, layoutCtx, constraints, *node);
+    auto result = BroadItem::LayoutEngine::measure(layoutCtx, constraints, *node);
     QCOMPARE(result.width(), 100.0);
     QCOMPARE(result.height(), 50.0);
 }
@@ -73,8 +75,8 @@ void TestSizedElement::testMeasureWithoutSize()
 
     auto node = BroadItem::LayoutEngine::materialize(root, layoutCtx);
     QVERIFY(node != nullptr);
-    auto result = BroadItem::LayoutEngine::measure(root, layoutCtx, constraints, *node);
-    // Without width/height, size should be based on content
+    auto result = BroadItem::LayoutEngine::measure(layoutCtx, constraints, *node);
+    // 未指定 width/height 时，尺寸应基于内容计算
     QVERIFY(result.width() > 0);
     QVERIFY(result.height() > 0);
 }
@@ -86,7 +88,7 @@ void TestSizedElement::testMeasureWithoutSize()
 void TestSizedElement::testParsePreservesSize()
 {
     auto text = std::make_shared<BroadItem::TextElement>();
-    // Simulate parsing width/height
+    // 模拟解析 width/height
     QDomDocument doc;
     auto elem = doc.createElement("text");
     elem.setAttribute("width", "100");
@@ -103,8 +105,8 @@ void TestSizedElement::testParsePreservesSize()
 /// @brief 测试指定尺寸的元素不会被 cross-align="stretch" 拉伸
 void TestSizedElement::testLayoutStretch()
 {
-    // Test that width/height are hard constraints: layout does NOT stretch
-    // elements that have explicitly specified sizes.
+    // 验证 width/height 是硬约束：布局不会拉伸
+    // 显式指定了尺寸的元素。
     QString xml = R"(
         <root>
             <row cross-align="stretch">
@@ -118,12 +120,12 @@ void TestSizedElement::testLayoutStretch()
     BroadItem::LayoutContext lctx;
     auto node = BroadItem::LayoutEngine::materialize(root, lctx);
     QVERIFY(node != nullptr);
-    BroadItem::LayoutEngine::measure(root, lctx, BroadItem::LayoutConstraints{}, *node);
-    // Layout into a rect larger than the text request size
+    BroadItem::LayoutEngine::measure(lctx, BroadItem::LayoutConstraints{}, *node);
+    // 以大于文本请求尺寸的矩形进行布局
     QRectF bigRect(0, 0, 300, 150);
-    BroadItem::LayoutEngine::layout(root, lctx, bigRect, *node);
-    // Text has height=50; row has cross-align=stretch but should NOT stretch it
-    // Verify text rect height is near 50 (not stretched to ~150)
+    BroadItem::LayoutEngine::layout(lctx, bigRect, *node);
+    // 文本 height=50；row 虽为 cross-align=stretch 但不应拉伸它
+    // 校验文本矩形高度接近 50（未被拉伸到 ~150）
     auto row = std::dynamic_pointer_cast<BroadItem::RowLayout>(root);
     QVERIFY(row != nullptr);
     QVERIFY(!node->children.empty());
@@ -131,8 +133,10 @@ void TestSizedElement::testLayoutStretch()
     QVERIFY(text != nullptr);
     double textHeight = node->children[0]->rect.height();
     QVERIFY2(textHeight > 0 && textHeight < 100,
-             QString("Text height should stay ~50 (not stretched), got %1").arg(textHeight).toUtf8());
+             QString("文本高度应保持 ~50（未被拉伸），实际为 %1").arg(textHeight).toUtf8());
 }
+
+// NOLINTEND(readability-convert-member-functions-to-static)
 
 QTEST_MAIN(TestSizedElement)
 #include "test_sized_element.moc"

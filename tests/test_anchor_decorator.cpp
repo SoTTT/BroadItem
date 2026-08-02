@@ -15,24 +15,11 @@
 // 测试辅助类
 // ══════════════════════════════════════════════════════════════════
 
-/// @brief 最小化 QGraphicsObject 具体实现，用于测试锚点装饰器的基本行为。
-///
-/// 实现 boundingRect() 和 paint() 纯虚函数，设置位置变化通知标志。
-/// 不含 width/height 自定义属性（resync 回退路径测试用）。
-class TestObservableObject : public QGraphicsObject
-{
-    Q_OBJECT
-public:
-    explicit TestObservableObject(QGraphicsItem* parent = nullptr)
-        : QGraphicsObject(parent)
-    {
-        setFlags(flags() | QGraphicsItem::ItemSendsGeometryChanges
-                         | QGraphicsItem::ItemSendsScenePositionChanges);
-    }
+#include "helpers/reactive_helpers.h"
 
-    [[nodiscard]] QRectF boundingRect() const override { return {0, 0, 100, 50}; }
-    void paint(QPainter*, const QStyleOptionGraphicsItem*, QWidget*) override {}
-};
+using namespace BroadItem;
+using BroadItem::TestHelpers::TestObservableObject;
+using BroadItem::TestHelpers::pointsNear;
 
 /// @brief 带 width/height NOTIFY 信号的 QGraphicsObject 实现。
 ///
@@ -91,16 +78,6 @@ private:
 // 工具函数
 // ══════════════════════════════════════════════════════════════════
 
-/// @brief 判断两个 QPointF 在容差范围内是否相等。
-/// @param a 第一个点。
-/// @param b 第二个点。
-/// @param delta 允许的绝对误差（默认 0.5px）。
-/// @return true 表示两点在容差内相等。
-static bool pointsNear(const QPointF& a, const QPointF& b, qreal delta = 0.5)
-{
-    return std::abs(a.x() - b.x()) <= delta && std::abs(a.y() - b.y()) <= delta;
-}
-
 // ══════════════════════════════════════════════════════════════════
 // TestAnchorDecorator 测试套件
 // ══════════════════════════════════════════════════════════════════
@@ -127,14 +104,14 @@ private slots:
 
         QCOMPARE(point.diameter(), 8.0);
         QCOMPARE(point.color(), QColor(0x55, 0x55, 0x55));
-        QVERIFY(point.anchorVisible());
+        QVERIFY(point.isVisible());
         QCOMPARE(point.acceptedMouseButtons(), Qt::NoButton);
         QVERIFY((point.flags() & QGraphicsItem::ItemIsSelectable) == 0);
         QVERIFY(point.parentItem() == nullptr);
         QCOMPARE(point.boundingRect(), QRectF(-4.0, -4.0, 8.0, 8.0));
     }
 
-    /// @brief 测试 AnchorPoint setter：setDiameter/setColor/setAnchorVisible 正确修改 getter。
+    /// @brief 测试 AnchorPoint setter：setDiameter/setColor/setVisible 正确修改 getter。
     void pointSetters()
     {
         QGraphicsScene scene;
@@ -146,8 +123,8 @@ private slots:
         point.setColor(Qt::red);
         QCOMPARE(point.color(), QColor(Qt::red));
 
-        point.setAnchorVisible(false);
-        QVERIFY(!point.anchorVisible());
+        point.setVisible(false);
+        QVERIFY(!point.isVisible());
 
         // 直径改变后 boundingRect 同步更新
         QCOMPARE(point.boundingRect(), QRectF(-6.0, -6.0, 12.0, 12.0));
@@ -199,7 +176,7 @@ private slots:
     {
         QGraphicsScene scene;
         // 创建一个普通父项
-        auto* parent = new TestObservableObject();
+        auto* parent = new TestObservableObject(QSizeF(100, 50));
         scene.addItem(parent);
         parent->setPos(30, 40);
 
@@ -233,7 +210,7 @@ private slots:
     void originalParentDestructionRestoresToScene()
     {
         QGraphicsScene scene;
-        auto* parent = new TestObservableObject();
+        auto* parent = new TestObservableObject(QSizeF(100, 50));
         scene.addItem(parent);
         parent->setPos(10, 15);
 
@@ -358,7 +335,7 @@ private slots:
     // ─── 移动传播 ────────────────────────────────────────────
 
     /// @brief 测试移动装饰器时 item 和锚点跟随。
-    ///        move decorator → item follows → anchors update。
+    ///        移动 decorator → item 跟随 → 锚点更新。
     void decoratorMovePropagates()
     {
         QGraphicsScene scene;
@@ -442,7 +419,7 @@ private slots:
     {
         QGraphicsScene scene;
         // TestObservableObject 不含 width/height NOTIFY
-        auto* item = new TestObservableObject();
+        auto* item = new TestObservableObject(QSizeF(100, 50));
         scene.addItem(item);
 
         item->setPos(50, 80);
@@ -723,18 +700,18 @@ private slots:
         QVERIFY(decorator != nullptr);
 
         // 默认所有锚点可见
-        QVERIFY(decorator->anchor(BroadItem::AnchorDecorator::AnchorSide::North)->anchorVisible());
-        QVERIFY(decorator->anchor(BroadItem::AnchorDecorator::AnchorSide::SouthEast)->anchorVisible());
+        QVERIFY(decorator->anchor(BroadItem::AnchorDecorator::AnchorSide::North)->isVisible());
+        QVERIFY(decorator->anchor(BroadItem::AnchorDecorator::AnchorSide::SouthEast)->isVisible());
 
         // 隐藏 N 锚点
-        decorator->anchor(BroadItem::AnchorDecorator::AnchorSide::North)->setAnchorVisible(false);
-        QVERIFY(!decorator->anchor(BroadItem::AnchorDecorator::AnchorSide::North)->anchorVisible());
+        decorator->anchor(BroadItem::AnchorDecorator::AnchorSide::North)->setVisible(false);
+        QVERIFY(!decorator->anchor(BroadItem::AnchorDecorator::AnchorSide::North)->isVisible());
         // 其他锚点不受影响
-        QVERIFY(decorator->anchor(BroadItem::AnchorDecorator::AnchorSide::SouthEast)->anchorVisible());
+        QVERIFY(decorator->anchor(BroadItem::AnchorDecorator::AnchorSide::SouthEast)->isVisible());
 
         // 恢复可见
-        decorator->anchor(BroadItem::AnchorDecorator::AnchorSide::North)->setAnchorVisible(true);
-        QVERIFY(decorator->anchor(BroadItem::AnchorDecorator::AnchorSide::North)->anchorVisible());
+        decorator->anchor(BroadItem::AnchorDecorator::AnchorSide::North)->setVisible(true);
+        QVERIFY(decorator->anchor(BroadItem::AnchorDecorator::AnchorSide::North)->isVisible());
 
         delete decorator;
     }
@@ -745,7 +722,7 @@ private slots:
     void sceneTeardownDoesNotDoubleDeleteAnchors()
     {
         auto* scene = new QGraphicsScene;
-        auto* item = new TestObservableObject();
+        auto* item = new TestObservableObject(QSizeF(100, 50));
         scene->addItem(item);
 
         auto* decorator = BroadItem::AnchorDecorator::create(scene, item);
@@ -763,3 +740,4 @@ private slots:
 
 QTEST_MAIN(TestAnchorDecorator)
 #include "test_anchor_decorator.moc"
+#include "helpers/moc_reactive_helpers.cpp"

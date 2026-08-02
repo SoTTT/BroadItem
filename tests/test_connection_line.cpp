@@ -6,24 +6,10 @@
 #include <broaditem/reactive/ConnectionLine.h>
 #include <broaditem/reactive/FollowBinding.h>
 
-/// @brief 最小化 QGraphicsObject 具体实现，用于测试 ConnectionLine 逻辑。
-///
-/// 实现 QGraphicsObject 要求的 boundingRect() 和 paint() 纯虚函数，
-/// 在构造函数中设置 ItemSendsGeometryChanges|ItemSendsScenePositionChanges
-/// 标志，使得 Qt 内部 NOTIFY 信号（xChanged/yChanged 等）正常发射。
-class TestObservableObject : public QGraphicsObject {
-    Q_OBJECT
-public:
-    explicit TestObservableObject(QGraphicsItem* parent = nullptr)
-        : QGraphicsObject(parent)
-    {
-        setFlags(flags() | QGraphicsItem::ItemSendsGeometryChanges
-                         | QGraphicsItem::ItemSendsScenePositionChanges);
-    }
+#include "helpers/reactive_helpers.h"
 
-    [[nodiscard]] QRectF boundingRect() const override { return {0, 0, 100, 100}; }
-    void paint(QPainter*, const QStyleOptionGraphicsItem*, QWidget*) override {}
-};
+using namespace BroadItem;
+using BroadItem::TestHelpers::TestObservableObject;
 
 /// @brief ConnectionLine 连接线 item 的测试套件。
 ///
@@ -286,3 +272,4 @@ private slots:
 
 QTEST_MAIN(TestConnectionLine)
 #include "test_connection_line.moc"
+#include "helpers/moc_reactive_helpers.cpp"

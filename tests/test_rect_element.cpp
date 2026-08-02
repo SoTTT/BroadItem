@@ -8,64 +8,12 @@
 #include <broaditem/element/Element.h>
 #include <broaditem/element/rect/RectElement.h>
 
+#include "helpers/binding_helpers.h"
+#include "helpers/diagnostics_helpers.h"
+#include "helpers/layout_helpers.h"
+
 using namespace BroadItem;
-
-/// @brief 捕获型收集器：记录全部诊断供断言（同 test_diagnostics 的写法）。
-class CaptureCollector : public ErrorCollector {
-public:
-    void report(const Diagnostic& d) override { list.append(d); }
-
-    QList<Diagnostic> list;  ///< 已捕获的诊断序列。
-
-    /// @brief 查找指定错误码的首条诊断（未命中返回 nullptr）。
-    const Diagnostic* find(ErrorCode c) const
-    {
-        for (const auto& d : list)
-            if (d.code == c)
-                return &d;
-        return nullptr;
-    }
-};
-
-/// @brief 一次性格式的布局结果包：模板树 + 属性上下文 + 物化实例节点树。
-///
-/// 模板/实例分离架构下，Node::element 为指向模板的非拥有指针，
-/// 因此模板树（root）必须与节点树（node）同生命周期持有。
-struct LayoutResult {
-    ElementPtr root;              ///< 模板树（持有以保 Node::element 指针有效）。
-    MapPropertyContext propCtx;   ///< 属性上下文（LayoutContext 指向它）。
-    std::unique_ptr<Node> node;   ///< 物化后的实例节点树根。
-};
-
-/// @brief 包裹 root 与绑定命名空间声明。
-static QString wrap(const QString& inner)
-{
-    return QStringLiteral("<root xmlns:b=\"urn:broaditem:binding\">") + inner
-           + QStringLiteral("</root>");
-}
-
-/// @brief 解析、物化、测量、布局一体化辅助。
-/// @param xmlStr XML 布局字符串（完整文档）。
-/// @param layoutRect 布局矩形；传入 null 矩形时以测量结果作为布局矩形。
-/// @return 布局结果包；解析或物化失败时返回 nullptr。
-static std::unique_ptr<LayoutResult> parseAndLayout(const QString& xmlStr, QRectF layoutRect = QRectF(0, 0, 300, 200))
-{
-    auto result = std::make_unique<LayoutResult>();
-    result->root = XmlLayoutParser::parseString(xmlStr);
-    if (!result->root)
-        return nullptr;
-
-    LayoutContext lctx{&result->propCtx};
-    result->node = LayoutEngine::materialize(result->root, lctx);
-    if (!result->node)
-        return nullptr;
-
-    const QSizeF measured = LayoutEngine::measure(result->root, lctx, LayoutConstraints{}, *result->node);
-    if (layoutRect.isNull())
-        layoutRect = QRectF(0, 0, measured.width(), measured.height());
-    LayoutEngine::layout(result->root, lctx, layoutRect, *result->node);
-    return result;
-}
+using namespace BroadItem::TestHelpers;
 
 /// @brief 判定实例节点是否由 RectElement 物化而来。
 static const RectElement* asRect(const Node* node)

@@ -5,7 +5,6 @@
 #include <QVariantList>
 #include <QString>
 #include <QObject>
-#include <QDebug>
 #include <functional>
 
 #include <broaditem/diagnostics/Diagnostics.h>
@@ -101,6 +100,29 @@ protected:
     }
 
     /**
+     * @brief 求路径中从 from 起首段的结束位置。
+     *
+     * 首段结束于下一个 '.' 或 '['（取两者中较小者），均无则结束于路径末尾。
+     * 供各路径遍历函数分割 "key" 段使用。
+     *
+     * @param path 路径字符串。
+     * @param from 搜索起始位置。
+     * @return 首段结束位置（不含分隔符本身）。
+     */
+    static int segmentEnd(const QString& path, int from)
+    {
+        int dotPos = path.indexOf('.', from);
+        int bracketPos = path.indexOf('[', from);
+        if (dotPos >= 0 && bracketPos >= 0)
+            return qMin(dotPos, bracketPos);
+        if (dotPos >= 0)
+            return dotPos;
+        if (bracketPos >= 0)
+            return bracketPos;
+        return path.length();
+    }
+
+    /**
      * @brief 纯嵌套路径遍历引擎。
      *
      * 从已解析的首段值出发，递进处理后续的 .key 和 [n] 操作。
@@ -111,63 +133,7 @@ protected:
      * @param pos     下次解析的起始位置（跳过首段 key 及消化完的 [n] 和 .）。
      * @return 路径终点值，解析失败时返回无效 QVariant。
      */
-    static QVariant walkNested(QVariant current, const QString& path, int pos)
-    {
-        int len = path.length();
-
-        while (pos < len) {
-            int dotPos = path.indexOf('.', pos);
-            int bracketPos = path.indexOf('[', pos);
-            int segEnd = len;
-
-            if (dotPos >= 0 && bracketPos >= 0)
-                segEnd = qMin(dotPos, bracketPos);
-            else if (dotPos >= 0)
-                segEnd = dotPos;
-            else if (bracketPos >= 0)
-                segEnd = bracketPos;
-
-            QString key = path.mid(pos, segEnd - pos);
-            if (key.isEmpty()) {
-                Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
-                                           QStringLiteral("empty key in path"));
-                return QVariant();
-            }
-
-            // Type check: .key navigation requires QMetaType::QVariantMap as parent.
-            if (current.userType() == QMetaType::QVariantMap) {
-                QVariantMap map = current.toMap();
-                if (!map.contains(key)) {
-                    Diagnostics::reportRuntime(ErrorCode::NestedKeyMissing, path,
-                                               QStringLiteral("%1 not found in object").arg(key));
-                    return QVariant();
-                }
-                current = map.value(key);
-            } else {
-                Diagnostics::reportRuntime(ErrorCode::TraverseTypeMismatch, path,
-                                           QStringLiteral("cannot access %1 on non-object type %2")
-                                               .arg(key, QLatin1String(current.typeName())));
-                return QVariant();
-            }
-
-            pos = segEnd;
-            pos = advanceBrackets(current, path, pos);
-            if (pos < 0)
-                return QVariant();
-
-            if (pos < len) {
-                if (path[pos] != '.') {
-                    Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
-                                               QStringLiteral("expected '.' or end, got %1")
-                                                   .arg(path[pos]));
-                    return QVariant();
-                }
-                pos++;
-            }
-        }
-
-        return current;
-    }
+    static QVariant walkNested(QVariant current, const QString& path, int pos);
 
     /**
      * @brief 基于 QObject 属性的路径遍历。
@@ -180,47 +146,7 @@ protected:
      * @param path 路径字符串，如 "device.cpu" 或 "items[0].name"。
      * @return 路径终点值，解析失败时返回无效 QVariant。
      */
-    static QVariant walkPathFromObject(const QObject* obj, const QString& path)
-    {
-        if (!obj)
-            return QVariant();
-
-        int len = path.length();
-        int dotPos = path.indexOf('.');
-        int bracketPos = path.indexOf('[');
-        int segEnd = len;
-
-        if (dotPos >= 0 && bracketPos >= 0)
-            segEnd = qMin(dotPos, bracketPos);
-        else if (dotPos >= 0)
-            segEnd = dotPos;
-        else if (bracketPos >= 0)
-            segEnd = bracketPos;
-
-        QString firstKey = path.left(segEnd);
-        QVariant current = obj->property(firstKey.toUtf8().constData());
-        if (!current.isValid()) {
-            Diagnostics::reportRuntime(ErrorCode::ObjectFirstKeyMissing, path,
-                                       QStringLiteral("property %1 not found on object").arg(firstKey));
-            return QVariant();
-        }
-
-        int pos = advanceBrackets(current, path, segEnd);
-        if (pos < 0)
-            return QVariant();
-
-        if (pos < len) {
-            if (path[pos] != '.') {
-                Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
-                                           QStringLiteral("expected '.' or end, got %1")
-                                               .arg(path[pos]));
-                return QVariant();
-            }
-            pos++;
-        }
-
-        return walkNested(current, path, pos);
-    }
+    static QVariant walkPathFromObject(const QObject* obj, const QString& path);
 
     /**
      * @brief 嵌套写入辅助：沿 path[pos:] 遍历 current 的嵌套结构，在叶子位置设置 value。
@@ -233,121 +159,8 @@ protected:
      * @param value   待设置的值。
      * @return true 写入成功；false 类型/存在性校验失败。
      */
-    static bool setWalkInto(QVariant& current, const QString& path, int pos, const QVariant& value)
-    {
-        int len = path.length();
+    static bool setWalkInto(QVariant& current, const QString& path, int pos, const QVariant& value);
 
-        while (pos < len) {
-            if (path[pos] == '[') {
-                int closePos = path.indexOf(']', pos);
-                if (closePos < 0) {
-                    Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
-                                               QStringLiteral("unmatched '['"));
-                    return false;
-                }
-                QString indexStr = path.mid(pos + 1, closePos - pos - 1);
-                bool ok;
-                int index = indexStr.toInt(&ok);
-                if (!ok || index < 0) {
-                    Diagnostics::reportRuntime(ErrorCode::IndexOutOfBounds, path,
-                                               QStringLiteral("invalid index %1").arg(indexStr));
-                    return false;
-                }
-                if (current.userType() != QMetaType::QVariantList) {
-                    Diagnostics::reportRuntime(ErrorCode::TraverseTypeMismatch, path,
-                                               QStringLiteral("cannot index into non-array type %1")
-                                                   .arg(QLatin1String(current.typeName())));
-                    return false;
-                }
-                QVariantList list = current.toList();
-                if (index >= list.size()) {
-                    Diagnostics::reportRuntime(ErrorCode::IndexOutOfBounds, path,
-                                               QStringLiteral("index %1 out of bounds, size %2")
-                                                   .arg(index).arg(list.size()));
-                    return false;
-                }
-
-                pos = closePos + 1;
-                if (pos >= len) {
-                    list[index] = value;
-                    current = list;
-                    return true;
-                }
-
-                if (path[pos] != '.' && path[pos] != '[') {
-                    Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
-                                               QStringLiteral("expected '.' or '[' after ']', got %1")
-                                                   .arg(path[pos]));
-                    return false;
-                }
-
-                QVariant child = list.at(index);
-                if (!setWalkInto(child, path, pos, value))
-                    return false;
-                list[index] = child;
-                current = list;
-                return true;
-
-            } else if (path[pos] == '.') {
-                pos++;
-
-                int dotPos = path.indexOf('.', pos);
-                int bracketPos = path.indexOf('[', pos);
-                int segEnd = len;
-                if (dotPos >= 0 && bracketPos >= 0)
-                    segEnd = qMin(dotPos, bracketPos);
-                else if (dotPos >= 0)
-                    segEnd = dotPos;
-                else if (bracketPos >= 0)
-                    segEnd = bracketPos;
-
-                QString key = path.mid(pos, segEnd - pos);
-                if (key.isEmpty()) {
-                    Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
-                                               QStringLiteral("empty key in path"));
-                    return false;
-                }
-
-                if (current.userType() != QMetaType::QVariantMap) {
-                    Diagnostics::reportRuntime(ErrorCode::TraverseTypeMismatch, path,
-                                               QStringLiteral("cannot access %1 on non-object type %2")
-                                                   .arg(key, QLatin1String(current.typeName())));
-                    return false;
-                }
-                QVariantMap map = current.toMap();
-                if (!map.contains(key)) {
-                    Diagnostics::reportRuntime(ErrorCode::NestedKeyMissing, path,
-                                               QStringLiteral("%1 not found in object").arg(key));
-                    return false;
-                }
-
-                int savedSegEnd = segEnd;
-                pos = savedSegEnd;
-                if (pos >= len) {
-                    map[key] = value;
-                    current = map;
-                    return true;
-                }
-
-                QVariant child = map.value(key);
-                if (!setWalkInto(child, path, pos, value))
-                    return false;
-                map[key] = child;
-                current = map;
-                return true;
-
-            } else {
-                Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
-                                           QStringLiteral("unexpected character %1")
-                                               .arg(path[pos]));
-                return false;
-            }
-        }
-
-        return false;
-    }
-
-protected:
     /**
      * @brief 消化路径中的数组索引 [n]，修改 current 并返回新位置。
      *
@@ -356,48 +169,10 @@ protected:
      * @param pos             当前处理位置。
      * @return 消化后的新位置，出错时返回 -1。
      */
-    static int advanceBrackets(QVariant& current, const QString& path, int pos)
-    {
-        int len = path.length();
-
-        while (pos < len && path[pos] == '[') {
-            int closePos = path.indexOf(']', pos);
-            if (closePos < 0) {
-                Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
-                                           QStringLiteral("unmatched '['"));
-                return -1;
-            }
-            QString indexStr = path.mid(pos + 1, closePos - pos - 1);
-            bool ok;
-            int index = indexStr.toInt(&ok);
-            if (!ok || index < 0) {
-                Diagnostics::reportRuntime(ErrorCode::IndexOutOfBounds, path,
-                                           QStringLiteral("invalid index %1").arg(indexStr));
-                return -1;
-            }
-            // Type check: [n] indexing requires QMetaType::QVariantList as parent.
-            if (current.userType() != QMetaType::QVariantList) {
-                Diagnostics::reportRuntime(ErrorCode::TraverseTypeMismatch, path,
-                                           QStringLiteral("cannot index into non-array type %1")
-                                               .arg(QLatin1String(current.typeName())));
-                return -1;
-            }
-            QVariantList list = current.toList();
-            if (index >= list.size()) {
-                Diagnostics::reportRuntime(ErrorCode::IndexOutOfBounds, path,
-                                           QStringLiteral("index %1 out of bounds, size %2")
-                                               .arg(index).arg(list.size()));
-                return -1;
-            }
-            current = list.at(index);
-            pos = closePos + 1;
-        }
-
-        return pos;
-    }
+    static int advanceBrackets(QVariant& current, const QString& path, int pos);
 
 private:
-    OnChanged m_onChanged;  ///< Registered callback for property change notifications.
+    OnChanged m_onChanged;  ///< 已注册的属性变更通知回调。
 };
 
 // ========== PropertyProxy inline implementations ==========

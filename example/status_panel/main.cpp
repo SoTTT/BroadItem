@@ -37,6 +37,8 @@
 
 #include <broaditem/core/BroadItem.h>
 
+#include "../common/scene_shot.h"
+
 namespace {
 
 /// @brief 状态总数（ok / warn / error 循环）。
@@ -109,21 +111,6 @@ QVariantMap makeDevice(int deviceIndex, int state, const QString& iconPrefix)
     return d;
 }
 
-/// @brief 将整个场景按场景矩形离屏渲染为 PNG 并保存。
-/// @param scene 目标场景。
-/// @param filePath PNG 输出路径。
-/// @return 保存成功返回 true，否则 false。
-bool renderSceneToPng(QGraphicsScene& scene, const QString& filePath)
-{
-    QImage image(scene.sceneRect().size().toSize(), QImage::Format_ARGB32);
-    image.fill(Qt::transparent);
-    QPainter painter(&image);
-    painter.setRenderHint(QPainter::Antialiasing);
-    scene.render(&painter);
-    painter.end();
-    return image.save(filePath);
-}
-
 } // namespace
 
 /// @brief 入口点。生成图标、构造监控铭牌并启动 800ms 状态轮换。
@@ -134,10 +121,10 @@ int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
 
-    /// 零二进制素材：首次运行生成状态图标到 cwd/status_icons/。
+    // 零二进制素材：首次运行生成状态图标到 cwd/status_icons/。
     const QString iconPrefix = ensureStatusIcons();
 
-    /// 从文件直接构造 BroadItem（layoutId 可选路径的另一种用法）。
+    // 从文件直接构造 BroadItem（layoutId 可选路径的另一种用法）。
     const QString xmlPath =
         QApplication::applicationDirPath() + QStringLiteral("/status_panel.xml");
     auto* item = new BroadItem::BroadItem(xmlPath);
@@ -149,11 +136,11 @@ int main(int argc, char* argv[])
     scene.setBackgroundBrush(QColor(QStringLiteral("#e0e0e0")));
     scene.addItem(item);
 
-    /// 设备状态表：states[i] 为第 i 台设备当前状态索引，初始错开便于首帧即有区分度。
+    // 设备状态表：states[i] 为第 i 台设备当前状态索引，初始错开便于首帧即有区分度。
     QVector<int> states = { 0, 1, 2 };
     const int deviceCount = states.size();
 
-    /// 组装整列数据并一次性下发：<for> 的 b:of 前缀匹配命中后整列重新物化。
+    // 组装整列数据并一次性下发：<for> 的 b:of 前缀匹配命中后整列重新物化。
     const auto pushDevices = [item, &states, deviceCount, iconPrefix]() {
         QVariantList devices;
         for (int i = 0; i < deviceCount; ++i)
@@ -162,8 +149,8 @@ int main(int argc, char* argv[])
     };
     pushDevices();
 
-    /// 每 800ms 把一台设备轮换到下一状态（ok→warn→error），
-    /// 图标、状态文字、文字颜色、背景色随数据同步联动切换。
+    // 每 800ms 把一台设备轮换到下一状态（ok→warn→error），
+    // 图标、状态文字、文字颜色、背景色随数据同步联动切换。
     auto* timer = new QTimer(&app);
     QObject::connect(timer, &QTimer::timeout, &app, [&states, pushDevices]() {
         static int cursor = 0;
@@ -179,27 +166,11 @@ int main(int argc, char* argv[])
     view.resize(340, 200);
     view.show();
 
-    /// 冒烟模式：约 3 秒后自动退出（800ms 定时器已触发约 3 轮），
-    /// 验证构造与绑定传播刷新链在 offscreen 下不崩溃。
-    const QStringList args = QCoreApplication::arguments();
-    if (args.contains(QStringLiteral("--smoke")))
-        QTimer::singleShot(3000, &app, &QCoreApplication::quit);
+    // 冒烟模式：约 3 秒后自动退出（800ms 定时器已触发约 3 轮），
+    // 验证构造与绑定传播刷新链在 offscreen 下不崩溃。
+    // 截图模式：约 2.6 秒后离屏渲染 PNG 落盘并退出，
+    // 此刻三台设备已各轮换一次，三卡状态错开、视觉差异成立。
+    handleSmokeShotArgs(app, scene);
 
-    /// 截图模式：约 2.6 秒后离屏渲染 PNG 落盘并退出，
-    /// 此刻三台设备已各轮换一次，三卡状态错开、视觉差异成立。
-    const int shotIndex = args.indexOf(QStringLiteral("--shot"));
-    if (shotIndex != -1 && shotIndex + 1 < args.size()) {
-        const QString shotPath = args.at(shotIndex + 1);
-        QTimer::singleShot(2600, &app, [&scene, shotPath]() {
-            if (!renderSceneToPng(scene, shotPath)) {
-                qWarning() << "PNG 保存失败:" << shotPath;
-                QCoreApplication::exit(1);
-                return;
-            }
-            QCoreApplication::quit();
-        });
-    }
-
-    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
-    return app.exec();
+    return QApplication::exec();
 }

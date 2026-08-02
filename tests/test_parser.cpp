@@ -8,7 +8,8 @@
 #include <broaditem/element/Element.h>
 #include <broaditem/element/control/IfElement.h>
 #include <broaditem/element/control/ForElement.h>
-#include <QDebug>
+
+using namespace BroadItem;
 
 /// @brief 供 IfElement 空值测试使用的最小可渲染元素（模板/实例分离版）。
 class NullTestElement : public BroadItem::Element {
@@ -30,7 +31,7 @@ public:
     bool bindsProperty(const QString&) const override { return false; }
 };
 
-// Helper: QObject with declared Q_PROPERTY for testing <if> null value behavior
+// 辅助类：声明了 Q_PROPERTY 的 QObject，用于测试 <if> 的空值行为
 class IfNullHelper : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString warning READ warning WRITE setWarning NOTIFY warningChanged)
@@ -43,7 +44,7 @@ public:
 signals:
     void warningChanged();
 private:
-    QString m_warning; // default: QString() is null
+    QString m_warning; // 默认值 QString() 为 null
 };
 
 /// @brief 文件作用域消息捕获器：安装后收集所有 qWarning/qCritical 消息
@@ -203,16 +204,16 @@ void TestParser::testIf()
     BroadItem::MapPropertyContext mapCtx;
     ctx.ctx = &mapCtx;
 
-    /// 属性不存在 → 物化结果为空（新架构下"尺寸为零"的等价语义：
-    /// 控制元素透明，不产生任何实例节点）
+    // 属性不存在 → 物化结果为空（新架构下"尺寸为零"的等价语义：
+    // 控制元素透明，不产生任何实例节点）
     auto node = BroadItem::LayoutEngine::materialize(root, ctx);
     QVERIFY(node == nullptr);
 
     mapCtx.setProperty("show", "yes");
     node = BroadItem::LayoutEngine::materialize(root, ctx);
     QVERIFY(node != nullptr);
-    /// 根为控制元素（if），三阶段须经 node->element（物化后的可渲染模板）驱动，
-    /// 直接对控制元素模板调 measure 会命中 Element 基类的 qFatal
+    // 根为控制元素（if），三阶段须经 node->element（物化后的可渲染模板）驱动，
+    // 直接对控制元素模板调 measure 会命中 Element 基类的 qFatal
     auto result = node->element->measure(ctx, BroadItem::LayoutConstraints{}, *node);
     QVERIFY(result.intrinsicSize.width() > 0);
 }
@@ -230,11 +231,11 @@ void TestParser::testIfNullWithQPropertyContext()
     BroadItem::LayoutContext ctx;
     ctx.ctx = &propCtx;
 
-    // Default QString() is null -> materializeChildren returns empty
+    // 默认 QString() 为 null → materializeChildren 返回空
     auto result = ifEl->materializeChildren(ctx);
     QCOMPARE(result.size(), size_t(0));
 
-    // Set to non-null value -> materializeChildren returns 1 child node
+    // 设置为非 null 值 → materializeChildren 返回 1 个子节点
     item.setWarning("alert");
     result = ifEl->materializeChildren(ctx);
     QCOMPARE(result.size(), size_t(1));
@@ -477,14 +478,14 @@ void TestParser::testIfNotBindingRejected()
 void TestParser::testRegistryLoad()
 {
     int count = BroadItem::loadLayoutsFromDirectory(".");
-    // Should load test_layout.xml
+    // 应能加载到 test_layout.xml
     QVERIFY(count >= 1);
 }
 
 /// @brief 验证未知属性触发 qWarning 但不中断解析，仍能成功构建元素
 void TestParser::testUnknownAttributeWarning()
 {
-    // Unknown attributes should trigger qWarning but not fail parsing
+    // 未知属性应触发 qWarning 但不导致解析失败
     QString xml = R"(
         <root>
             <text unknown-attr="value" font-size="12">Hello</text>
@@ -497,7 +498,7 @@ void TestParser::testUnknownAttributeWarning()
 /// @brief 验证文本元素包含子元素时解析失败
 void TestParser::testInvalidChildError()
 {
-    // Text element should not have child elements -> parse should fail
+    // 文本元素不应有子元素 → 解析应失败
     QString xml = R"(
         <root>
             <text font-size="12">
@@ -512,7 +513,7 @@ void TestParser::testInvalidChildError()
 /// @brief 验证非法属性类型触发 qCritical 但使用默认值继续解析
 void TestParser::testInvalidAttributeTypeError()
 {
-    // Invalid type should trigger qCritical but parse should still succeed with default
+    // 非法类型应触发 qCritical，但解析仍应以默认值成功继续
     QString xml = R"(
         <root>
             <text font-size="not-a-number">Hello</text>
@@ -654,12 +655,12 @@ void TestParser::testOldSyntaxRejected()
 #else
     QVERIFY(root != nullptr);
 
-    /// 旧 :content 语法在 namespace processing 下不被识别为绑定属性，
-    /// TextElement 不应绑定 title
+    // 旧 :content 语法在 namespace processing 下不被识别为绑定属性，
+    // TextElement 不应绑定 title
     QVERIFY2(!root->bindsProperty("title"),
-             "Old :content syntax should not be recognized as binding attribute");
+             "旧 :content 语法不应被识别为绑定属性");
     QVERIFY2(!root->bindsProperty("other"),
-             "Old :content syntax should not be recognized as binding attribute");
+             "旧 :content 语法不应被识别为绑定属性");
 #endif
 }
 
@@ -680,12 +681,12 @@ void TestParser::testNamespaceMissingRejected()
 #else
     QVERIFY(root != nullptr);
 
-    /// 未声明 xmlns:b 时，b:content 的 b: 前缀未绑定到 BINDING_NS 命名空间 URI，
-    /// hasAttributeNS(BINDING_NS, "content") 返回 false，TextElement 无绑定
+    // 未声明 xmlns:b 时，b:content 的 b: 前缀未绑定到 BINDING_NS 命名空间 URI，
+    // hasAttributeNS(BINDING_NS, "content") 返回 false，TextElement 无绑定
     QVERIFY2(!root->bindsProperty("title"),
-             "b:content without xmlns:b declaration should not be recognized as binding");
+             "未声明 xmlns:b 时 b:content 不应被识别为绑定");
     QVERIFY2(!root->bindsProperty("other"),
-             "b:content without xmlns:b declaration should not be recognized as binding");
+             "未声明 xmlns:b 时 b:content 不应被识别为绑定");
 #endif
 }
 
@@ -702,17 +703,17 @@ void TestParser::testWrongNamespaceUri()
     auto root = BroadItem::XmlLayoutParser::parseString(xml);
     QVERIFY(root != nullptr);
 
-    /// 根元素不应被 auto-wrap 为 ForElement 或 IfElement
+    // 根元素不应被 auto-wrap 为 ForElement 或 IfElement
     QVERIFY2(std::dynamic_pointer_cast<BroadItem::ForElement>(root) == nullptr,
-             "Should not auto-wrap to ForElement with wrong namespace URI");
+             "错误命名空间 URI 时不应被自动包装为 ForElement");
     QVERIFY2(std::dynamic_pointer_cast<BroadItem::IfElement>(root) == nullptr,
-             "Should not auto-wrap to IfElement with wrong namespace URI");
+             "错误命名空间 URI 时不应被自动包装为 IfElement");
 
-    /// hasAttributeNS(BINDING_NS, ...) 不匹配，因此不应绑定任何属性
+    // hasAttributeNS(BINDING_NS, ...) 不匹配，因此不应绑定任何属性
     QVERIFY2(!root->bindsProperty("title"),
-             "b:content with wrong namespace URI should not be recognized as binding");
+             "错误命名空间 URI 时 b:content 不应被识别为绑定");
     QVERIFY2(!root->bindsProperty("other"),
-             "b:content with wrong namespace URI should not be recognized as binding");
+             "错误命名空间 URI 时 b:content 不应被识别为绑定");
 }
 
 // NOLINTEND(readability-convert-member-functions-to-static)

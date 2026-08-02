@@ -52,7 +52,7 @@ public:
     void setProperty(const QString& name, const QVariant& value) override
     {
         if (!name.contains('.') && !name.contains('[')) {
-            // Flat key — existing behavior
+            // 扁平键——保持既有行为
             if (!value.isValid() || variantIsNull(value)) {
                 if (m_map.remove(name) > 0)
                     notifyChanged(name, QVariant());
@@ -65,7 +65,7 @@ public:
             notifyChanged(name, value);
             return;
         }
-        // Nested path
+        // 嵌套路径
         setPropertyNested(name, value);
     }
 
@@ -79,16 +79,7 @@ private:
      */
     void setPropertyNested(const QString& path, const QVariant& value)
     {
-        int len = path.length();
-        int dotPos = path.indexOf('.');
-        int bracketPos = path.indexOf('[');
-        int segEnd = len;
-        if (dotPos >= 0 && bracketPos >= 0)
-            segEnd = qMin(dotPos, bracketPos);
-        else if (dotPos >= 0)
-            segEnd = dotPos;
-        else if (bracketPos >= 0)
-            segEnd = bracketPos;
+        int segEnd = segmentEnd(path, 0);
 
         QString firstKey = path.left(segEnd);
         if (firstKey.isEmpty()) {
@@ -115,16 +106,7 @@ private:
     QVariant resolveFirstThenWalk(const QString& path) const
     {
         int len = path.length();
-        int dotPos = path.indexOf('.');
-        int bracketPos = path.indexOf('[');
-        int segEnd = len;
-
-        if (dotPos >= 0 && bracketPos >= 0)
-            segEnd = qMin(dotPos, bracketPos);
-        else if (dotPos >= 0)
-            segEnd = dotPos;
-        else if (bracketPos >= 0)
-            segEnd = bracketPos;
+        int segEnd = segmentEnd(path, 0);
 
         QString firstKey = path.left(segEnd);
         if (!m_map.contains(firstKey))

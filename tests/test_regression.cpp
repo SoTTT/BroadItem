@@ -13,6 +13,8 @@
 #include <broaditem/context/LayoutContext.h>
 #include <broaditem/context/MapPropertyContext.h>
 
+using namespace BroadItem;
+
 /// @brief 逐像素比较两张图（容差 0），尺寸不同直接判异。
 /// @param a 图 A。
 /// @param b 图 B。
@@ -47,7 +49,7 @@ class TestRegression : public QObject {
 private slots:
     // NOLINTBEGIN(readability-convert-member-functions-to-static)
 
-    /// @brief test_registryIsolation: LayoutRegistry 多实例隔离（for 布局）。
+    /// @brief testRegistryIsolation：LayoutRegistry 多实例隔离（for 布局）。
     ///
     /// 同一注册布局被两个 Frame（不同属性上下文）实例化时，
     /// 先创建的实例渲染结果不得被后创建的实例踩踏。
@@ -68,9 +70,11 @@ private slots:
     /// 实证（9dc3a53 worktree 对照实验，同布局/同数据/同字体/同顺序）：
     /// imgA(11x17) != imgRef(11x17)，重叠区差 103 px（A 被 B 踩踏）；
     /// imgA 与 imgB(12x34) 重叠区差 0 px（A 渲染的确为 B 的克隆实例）。
-    void test_registryIsolation()
+    void testRegistryIsolation()
     {
         // 固定应用字体，保证渲染结果确定（逐像素比较的前提）。
+        // PingFang SC 是 macOS 系统中文字体——本测试渲染中文文本且仅在本机
+        // macOS 环境运行，故硬编码该字体以避免字体回退带来的像素差异。
         QApplication::setFont(QFont(QStringLiteral("PingFang SC")));
 
         const QString xml = QStringLiteral(
@@ -135,7 +139,7 @@ private slots:
                  "A 与 B 渲染结果相同：绑定未生效或列表相同，测试无效");
     }
 
-    /// @brief test_cellForStacksVertically: \<cell\> content 带 b:of 时垂直堆叠。
+    /// @brief testCellForStacksVertically：\<cell\> content 带 b:of 时垂直堆叠。
     ///
     /// cell 的 content（column 带 b:of）在物化期展开为 N 个实例节点，
     /// measure 累加高度、layout 依次分配，三个 column 矩形垂直堆叠不重叠。
@@ -143,7 +147,7 @@ private slots:
     /// 旧代码必败论证：旧 CellElement（ContainerElement）不展开控制元素，
     /// ForElement::render 只画第一项 —— cell 节点 children.size() == 1
     /// 而非 3，且只渲染第一行文本，本测试的计数与堆叠断言全部失败。
-    void test_cellForStacksVertically()
+    void testCellForStacksVertically()
     {
         const QString xml = QStringLiteral(
             "<root xmlns:b=\"urn:broaditem:binding\">"
@@ -176,9 +180,9 @@ private slots:
 
         // 测量后以测量结果作为布局矩形，避免裁剪干扰。
         const QSizeF measured = BroadItem::LayoutEngine::measure(
-            root, lctx, BroadItem::LayoutConstraints{}, *node);
+            lctx, BroadItem::LayoutConstraints{}, *node);
         BroadItem::LayoutEngine::layout(
-            root, lctx, QRectF(QPointF(0, 0), measured), *node);
+            lctx, QRectF(QPointF(0, 0), measured), *node);
 
         const QRectF r0 = cell->children[0]->rect;
         const QRectF r1 = cell->children[1]->rect;
@@ -196,7 +200,7 @@ private slots:
                      .arg(r1.top()).arg(r1.bottom()).arg(r2.top()).toUtf8());
     }
 
-    /// @brief test_nestedForExpands: 嵌套 \<for\> 在物化期按 per-item 上下文展开。
+    /// @brief testNestedForExpands：嵌套 \<for\> 在物化期按 per-item 上下文展开。
     ///
     /// 外层 for 迭代 groups，内层 for 以"g.members"为数据源，
     /// 物化后全部 TextNode 文本集合恰为 {第一组,甲,乙,第二组,丙}。
@@ -205,7 +209,7 @@ private slots:
     /// 全局上下文不存在"g.members"（g 是外层 for 的循环变量，只在
     /// per-item 上下文中有效）→ 内层恒为空，只收集到 {第一组,第二组}，
     /// 计数与集合断言失败。
-    void test_nestedForExpands()
+    void testNestedForExpands()
     {
         const QString xml = QStringLiteral(
             "<root xmlns:b=\"urn:broaditem:binding\">"

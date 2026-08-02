@@ -2,8 +2,6 @@
 
 #include <broaditem/context/PropertyContext.h>
 #include <QObject>
-#include <QMetaProperty>
-#include <QTimer>
 
 namespace BroadItem {
 
@@ -35,13 +33,13 @@ public:
     ~QPropertyContext() override;
 
     /// @brief 为 Q_PROPERTY 变更设置 NOTIFY 信号连接。
-    void setupNotifyConnections();
+    void setupNotifyConnections() const;
 
     QVariant property(const QString& name) const override
     {
         if (name.isEmpty())
             return QVariant();
-        const_cast<QPropertyContext*>(this)->ensureConnected();
+        ensureConnected();
         const QObject* obj = m_target ? m_target : this;
         if (!name.contains('.') && !name.contains('['))
             return obj->property(name.toUtf8().constData());
@@ -52,7 +50,7 @@ public:
     {
         if (name.isEmpty())
             return false;
-        const_cast<QPropertyContext*>(this)->ensureConnected();
+        ensureConnected();
         const QObject* obj = m_target ? m_target : this;
         if (!name.contains('.') && !name.contains('['))
             return obj->metaObject()->indexOfProperty(name.toUtf8().constData()) >= 0;
@@ -62,7 +60,7 @@ public:
     void setProperty(const QString& name, const QVariant& value) override
     {
         if (!name.contains('.') && !name.contains('[')) {
-            // Flat key — existing behavior
+            // 扁平键——保持既有行为
             ensureConnected();
             QObject* obj = m_target ? m_target : this;
             QByteArray nameBa = name.toUtf8();
@@ -77,7 +75,7 @@ public:
             }
             return;
         }
-        // Nested path
+        // 嵌套路径
         setPropertyNested(name, value);
     }
 
@@ -88,14 +86,14 @@ private slots:
     void onNotify();
 
 private:
-    void ensureConnected();
+    void ensureConnected() const;
     bool isProxy() const { return m_target != nullptr; }
     void commonSetup();
 
     void setPropertyNested(const QString& path, const QVariant& value);
 
-    QObject* m_target = nullptr;  ///< Target QObject for proxy mode, nullptr in self-hosted mode.
-    bool m_connected = false;     ///< Whether NOTIFY signal connections have been set up.
+    QObject* m_target = nullptr;   ///< 代理模式的目标 QObject；自宿主模式为 nullptr。
+    mutable bool m_connected = false;  ///< NOTIFY 信号连接是否已建立（mutable：const 读取路径惰性连接）。
 };
 
 } // namespace BroadItem

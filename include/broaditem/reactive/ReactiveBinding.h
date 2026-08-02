@@ -36,12 +36,14 @@ public:
     /// @param target 目标 QObject 指针。
     /// @param targetProperty 目标属性名。
     /// @param transform 可选的变换函数，默认为 nullptr（直通）。
+    /// @param parent 可选的父 QObject。
     /// @return ReactiveBinding* 新绑定实例，失败时返回 nullptr。
     static ReactiveBinding* create(QObject* source,
                                    const QString& sourceProperty,
                                    QObject* target,
                                    const QString& targetProperty,
-                                   Transform transform = nullptr);
+                                   Transform transform = nullptr,
+                                   QObject* parent = nullptr);
 
     /// @brief 创建只观察源属性变化的绑定，不写入目标对象。
     ///
@@ -72,7 +74,7 @@ public:
     /// @brief 析构函数，释放内部资源。
     ~ReactiveBinding() override;
 
-    /// @brief 销毁绑定，断开所有连接并标记为无效。
+    /// @brief 销毁绑定，断开与源/目标的信号连接并标记为无效。
     void destroy();
 
     /// @brief 启用或禁用绑定。
@@ -105,6 +107,15 @@ public:
     /// @return 目标属性名字符串。
     [[nodiscard]] QString targetProperty() const;
 
+    /// @brief 验证属性名在指定对象上有效。
+    ///
+    /// 条件：属性存在于 metaObject 中、可写、且有 NOTIFY 信号或为 Property::Pos。
+    /// 可用于在 create()/createObserver() 之前预检属性，避免校验失败时输出 qWarning。
+    /// @param obj 要检查的 QObject。
+    /// @param prop 属性名。
+    /// @return true 表示属性有效。
+    static bool isValidProperty(const QObject* obj, const QString& prop);
+
 private slots:
     /// @brief 源属性变化时调用 evaluate()。
     void onSourceChanged();
@@ -136,19 +147,14 @@ private:
     /// 对 pos：连接 xChanged() 和 yChanged() 两个信号。
     void connectSourceSignal();
 
+    /// @brief 连接源对象的 destroyed() 信号：源销毁时置空 m_source 并禁用绑定。
+    void connectSourceDestroyed();
+
     /// @brief 从 QObject 读取属性值。
     static QVariant readProperty(const QObject* obj, const QString& prop);
 
     /// @brief 向 QObject 写入属性值。
     static void writeProperty(QObject* obj, const QString& prop, const QVariant& value);
-
-    /// @brief 验证属性名在指定对象上有效。
-    ///
-    /// 条件：属性存在于 metaObject 中、可写、且有 NOTIFY 信号或为 Property::Pos。
-    /// @param obj 要检查的 QObject。
-    /// @param prop 属性名。
-    /// @return true 表示属性有效。
-    static bool isValidProperty(const QObject* obj, const QString& prop);
 
     QObject* m_source;                            ///< 源对象。
     QObject* m_target;                            ///< 目标对象。
@@ -158,7 +164,7 @@ private:
     bool m_enabled;                               ///< 绑定是否启用。
     bool m_evaluating;                            ///< 循环检测标志，防止 evaluate() 重入。
     std::function<QVariant()> m_customSourceReader; ///< 场景位置观察者的自定义源值读取器。
-    QObject* m_scenePosTracker = nullptr;         ///< 场景位置观察者内部使用的跟踪器对象。
+    QObject* m_scenePosTracker = nullptr;         ///< 场景位置跟踪器（QObject 父子所有权，随本对象析构自动释放）。
 
     QVector<QMetaObject::Connection> m_signalConnections;       ///< 与源信号的主要连接。
     QMetaObject::Connection m_sourceDestroyConnection;          ///< 源销毁连接。

@@ -33,6 +33,8 @@
 #include <broaditem/parser/XmlLayoutParser.h>
 #include <broaditem/parser/LayoutRegistry.h>
 
+#include "../common/scene_shot.h"
+
 namespace {
 
 /// @brief 状态卡布局注册 ID（两个实例共用同一 ID，隔离验证的关键）。
@@ -90,7 +92,7 @@ QVariantList makeProcesses()
     };
     static int start = 0;
 
-    const int count = 3 + rnd(3);  ///< 3~5 行，列表长度随刷新变化
+    const int count = 3 + rnd(3);  // 3~5 行，列表长度随刷新变化
     QVariantList list;
     for (int i = 0; i < count; ++i) {
         QVariantMap p;
@@ -110,7 +112,7 @@ QVariantList makeProcesses()
 /// @return 新建的 BroadItem 指针（由场景接管生命周期）。
 BroadItem::BroadItem* makeItem(int layoutId, const QPointF& pos, QGraphicsScene* scene)
 {
-    /// 走 Registry 共享模板路径（默认构造 PropertyContext，各实例互不共享）。
+    // 走 Registry 共享模板路径（默认构造 PropertyContext，各实例互不共享）。
     auto* item = new BroadItem::BroadItem(layoutId);
     item->setFlag(QGraphicsItem::ItemIsMovable);
     item->setPos(pos);
@@ -137,26 +139,6 @@ void refreshProcessList(BroadItem::BroadItem* item)
     item->setDynamicProperty(QStringLiteral("processes"), makeProcesses());
 }
 
-/// @brief 将整个场景按场景矩形离屏渲染为 PNG 并保存。
-///
-/// 场景背景刷（#11111b 深色）由 scene.render() 自动绘制，无需视图 show()；
-/// 三个 BroadItem 的布局在构造与 setDynamicProperty 时已同步完成，
-/// 定时器触发时刻的场景即为最新数据状态。
-///
-/// @param scene 目标场景。
-/// @param filePath PNG 输出路径。
-/// @return 保存成功返回 true，否则 false。
-bool renderSceneToPng(QGraphicsScene& scene, const QString& filePath)
-{
-    QImage image(scene.sceneRect().size().toSize(), QImage::Format_ARGB32);
-    image.fill(Qt::transparent);
-    QPainter painter(&image);
-    painter.setRenderHint(QPainter::Antialiasing);
-    scene.render(&painter);
-    painter.end();
-    return image.save(filePath);
-}
-
 } // namespace
 
 /// @brief 入口点。注册两种布局，创建三个可拖动实例并各自独立定时刷新。
@@ -167,7 +149,7 @@ int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
 
-    /// 解析两种布局并注册：模板层 Element 树由 Registry 共享，实例层各自独立。
+    // 解析两种布局并注册：模板层 Element 树由 Registry 共享，实例层各自独立。
     const QString dir = QApplication::applicationDirPath();
     auto statusCardRoot = BroadItem::XmlLayoutParser::parseFile(dir + QStringLiteral("/status_card.xml"));
     auto processListRoot = BroadItem::XmlLayoutParser::parseFile(dir + QStringLiteral("/process_list.xml"));
@@ -182,12 +164,12 @@ int main(int argc, char* argv[])
     scene.setSceneRect(0, 0, 800, 400);
     scene.setBackgroundBrush(QColor(QStringLiteral("#11111b")));
 
-    /// 三个实例：状态卡 ×2（同一 layoutId，隔离验证核心）+ 进程列表 ×1，横向排开。
+    // 三个实例：状态卡 ×2（同一 layoutId，隔离验证核心）+ 进程列表 ×1，横向排开。
     auto* cardA = makeItem(kStatusCardLayoutId, QPointF(20, 20), &scene);
     auto* cardB = makeItem(kStatusCardLayoutId, QPointF(280, 20), &scene);
     auto* procList = makeItem(kProcessListLayoutId, QPointF(560, 20), &scene);
 
-    /// 场景说明文字。
+    // 场景说明文字。
     auto* hint = scene.addSimpleText(QStringLiteral("拖动卡片 · 同布局双实例 · 各自独立刷新"));
     QFont hintFont = hint->font();
     hintFont.setPointSize(13);
@@ -195,12 +177,12 @@ int main(int argc, char* argv[])
     hint->setBrush(QColor(QStringLiteral("#6c7086")));
     hint->setPos(20, 356);
 
-    /// 初始数据。
+    // 初始数据。
     refreshStatusCard(cardA, QStringLiteral("节点 A"));
     refreshStatusCard(cardB, QStringLiteral("节点 B"));
     refreshProcessList(procList);
 
-    /// 独立刷新定时器：500ms / 900ms / 1500ms 不同间隔，数据内容互不相同。
+    // 独立刷新定时器：500ms / 900ms / 1500ms 不同间隔，数据内容互不相同。
     auto* timerA = new QTimer(&app);
     QObject::connect(timerA, &QTimer::timeout, &app, [cardA]() {
         refreshStatusCard(cardA, QStringLiteral("节点 A"));
@@ -225,28 +207,12 @@ int main(int argc, char* argv[])
     view.resize(820, 420);
     view.show();
 
-    /// 冒烟模式：--smoke 时约 3 秒后自动退出（退出码 0），
-    /// 验证三个实例的构造与多轮独立刷新不崩溃；默认正常进入事件循环。
-    const QStringList args = QCoreApplication::arguments();
-    if (args.contains(QStringLiteral("--smoke")))
-        QTimer::singleShot(3000, &app, &QCoreApplication::quit);
+    // 冒烟模式：--smoke 时约 3 秒后自动退出（退出码 0），
+    // 验证三个实例的构造与多轮独立刷新不崩溃；默认正常进入事件循环。
+    // 截图模式：--shot <path> 时约 2.6 秒后将整个场景离屏渲染为 PNG 落盘并退出。
+    // 此刻 500ms 定时器已触发约 5 轮、900ms 约 2 轮、1500ms 1 轮，
+    // 三张卡数据已各自刷新出肉眼可辨差异，适合 offscreen 视觉验证。
+    handleSmokeShotArgs(app, scene);
 
-    /// 截图模式：--shot <path> 时约 2.6 秒后将整个场景离屏渲染为 PNG 落盘并退出。
-    /// 此刻 500ms 定时器已触发约 5 轮、900ms 约 2 轮、1500ms 1 轮，
-    /// 三张卡数据已各自刷新出肉眼可辨差异，适合 offscreen 视觉验证。
-    const int shotIndex = args.indexOf(QStringLiteral("--shot"));
-    if (shotIndex != -1 && shotIndex + 1 < args.size()) {
-        const QString shotPath = args.at(shotIndex + 1);
-        QTimer::singleShot(2600, &app, [&scene, shotPath]() {
-            if (!renderSceneToPng(scene, shotPath)) {
-                qWarning() << "PNG 保存失败:" << shotPath;
-                QCoreApplication::exit(1);
-                return;
-            }
-            QCoreApplication::quit();
-        });
-    }
-
-    // NOLINTNEXTLINE(readability-static-accessed-through-instance)
-    return app.exec();
+    return QApplication::exec();
 }

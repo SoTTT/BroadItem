@@ -11,34 +11,11 @@
 #include <broaditem/context/MapPropertyContext.h>
 #include <broaditem/context/QPropertyContext.h>
 
+#include "helpers/binding_helpers.h"
+#include "helpers/diagnostics_helpers.h"
+
 using namespace BroadItem;
-
-/// @brief 捕获型收集器：记录全部诊断供断言。
-class CaptureCollector : public ErrorCollector {
-public:
-    void report(const Diagnostic& d) override { list.append(d); }
-
-    QList<Diagnostic> list;  ///< 已捕获的诊断序列。
-
-    /// @brief 统计指定错误码出现次数。
-    int count(ErrorCode c) const
-    {
-        int n = 0;
-        for (const auto& d : list)
-            if (d.code == c)
-                ++n;
-        return n;
-    }
-
-    /// @brief 查找指定错误码的首条诊断（未命中返回 nullptr）。
-    const Diagnostic* find(ErrorCode c) const
-    {
-        for (const auto& d : list)
-            if (d.code == c)
-                return &d;
-        return nullptr;
-    }
-};
+using namespace BroadItem::TestHelpers;
 
 /// @brief 进程级收集器守卫：构造注入、析构恢复默认。
 struct ProcessCollectorGuard {
@@ -48,13 +25,6 @@ struct ProcessCollectorGuard {
     }
     ~ProcessCollectorGuard() { Diagnostics::setCollector(nullptr); }
 };
-
-/// @brief 包裹 root 与绑定命名空间声明。
-static QString wrap(const QString& inner)
-{
-    return QStringLiteral("<root xmlns:b=\"urn:broaditem:binding\">") + inner
-           + QStringLiteral("</root>");
-}
 
 /// @brief Frame 测试基建：临时 XML 文件 + 预注入的 MapPropertyContext。
 struct FrameFixture {
@@ -89,6 +59,7 @@ class TestDiagnostics : public QObject {
     Q_OBJECT
 
 private slots:
+    // NOLINTBEGIN(readability-convert-member-functions-to-static)
     // ========== 解析期：21 个错误码 ==========
 
     /// @brief BI-P-001：文件无法打开 → Abort。
@@ -644,6 +615,7 @@ private slots:
         QVERIFY(frame != nullptr);
         QCOMPARE(cap->list.size(), 0);
     }
+    // NOLINTEND(readability-convert-member-functions-to-static)
 };
 
 QTEST_MAIN(TestDiagnostics)

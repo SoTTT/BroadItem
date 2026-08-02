@@ -4,7 +4,6 @@
 #include <broaditem/context/QPropertyContext.h>
 #include <broaditem/core/BroadItem.h>
 #include <QFile>
-#include <QDebug>
 
 // ============================================================
 // 测试用 QPropertyContext 子类
@@ -365,7 +364,7 @@ private slots:
         QVERIFY(!ctx.property("items[0]x").isValid());
     }
 
-    // ---------- hasProperty with paths ----------
+    // ---------- 带路径的 hasProperty ----------
 
     /// @brief 测试 hasProperty 对路径的正确判断
     void testMapHasPathTrue()
@@ -919,9 +918,9 @@ private slots:
     void testQPropDirectSetterNotify()
     {
         // 直接调 Q_PROPERTY setter → emit NOTIFY → onNotify() → 回调
-        // 通过 QTest::qWait 让 timer 触发自动连接
+        // NOTIFY 自动连接由构造期的 QTimer::singleShot(0) 延迟建立，
+        // 用 QTRY_VERIFY 反复触发 setter 直到回调生效，替代固定时长 qWait 的弱时序断言
         TestQProps ctx;
-        QTest::qWait(1);
 
         QString lastName;
         QVariant lastValue;
@@ -930,8 +929,12 @@ private slots:
             lastValue = v;
         });
 
-        ctx.setName("direct-value");
-        QCOMPARE(lastName, QString("name"));
+        // 连接未建立前回调不触发；先写空串再写目标值，保证每次重试都有值变化
+        QTRY_VERIFY([&] {
+            ctx.setName(QString());
+            ctx.setName("direct-value");
+            return lastName == QString("name");
+        }());
         QCOMPARE(lastValue.toString(), QString("direct-value"));
     }
 
@@ -996,7 +999,7 @@ private slots:
     {
         TestQProps ctx;
         ctx.setProperty("nonexistent.cpu", "val");
-        QVERIFY(true); // should not crash
+        QVERIFY(true); // 不崩溃即通过
     }
 
     /// @brief 测试语法错误路径写入不生效也不崩溃
@@ -1006,7 +1009,7 @@ private slots:
         QVariantMap dev;
         dev["cpu"] = "45%";
         ctx.setProperty("device", dev);
-        // unmatched bracket → error, no crash
+        // 括号不配对 → 报错，不崩溃
         ctx.setProperty("device[0", "X");
         QCOMPARE(ctx.property("device.cpu").toString(), QString("45%"));
     }
@@ -1171,10 +1174,10 @@ private slots:
     void testItemDirectSetterNotify()
     {
         // 直接调 item 的 Q_PROPERTY setter → emit NOTIFY → SignalBridge → 回调
-        // 通过 QTest::qWait 让 timer 触发自动连接
+        // NOTIFY 自动连接由构造期的 QTimer::singleShot(0) 延迟建立，
+        // 用 QTRY_VERIFY 反复触发 setter 直到回调生效，替代固定时长 qWait 的弱时序断言
         TestPropItem item(m_tempXmlPath);
         BroadItem::QPropertyContext ctx(&item);
-        QTest::qWait(1);
 
         QString lastName;
         QVariant lastValue;
@@ -1183,8 +1186,12 @@ private slots:
             lastValue = v;
         });
 
-        item.setStatus("direct-from-item");
-        QCOMPARE(lastName, QString("status"));
+        // 连接未建立前回调不触发；先写空串再写目标值，保证每次重试都有值变化
+        QTRY_VERIFY([&] {
+            item.setStatus(QString());
+            item.setStatus("direct-from-item");
+            return lastName == QString("status");
+        }());
         QCOMPARE(lastValue.toString(), QString("direct-from-item"));
     }
 
@@ -1209,7 +1216,7 @@ private slots:
 
         QVERIFY(!ctx.property("anything").isValid());
         QVERIFY(!ctx.hasProperty("anything"));
-        // setProperty on null item: should not crash
+        // 对 null item 调 setProperty：不应崩溃
         ctx.setProperty("anything", "val");
     }
 

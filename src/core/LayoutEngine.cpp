@@ -5,8 +5,8 @@
 namespace BroadItem {
 
 /// @brief 物化模板元素树为实例节点树。
-/// @param root The root template element.
-/// @param ctx The layout context providing property bindings.
+/// @param root 模板树根元素。
+/// @param ctx 布局上下文，提供属性绑定。
 /// @return 实例节点树根；root 为空或物化结果为空时返回 nullptr。
 std::unique_ptr<Node> LayoutEngine::materialize(const ElementPtr& root, const LayoutContext& ctx)
 {
@@ -19,39 +19,39 @@ std::unique_ptr<Node> LayoutEngine::materialize(const ElementPtr& root, const La
 }
 
 /// @brief 测量实例节点树的固有尺寸。
-/// @param root The root template element.
-/// @param ctx The layout context providing property bindings.
-/// @param constraints Available width/height constraints.
+///
+/// 经 node.element 派发（而非由调用方另传模板根）：根模板为控制元素时，
+/// 实例根节点由被展开的子模板产生，只有 node.element 保证指向可渲染元素。
+///
+/// @param ctx 布局上下文，提供属性绑定。
+/// @param constraints 可用宽高约束。
 /// @param node 根实例节点。
-/// @return The intrinsic size of the element tree.
-QSizeF LayoutEngine::measure(const ElementPtr& root, const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node)
+/// @return 元素树的固有尺寸；node.element 为空时返回 (0,0)。
+QSizeF LayoutEngine::measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node)
 {
-    if (!root)
+    if (!node.element)
         return QSizeF(0, 0);
-    auto result = root->measure(ctx, constraints, node);
-    return result.intrinsicSize;
+    return node.element->measure(ctx, constraints, node).intrinsicSize;
 }
 
-/// @brief 在给定矩形内为树中所有节点分配位置。
-/// @param root The root template element.
-/// @param ctx The layout context providing property bindings.
-/// @param rect The bounding rectangle to lay out within.
+/// @brief 在给定矩形内为树中所有节点分配位置（派发语义同 measure）。
+/// @param ctx 布局上下文，提供属性绑定。
+/// @param rect 布局目标矩形。
 /// @param node 根实例节点。
-void LayoutEngine::layout(const ElementPtr& root, const LayoutContext& ctx, const QRectF& rect, Node& node)
+void LayoutEngine::layout(const LayoutContext& ctx, const QRectF& rect, Node& node)
 {
-    if (root)
-        root->layout(ctx, rect, node);
+    if (node.element)
+        node.element->layout(ctx, rect, node);
 }
 
-/// @brief 将实例节点树渲染到 painter 上。
-/// @param root The root template element.
-/// @param painter The QPainter to render onto.
-/// @param ctx The layout context providing property bindings.
+/// @brief 将实例节点树渲染到 painter 上（派发语义同 measure）。
+/// @param painter 目标 QPainter。
+/// @param ctx 布局上下文，提供属性绑定。
 /// @param node 根实例节点。
-void LayoutEngine::render(const ElementPtr& root, QPainter* painter, const LayoutContext& ctx, const Node& node)
+void LayoutEngine::render(QPainter* painter, const LayoutContext& ctx, const Node& node)
 {
-    if (root)
-        root->render(painter, ctx, node);
+    if (node.element)
+        node.element->render(painter, ctx, node);
 }
 
 } // namespace BroadItem

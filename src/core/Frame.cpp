@@ -1,4 +1,5 @@
 #include <broaditem/core/Frame.h>
+#include <broaditem/core/LayoutEngine.h>
 #include <broaditem/context/MapPropertyContext.h>
 #include <broaditem/diagnostics/Diagnostics.h>
 #include <broaditem/parser/XmlLayoutParser.h>
@@ -131,6 +132,8 @@ bool Frame::hasDynamicProperty(const QString& name) const
 
 /// @brief 运行完整的物化（标脏时）→测量→布局管线，返回计算后的尺寸。
 ///
+/// 三步管线统一委托 LayoutEngine 静态入口，Frame 只保留自身职责：
+/// 脏标记驱动的重物化、m_context 包装、boundingRect 缓存与运行时诊断作用域。
 /// 数据经 setProperty 变更必然触发 onChanged 标脏，因此仅当 m_dirty
 /// 或节点树尚不存在时才重新物化，语义与旧版逐次展开等价。
 /// 根模板为控制元素时取物化结果的第一个节点（保持旧版"只取第一项"行为）。
@@ -149,8 +152,7 @@ QSizeF Frame::performLayout(double availableWidth, double availableHeight)
     m_context.ctx = m_propertyContext.get();
 
     if (m_dirty || !m_rootNode) {
-        auto nodes = m_rootTemplate->materializeChildren(m_context);
-        m_rootNode = nodes.empty() ? nullptr : std::move(nodes[0]);
+        m_rootNode = LayoutEngine::materialize(m_rootTemplate, m_context);
         m_dirty = false;
     }
 
@@ -163,19 +165,18 @@ QSizeF Frame::performLayout(double availableWidth, double availableHeight)
     constraints.availableWidth = availableWidth;
     constraints.availableHeight = availableHeight;
 
-    auto result = m_rootNode->element->measure(m_context, constraints, *m_rootNode);
-    m_boundingRect = QRectF(0, 0, result.intrinsicSize.width(), result.intrinsicSize.height());
+    const QSizeF intrinsic = LayoutEngine::measure(m_context, constraints, *m_rootNode);
+    m_boundingRect = QRectF(0, 0, intrinsic.width(), intrinsic.height());
 
-    QRectF rootRect(0, 0, result.intrinsicSize.width(), result.intrinsicSize.height());
-    m_rootNode->element->layout(m_context, rootRect, *m_rootNode);
+    LayoutEngine::layout(m_context, m_boundingRect, *m_rootNode);
 
     return m_boundingRect.size();
 }
 
 /// @brief 使用给定的 painter 将实例节点树绘制到目标设备。
 ///
-/// 同步 m_context.ctx（因该成员为 mutable）后调用根节点模板的 render()。
-/// 调用者有责任确保 QPainter 已正确初始化且处于活动状态。
+/// 同步 m_context.ctx（因该成员为 mutable）后经 LayoutEngine 渲染入口
+/// 绘制实例节点树。调用者有责任确保 QPainter 已正确初始化且处于活动状态。
 ///
 /// @param painter 目标 QPainter，不可为 nullptr。
 void Frame::paint(QPainter* painter) const
@@ -183,7 +184,7 @@ void Frame::paint(QPainter* painter) const
     if (m_rootNode) {
         const Diagnostics::RuntimeScope runtimeScope(m_rootTemplate.get());
         m_context.ctx = m_propertyContext.get();
-        m_rootNode->element->render(painter, m_context, *m_rootNode);
+        LayoutEngine::render(painter, m_context, *m_rootNode);
     }
 }
 

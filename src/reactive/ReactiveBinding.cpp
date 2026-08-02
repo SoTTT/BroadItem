@@ -1,3 +1,6 @@
+/// @file ReactiveBinding.cpp
+/// @brief ReactiveBinding 实现 —— 元对象驱动的单向属性同步绑定。
+
 #include <broaditem/reactive/ReactiveBinding.h>
 #include <broaditem/reactive/ReactiveProperty.h>
 
@@ -5,6 +8,8 @@
 #include <QGraphicsObject>
 #include <QMetaProperty>
 #include <QPointer>
+
+#include <initializer_list>
 
 namespace {
 
@@ -38,16 +43,8 @@ public:
     }
 
 private slots:
-    /// @brief 任意祖先或目标自身位置分量变化时调用。
-    void onPositionChanged()
-    {
-        if (m_onChanged) {
-            m_onChanged();
-        }
-    }
-
-    /// @brief 任意祖先或目标自身的缩放、旋转、可见性、透明度变化时调用。
-    void onVisualChanged()
+    /// @brief 任意祖先或目标自身的位置或视觉分量变化时调用。
+    void onTrackedChanged()
     {
         if (m_onChanged) {
             m_onChanged();
@@ -110,9 +107,13 @@ private:
     {
         TrackedItem tracked;
         tracked.object = obj;
-        connectPositionSignals(obj, tracked.connections);
-        connectVisualSignals(obj, tracked.connections);
-        connectParentChangedSignal(obj, tracked.connections);
+        connectSignals(obj, "onTrackedChanged()",
+                       {"xChanged()", "yChanged()"}, tracked.connections);
+        connectSignals(obj, "onTrackedChanged()",
+                       {"scaleChanged()", "rotationChanged()",
+                        "visibleChanged()", "opacityChanged()"}, tracked.connections);
+        connectSignals(obj, "onParentChanged()",
+                       {"parentChanged()"}, tracked.connections);
 
         if (obj != m_target) {
             tracked.connections.append(
@@ -144,76 +145,30 @@ private:
         }
     }
 
-    /// @brief 连接单个 QGraphicsObject 的 xChanged()/yChanged() 信号。
+    /// @brief 将单个 QGraphicsObject 的一组信号连接到本对象的指定槽。
     ///
     /// 使用 QMetaMethod-to-QMetaMethod 连接，与 ReactiveBinding::connectSourceSignal() 的 pos 处理保持一致。
     /// @param obj 要连接的对象。
+    /// @param slotName 本对象的槽名（如 "onTrackedChanged()"）。
+    /// @param signalNames 要连接的信号名列表。
     /// @param outConnections 输出连接列表。
-    void connectPositionSignals(QGraphicsObject* obj, QVector<QMetaObject::Connection>& outConnections)
+    void connectSignals(QGraphicsObject* obj, const char* slotName,
+                        std::initializer_list<const char*> signalNames,
+                        QVector<QMetaObject::Connection>& outConnections)
     {
         const QMetaObject* meta = obj->metaObject();
-        int slotIdx = metaObject()->indexOfSlot("onPositionChanged()");
+        int slotIdx = metaObject()->indexOfSlot(slotName);
         if (slotIdx < 0) {
             return;
         }
         QMetaMethod slotMethod = metaObject()->method(slotIdx);
 
-        int xIdx = meta->indexOfMethod("xChanged()");
-        int yIdx = meta->indexOfMethod("yChanged()");
-        if (xIdx >= 0) {
-            outConnections.append(
-                connect(obj, meta->method(xIdx), this, slotMethod));
-        }
-        if (yIdx >= 0) {
-            outConnections.append(
-                connect(obj, meta->method(yIdx), this, slotMethod));
-        }
-    }
-
-    /// @brief 连接单个 QGraphicsObject 的 scaleChanged()/rotationChanged()/visibleChanged()/opacityChanged() 信号。
-    /// @param obj 要连接的对象。
-    /// @param outConnections 输出连接列表。
-    void connectVisualSignals(QGraphicsObject* obj, QVector<QMetaObject::Connection>& outConnections)
-    {
-        static const char* kSignals[] = {
-            "scaleChanged()",
-            "rotationChanged()",
-            "visibleChanged()",
-            "opacityChanged()",
-        };
-
-        const QMetaObject* meta = obj->metaObject();
-        int slotIdx = metaObject()->indexOfSlot("onVisualChanged()");
-        if (slotIdx < 0) {
-            return;
-        }
-        QMetaMethod slotMethod = metaObject()->method(slotIdx);
-
-        for (const char* sig : kSignals) {
+        for (const char* sig : signalNames) {
             int idx = meta->indexOfMethod(sig);
             if (idx >= 0) {
                 outConnections.append(
                     connect(obj, meta->method(idx), this, slotMethod));
             }
-        }
-    }
-
-    /// @brief 连接单个 QGraphicsObject 的 parentChanged() 信号。
-    /// @param obj 要连接的对象。
-    /// @param outConnections 输出连接列表。
-    void connectParentChangedSignal(QGraphicsObject* obj, QVector<QMetaObject::Connection>& outConnections)
-    {
-        const QMetaObject* meta = obj->metaObject();
-        int slotIdx = metaObject()->indexOfSlot("onParentChanged()");
-        if (slotIdx < 0) {
-            return;
-        }
-        QMetaMethod slotMethod = metaObject()->method(slotIdx);
-
-        int signalIdx = meta->indexOfMethod("parentChanged()");
-        if (signalIdx >= 0) {
-            outConnections.append(
-                connect(obj, meta->method(signalIdx), this, slotMethod));
         }
     }
 
@@ -331,14 +286,7 @@ ReactiveBinding::ReactiveBinding(QObject* source,
     , m_evaluating(false)
 {
     connectSourceSignal();
-
-    // 连接源对象的 destroyed() 信号，当源销毁时禁用绑定
-    if (m_source) {
-        m_sourceDestroyConnection = connect(m_source, &QObject::destroyed, this, [this]() {
-            m_source = nullptr;
-            m_enabled = false;
-        });
-    }
+    connectSourceDestroyed();
 
     // 连接目标对象的 destroyed() 信号，当目标销毁时禁用绑定
     if (m_target) {
@@ -375,29 +323,14 @@ ReactiveBinding::ReactiveBinding(QGraphicsObject* source,
         return source->scenePos();
     })
 {
-    if (m_source) {
-        m_sourceDestroyConnection = connect(m_source, &QObject::destroyed, this, [this]() {
-            m_source = nullptr;
-            m_enabled = false;
-            if (m_scenePosTracker != nullptr) {
-                delete m_scenePosTracker;
-                m_scenePosTracker = nullptr;
-            }
-        });
-    }
+    connectSourceDestroyed();
 
-    auto* tracker = new ScenePosTracker(source, [this]() { evaluate(); }, this);
-    m_scenePosTracker = tracker;
+    // 跟踪器以 this 为 QObject parent，随本对象析构自动释放
+    m_scenePosTracker = new ScenePosTracker(source, [this]() { evaluate(); }, this);
 }
 
-/// @brief 析构函数：确保内部场景位置跟踪器被释放。
-ReactiveBinding::~ReactiveBinding()
-{
-    if (m_scenePosTracker != nullptr) {
-        delete m_scenePosTracker;
-        m_scenePosTracker = nullptr;
-    }
-}
+/// @brief 析构函数：内部场景位置跟踪器由 QObject 父子关系自动释放。
+ReactiveBinding::~ReactiveBinding() = default;
 
 /// @brief 静态工厂：创建响应式绑定并返回裸指针。
 ///
@@ -408,12 +341,14 @@ ReactiveBinding::~ReactiveBinding()
 /// @param target 目标 QObject。
 /// @param targetProperty 目标属性名。
 /// @param transform 可选的变换函数。
+/// @param parent 可选的父 QObject。
 /// @return ReactiveBinding* 新绑定实例，失败时返回 nullptr。
 ReactiveBinding* ReactiveBinding::create(QObject* source,
                                          const QString& sourceProperty,
                                          QObject* target,
                                          const QString& targetProperty,
-                                         Transform transform)
+                                         Transform transform,
+                                         QObject* parent)
 {
     if (!source) {
         qWarning() << "ReactiveBinding::create: source is null";
@@ -444,10 +379,10 @@ ReactiveBinding* ReactiveBinding::create(QObject* source,
     }
 
     return new ReactiveBinding(source, sourceProperty, target, targetProperty,
-                               std::move(transform));
+                               std::move(transform), parent);
 }
 
-/// @brief 销毁绑定，断开所有 QMetaObject::Connection 并禁用。
+/// @brief 销毁绑定，断开与源/目标的 QMetaObject::Connection 并禁用。
 void ReactiveBinding::destroy()
 {
     m_enabled = false;
@@ -456,11 +391,6 @@ void ReactiveBinding::destroy()
         disconnect(conn);
     }
     m_signalConnections.clear();
-
-    if (m_scenePosTracker != nullptr) {
-        delete m_scenePosTracker;
-        m_scenePosTracker = nullptr;
-    }
 
     disconnect(m_sourceDestroyConnection);
     disconnect(m_targetDestroyConnection);
@@ -556,6 +486,20 @@ void ReactiveBinding::evaluate()
     }
 
     m_evaluating = false;
+}
+
+/// @brief 连接源对象的 destroyed() 信号：源销毁时置空 m_source 并禁用绑定。
+///
+/// 普通绑定与场景位置观察者共用；普通构造时 m_scenePosTracker 尚未创建，不受影响。
+void ReactiveBinding::connectSourceDestroyed()
+{
+    if (!m_source) {
+        return;
+    }
+    m_sourceDestroyConnection = connect(m_source, &QObject::destroyed, this, [this]() {
+        m_source = nullptr;
+        m_enabled = false;
+    });
 }
 
 /// @brief 连接源对象的对应属性变化信号。

@@ -11,34 +11,10 @@
 
 #include <cmath>
 
-/// @brief 最小化 QGraphicsObject 具体实现，用于测试绑定逻辑。
-///
-/// 实现 QGraphicsObject 要求的 boundingRect() 和 paint() 纯虚函数，
-/// 在构造函数中设置 ItemSendsGeometryChanges|ItemSendsScenePositionChanges
-/// 标志，使得 Qt 内部 NOTIFY 信号（xChanged/yChanged 等）正常发射。
-class TestObservableObject : public QGraphicsObject {
-    Q_OBJECT
-public:
-    explicit TestObservableObject(QGraphicsItem* parent = nullptr)
-        : QGraphicsObject(parent)
-    {
-        setFlags(flags() | QGraphicsItem::ItemSendsGeometryChanges
-                         | QGraphicsItem::ItemSendsScenePositionChanges);
-    }
+#include "helpers/reactive_helpers.h"
 
-    [[nodiscard]] QRectF boundingRect() const override { return {0, 0, 100, 100}; }
-    void paint(QPainter*, const QStyleOptionGraphicsItem*, QWidget*) override {}
-};
-
-/// @brief 判断两个 QPointF 在容差范围内是否相等。
-/// @param a 第一个点。
-/// @param b 第二个点。
-/// @param delta 允许的绝对误差（默认 0.5px）。
-/// @return true 表示两点在容差内相等。
-static bool pointsNear(const QPointF& a, const QPointF& b, qreal delta = 0.5)
-{
-    return std::abs(a.x() - b.x()) <= delta && std::abs(a.y() - b.y()) <= delta;
-}
+using BroadItem::TestHelpers::TestObservableObject;
+using BroadItem::TestHelpers::pointsNear;
 
 /// @brief 响应式绑定系统的综合测试套件。
 ///
@@ -111,7 +87,7 @@ private slots:
                                                 &target, BroadItem::Property::Opacity);
         QVERIFY(binding != nullptr);
 
-        // Set a known non-default opacity first
+        // 先设置一个已知的非默认透明度
         source.setOpacity(0.75);
         QCOMPARE(target.opacity(), 0.75);
 
@@ -132,7 +108,7 @@ private slots:
                                                 &target, BroadItem::Property::Visible);
         QVERIFY(binding != nullptr);
 
-        // Initially both are visible
+        // 初始时两者均可见
         QVERIFY(target.isVisible());
 
         source.setVisible(false);
@@ -163,7 +139,7 @@ private slots:
         source.setPos(100.0, 200.0);
         QCOMPARE(target.pos(), QPointF(110.0, 220.0));
 
-        // Also test with scale via transform
+        // 再通过 transform 测试 scale 绑定
         TestObservableObject source2;
         TestObservableObject target2;
 
@@ -929,3 +905,4 @@ private slots:
 
 QTEST_MAIN(TestReactiveBinding)
 #include "test_reactive_binding.moc"
+#include "helpers/moc_reactive_helpers.cpp"
