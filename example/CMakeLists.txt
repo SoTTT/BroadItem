@@ -51,3 +51,7 @@ target_link_libraries(status_panel PRIVATE BroadItem Qt${QT_VERSION_MAJOR}::Core
 # Badges gallery (README 标牌画廊集中展示)
 add_executable(badges badges/main.cpp)
 target_link_libraries(badges PRIVATE BroadItem Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Xml)
+
+# 路径语法交互验证工具（Expression / PathSegment）
+add_executable(path_tester path_tester/main.cpp)
+target_link_libraries(path_tester PRIVATE BroadItem Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Xml)

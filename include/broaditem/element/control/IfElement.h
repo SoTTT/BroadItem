@@ -25,6 +25,10 @@ public:
 
     const QSet<QString>& supportedAttributes() const override;
     bool canHaveChildren() const override { return true; }
+    /// @brief 解析期挂载：保留第一个子元素作为条件渲染内容，多余忽略。
+    void addParsedChild(const ElementPtr& child) override;
+    /// @brief 解析期收尾校验：条件（b:prop）必须有效，否则报 BI-P-010。
+    bool validateChildren() const override;
 
     /// @brief 设置用于条件判断的属性路径。
     void setBindProperty(const QString& bind);

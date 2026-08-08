@@ -60,7 +60,7 @@ class TestDiagnostics : public QObject {
 
 private slots:
     // NOLINTBEGIN(readability-convert-member-functions-to-static)
-    // ========== 解析期：21 个错误码 ==========
+    // ========== 解析期：22 个错误码 ==========
 
     /// @brief BI-P-001：文件无法打开 → Abort。
     void fileOpenFails()
@@ -371,6 +371,49 @@ private slots:
             wrap(QStringLiteral("<if b:prop=\"s\" b:not=\"x\"><text>v</text></if>")), &cap);
         QVERIFY(root != nullptr);
         QVERIFY(cap.find(ErrorCode::NotBindingIgnored) != nullptr);
+    }
+
+    /// @brief BI-P-024：枚举属性取值非法（text 的 h-align/v-align）→ Error/Default，逐条上报。
+    void invalidEnumLiteral()
+    {
+        CaptureCollector cap;
+        auto root = XmlLayoutParser::parseString(
+            wrap(QStringLiteral("<text h-align=\"centre\" v-align=\"middle\">x</text>")), &cap);
+        QVERIFY(root != nullptr);
+        QCOMPARE(cap.count(ErrorCode::InvalidEnumLiteral), 2);
+        const Diagnostic* d = cap.find(ErrorCode::InvalidEnumLiteral);
+        QVERIFY(d != nullptr);
+        QCOMPARE(severityOf(d->code), Severity::Error);
+        QCOMPARE(recoveryOf(d->code), Recovery::Default);
+    }
+
+    /// @brief BI-P-024：column 的 cross-align 不接受 baseline（仅 row 合法）→ Error/Default。
+    void invalidEnumLiteralColumnBaseline()
+    {
+        CaptureCollector cap;
+        auto root = XmlLayoutParser::parseString(
+            wrap(QStringLiteral("<column cross-align=\"baseline\"><text>x</text></column>")), &cap);
+        QVERIFY(root != nullptr);
+        QVERIFY(cap.find(ErrorCode::InvalidEnumLiteral) != nullptr);
+
+        // row 接受 baseline：同一取值无诊断
+        CaptureCollector cap2;
+        auto root2 = XmlLayoutParser::parseString(
+            wrap(QStringLiteral("<row cross-align=\"baseline\"><text>x</text></row>")), &cap2);
+        QVERIFY(root2 != nullptr);
+        QVERIFY(cap2.find(ErrorCode::InvalidEnumLiteral) == nullptr);
+    }
+
+    /// @brief BI-P-024：非法 main-align/cross-align（row/column）→ 属性保持默认，parse 成功。
+    void invalidEnumLiteralLayoutAlign()
+    {
+        CaptureCollector cap;
+        auto root = XmlLayoutParser::parseString(
+            wrap(QStringLiteral("<column main-align=\"bogus\" cross-align=\"strecth\">"
+                                "<row main-align=\"space-betwen\"><text>x</text></row>"
+                                "</column>")), &cap);
+        QVERIFY(root != nullptr);
+        QCOMPARE(cap.count(ErrorCode::InvalidEnumLiteral), 3);
     }
 
     /// @brief BI-P-020：Registry 目录不存在 → Warning，返回 0。

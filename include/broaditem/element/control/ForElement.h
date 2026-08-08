@@ -23,6 +23,8 @@ public:
 
     const QSet<QString>& supportedAttributes() const override;
     bool canHaveChildren() const override { return true; }
+    /// @brief 解析期挂载：保留第一个子元素作为迭代模板，多余忽略。
+    void addParsedChild(const ElementPtr& child) override;
 
 private:
     Binding m_binding{"b:of", QString{}}; ///< b:of 属性（数据源）的绑定。

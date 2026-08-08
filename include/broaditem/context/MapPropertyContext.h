@@ -74,19 +74,20 @@ private:
 
     /**
      * @brief 嵌套路径写入。
-     * 提取首段 key，从 m_map 取出 root，经由 setWalkInto 修改后写回。
-     * 写入成功后以首段 key 触发 notifyChanged。
+     * 经 Expression 统一解析后取首段 key，从 m_map 取出 root，
+     * 经由 setWalkSegments 修改后写回。写入成功后以首段 key 触发 notifyChanged。
      */
     void setPropertyNested(const QString& path, const QVariant& value)
     {
-        int segEnd = segmentEnd(path, 0);
-
-        QString firstKey = path.left(segEnd);
-        if (firstKey.isEmpty()) {
+        const Expression expr(path);
+        if (!expr.isValid()) {
             Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
-                                       QStringLiteral("empty first key in path"));
+                                       QStringLiteral("invalid path syntax"));
             return;
         }
+        const auto& segs = expr.segments();
+        // 语法保证首段必为键分段。
+        const QString& firstKey = segs.front().key();
         if (!m_map.contains(firstKey)) {
             Diagnostics::reportRuntime(ErrorCode::NestedKeyMissing, path,
                                        QStringLiteral("%1 not found").arg(firstKey));
@@ -94,40 +95,29 @@ private:
         }
 
         QVariant root = m_map.value(firstKey);
-        if (!setWalkInto(root, path, segEnd, value))
+        if (!setWalkSegments(root, segs, 1, path, value))
             return;
         m_map[firstKey] = root;
         notifyChanged(firstKey, root);
     }
 
     /**
-     * @brief 解析路径首段，从 m_map 查找，再通过共享引擎遍历剩余部分。
+     * @brief 经 Expression 统一解析，从 m_map 查找首段，再遍历剩余分段。
      */
     QVariant resolveFirstThenWalk(const QString& path) const
     {
-        int len = path.length();
-        int segEnd = segmentEnd(path, 0);
-
-        QString firstKey = path.left(segEnd);
+        const Expression expr(path);
+        if (!expr.isValid()) {
+            Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
+                                       QStringLiteral("invalid path syntax"));
+            return QVariant();
+        }
+        const auto& segs = expr.segments();
+        const QString& firstKey = segs.front().key();
         if (!m_map.contains(firstKey))
             return QVariant();
 
-        QVariant current = m_map.value(firstKey);
-        int pos = advanceBrackets(current, path, segEnd);
-        if (pos < 0)
-            return QVariant();
-
-        if (pos < len) {
-            if (path[pos] != '.') {
-                Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
-                                           QStringLiteral("expected '.' or end, got %1")
-                                               .arg(path[pos]));
-                return QVariant();
-            }
-            pos++;
-        }
-
-        return walkNested(current, path, pos);
+        return walkSegments(m_map.value(firstKey), segs, 1, path);
     }
 };
 

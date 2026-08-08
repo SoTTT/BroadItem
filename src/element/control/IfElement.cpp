@@ -75,6 +75,26 @@ void IfElement::setChild(ElementPtr child)
     m_child = std::move(child);
 }
 
+/// @brief 解析期挂载：保留第一个子元素作为条件渲染内容，多余忽略（现状行为）。
+/// @param child 解析完成的子元素。
+void IfElement::addParsedChild(const ElementPtr& child)
+{
+    if (!m_child)
+        setChild(child);
+}
+
+/// @brief 解析期收尾校验：b:prop 条件路径必须有效（BI-P-010 由 parser 迁入）。
+/// @return 条件有效返回 true。
+bool IfElement::validateChildren() const
+{
+    if (!isConditionValid()) {
+        Diagnostics::reportParse(ErrorCode::IfMissingProp,
+                                 QStringLiteral("<if> requires b:prop to specify the condition path"));
+        return false;
+    }
+    return true;
+}
+
 /// @brief 评估条件：存在性（裸 b:prop）或值比较（equals 字面量 / b:equals 绑定），not 整体取反。
 ///
 /// 值比较为字符串化比较：两侧取 QVariant::toString() 后区分大小写比较。

@@ -4,6 +4,8 @@
 #include <broaditem/reactive/ReactiveBinding.h>
 #include <broaditem/reactive/ReactiveProperty.h>
 
+#include "ReentrancyGuard.h"
+
 #include <QDebug>
 #include <QGraphicsObject>
 #include <QMetaProperty>
@@ -466,7 +468,7 @@ void ReactiveBinding::evaluate()
         return;
     }
 
-    m_evaluating = true;
+    ReentrancyGuard guard(m_evaluating);
 
     QVariant value;
     if (m_customSourceReader) {
@@ -484,8 +486,6 @@ void ReactiveBinding::evaluate()
     if (m_target != nullptr && !m_targetProperty.isEmpty() && value.isValid()) {
         writeProperty(m_target, m_targetProperty, value);
     }
-
-    m_evaluating = false;
 }
 
 /// @brief 连接源对象的 destroyed() 信号：源销毁时置空 m_source 并禁用绑定。

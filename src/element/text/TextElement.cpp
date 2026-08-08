@@ -1,10 +1,28 @@
 #include <broaditem/element/text/TextElement.h>
 #include <broaditem/diagnostics/Diagnostics.h>
+#include <broaditem/compat/QtCompat.h>
 #include <QPainter>
 #include <QTextLayout>
 #include <QDomElement>
 
 namespace BroadItem {
+
+namespace {
+
+/// @brief HAlign 映射为 QTextOption 的水平对齐标志（换行路径使用）。
+/// @param align 水平对齐枚举。
+/// @return 对应的 Qt 对齐标志。
+Qt::Alignment toQtAlignment(HAlign align)
+{
+    switch (align) {
+    case HAlign::Center: return Qt::AlignHCenter;
+    case HAlign::Right:  return Qt::AlignRight;
+    case HAlign::Left:   break;
+    }
+    return Qt::AlignLeft;
+}
+
+} // namespace
 
 /// @brief 返回 TextElement 支持的 XML 属性集合。
 /// @return 静态集合引用，含 content、字体、对齐与盒模型属性。
@@ -59,9 +77,9 @@ void TextElement::parse(const QDomElement& xml)
         m_binding = Binding(attr.nodeName(), xml.attributeNS(BINDING_NS, "content", QString()));
     }
     if (hasLiteralAttribute(xml, "v-align"))
-        m_vAlign = literalAttribute(xml, "v-align");
+        m_vAlign = parseVAlign(literalAttribute(xml, "v-align"), m_vAlign);
     if (hasLiteralAttribute(xml, "h-align"))
-        m_hAlign = literalAttribute(xml, "h-align");
+        m_hAlign = parseHAlign(literalAttribute(xml, "h-align"), m_hAlign);
     if (hasLiteralAttribute(xml, "font-family"))
         m_fontFamily = literalAttribute(xml, "font-family");
     if (hasLiteralAttribute(xml, "font-size")) {
@@ -80,8 +98,12 @@ void TextElement::parse(const QDomElement& xml)
         validateBool(literalAttribute(xml, "underline"), "underline", m_underLine);
     if (hasLiteralAttribute(xml, "wrap"))
         validateBool(literalAttribute(xml, "wrap"), "wrap", m_wrap);
-    if (hasLiteralAttribute(xml, "max-width"))
-        validateDouble(literalAttribute(xml, "max-width"), "max-width", m_maxWidth);
+    if (hasLiteralAttribute(xml, "max-width")) {
+        double val = -1;
+        // 负值视为无限制（沿用哨兵时代 "maxW < 0 即无限制" 的语义）
+        if (validateDouble(literalAttribute(xml, "max-width"), "max-width", val) && val >= 0)
+            m_maxWidth = val;
+    }
     if (hasLiteralAttribute(xml, "color"))
         m_color = parseColor(literalAttribute(xml, "color"));
 }
@@ -111,7 +133,7 @@ QString TextElement::resolveText(const LayoutContext& ctx) const
 /// @return 新创建的 TextNode 实例节点。
 std::unique_ptr<Node> TextElement::materialize(const LayoutContext& ctx) const
 {
-    auto node = std::make_unique<TextNode>();
+    auto node = makeUnique<TextNode>();
     node->element = this;
     node->text = resolveText(ctx);
     resolveStyle(ctx, node->style);
@@ -156,11 +178,12 @@ QSizeF TextElement::computeTextSize(const QString& text, const LayoutConstraints
     QFont font = fontFromNode(node);
     QFontMetricsF fm(font);
 
-    double maxW = m_maxWidth;
-    if (constraints.availableWidth > 0 && (maxW < 0 || constraints.availableWidth < maxW))
+    // 有效行宽：m_maxWidth 与可用宽度取较小者（两者皆可缺席）。
+    Optional<double> maxW = m_maxWidth;
+    if (constraints.availableWidth && (!maxW || *constraints.availableWidth < *maxW))
         maxW = constraints.availableWidth;
 
-    if (m_wrap && maxW > 0) {
+    if (m_wrap && maxW && *maxW > 0) {
         QTextLayout layout(text, font);
         QTextOption option;
         option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
@@ -172,7 +195,7 @@ QSizeF TextElement::computeTextSize(const QString& text, const LayoutConstraints
             QTextLine line = layout.createLine();
             if (!line.isValid())
                 break;
-            line.setLineWidth(maxW);
+            line.setLineWidth(*maxW);
             width = std::max(width, line.naturalTextWidth());
             height += line.height();
         }
@@ -197,10 +220,10 @@ MeasureResult TextElement::measure(const LayoutContext& ctx, const LayoutConstra
     double w = sz.width();
     double h = sz.height();
 
-    if (node.style.width >= 0)
-        w = node.style.width;
-    if (node.style.height >= 0)
-        h = node.style.height;
+    if (node.style.width)
+        w = *node.style.width;
+    if (node.style.height)
+        h = *node.style.height;
 
     w += boxModelWidth(node.style);
     h += boxModelHeight(node.style);
@@ -208,7 +231,8 @@ MeasureResult TextElement::measure(const LayoutContext& ctx, const LayoutConstra
     return MeasureResult{QSizeF(w, h)};
 }
 
-/// @brief 存储分配的矩形并计算文本渲染的内容区域（缓存进 TextNode）。
+/// @brief 存储分配的矩形；内容区域由 render 经 contentRect(node.rect, node.style) 现算
+///        （与 ImageElement 同模式，不在节点缓存跨阶段中间值）。
 /// @param ctx 布局上下文（未使用）。
 /// @param rect 分配给此文本元素的矩形。
 /// @param node 实例节点（TextNode）。
@@ -216,7 +240,6 @@ void TextElement::layout(const LayoutContext& ctx, const QRectF& rect, Node& nod
 {
     Q_UNUSED(ctx)
     node.rect = rect;
-    static_cast<TextNode&>(node).contentRect = contentRect(rect, node.style);
 }
 
 /// @brief 基线钩子：首行文字基线 = margin-top + border-width + padding-top + ascent。
@@ -254,56 +277,46 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx, const Node
     painter->setFont(font);
     painter->setPen(textNode.color);
 
-    const QRectF& textRect = textNode.contentRect;
+    // 内容区域现算：contentRect 为纯函数，输入 node.rect/node.style 均在手边，
+    // 无需经节点缓存传递（消除 layout→render 的隐式时序依赖）。
+    const QRectF textRect = contentRect(node.rect, node.style);
 
-    bool needClip = node.style.width >= 0 || node.style.height >= 0;
+    bool needClip = node.style.width.has_value() || node.style.height.has_value();
     if (needClip) {
         painter->save();
         painter->setClipRect(textRect);
     }
 
     QFontMetricsF fm(font);
-    double maxW = m_maxWidth;
-    if (textRect.width() > 0 && (maxW < 0 || textRect.width() < maxW))
+    // 有效行宽：m_maxWidth 与内容区宽度取较小者（两者皆可缺席）。
+    Optional<double> maxW = m_maxWidth;
+    if (textRect.width() > 0 && (!maxW || textRect.width() < *maxW))
         maxW = textRect.width();
 
     double x = textRect.x();
     double y = textRect.y();
 
-    if (m_wrap && maxW > 0) {
+    if (m_wrap && maxW && *maxW > 0) {
         QTextLayout layout(text, font);
         QTextOption option;
         option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
-        if (m_hAlign == "center")
-            option.setAlignment(Qt::AlignHCenter);
-        else if (m_hAlign == "right")
-            option.setAlignment(Qt::AlignRight);
-        else
-            option.setAlignment(Qt::AlignLeft);
+        option.setAlignment(toQtAlignment(m_hAlign));
         layout.setTextOption(option);
         layout.beginLayout();
         while (true) {
             QTextLine line = layout.createLine();
             if (!line.isValid())
                 break;
-            line.setLineWidth(maxW);
+            line.setLineWidth(*maxW);
         }
         layout.endLayout();
 
         double totalHeight = layout.boundingRect().height();
-        double startY = y;
-        if (m_vAlign == "center")
-            startY = y + (textRect.height() - totalHeight) / 2.0;
-        else if (m_vAlign == "bottom")
-            startY = y + textRect.height() - totalHeight;
+        double startY = vAligned(y, textRect.height(), totalHeight, m_vAlign);
 
         for (int i = 0; i < layout.lineCount(); ++i) {
             QTextLine line = layout.lineAt(i);
-            double lineX = x;
-            if (m_hAlign == "center")
-                lineX = x + (textRect.width() - line.naturalTextWidth()) / 2.0;
-            else if (m_hAlign == "right")
-                lineX = x + textRect.width() - line.naturalTextWidth();
+            double lineX = hAligned(x, textRect.width(), line.naturalTextWidth(), m_hAlign);
             line.draw(painter, QPointF(lineX, startY + line.y()));
         }
     } else {
@@ -311,15 +324,8 @@ void TextElement::render(QPainter* painter, const LayoutContext& ctx, const Node
         double textW = bounding.width();
         double textH = bounding.height();
 
-        if (m_hAlign == "center")
-            x = textRect.x() + (textRect.width() - textW) / 2.0;
-        else if (m_hAlign == "right")
-            x = textRect.x() + textRect.width() - textW;
-
-        if (m_vAlign == "center")
-            y = textRect.y() + (textRect.height() - textH) / 2.0;
-        else if (m_vAlign == "bottom")
-            y = textRect.y() + textRect.height() - textH;
+        x = hAligned(textRect.x(), textRect.width(), textW, m_hAlign);
+        y = vAligned(textRect.y(), textRect.height(), textH, m_vAlign);
 
         painter->drawText(QPointF(x, y + fm.ascent()), text);
     }

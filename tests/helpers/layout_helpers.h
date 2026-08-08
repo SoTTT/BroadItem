@@ -9,6 +9,7 @@
 #include <broaditem/core/LayoutEngine.h>
 #include <broaditem/core/Node.h>
 #include <broaditem/element/Element.h>
+#include <broaditem/compat/QtCompat.h>
 
 #include <QRectF>
 #include <memory>
@@ -32,7 +33,7 @@ struct LayoutResult {
 /// @return 布局结果包；解析或物化失败时返回 nullptr。
 inline std::unique_ptr<LayoutResult> parseAndLayout(const QString& xmlStr, QRectF layoutRect = QRectF(0, 0, 300, 200))
 {
-    auto result = std::make_unique<LayoutResult>();
+    auto result = makeUnique<LayoutResult>();
     result->root = XmlLayoutParser::parseString(xmlStr);
     if (!result->root)
         return nullptr;

@@ -445,8 +445,8 @@ children without a baseline fall back to bottom-edge alignment).
 cell — grid cell. Must be inside grid.
 Contains exactly one child layout element.
 
-v-align: top | center | bottom  (default: top)
-h-align: left | center | right  (default: left)
+v-align: top | center | bottom  (default: center)
+h-align: left | center | right  (default: center)
       </xs:documentation>
     </xs:annotation>
     <xs:complexType>
@@ -454,8 +454,8 @@ h-align: left | center | right  (default: left)
         <xs:group ref="layoutChildren" minOccurs="0" maxOccurs="1"/>
       </xs:sequence>
       <xs:attributeGroup ref="renderableAttrs"/>
-      <xs:attribute name="v-align" type="vAlignType" default="top"/>
-      <xs:attribute name="h-align" type="hAlignType" default="left"/>
+      <xs:attribute name="v-align" type="vAlignType" default="center"/>
+      <xs:attribute name="h-align" type="hAlignType" default="center"/>
     </xs:complexType>
   </xs:element>
 

@@ -42,14 +42,14 @@ void setMainConstraint(LayoutConstraints& c, Axis axis, double value)
         c.availableHeight = value;
 }
 
-/// @brief 显式指定的主轴尺寸（style 快照，< 0 表示未显式指定）。
-double explicitMainSize(const ResolvedStyle& style, Axis axis)
+/// @brief 显式指定的主轴尺寸（style 快照，空表示未显式指定）。
+Optional<double> explicitMainSize(const ResolvedStyle& style, Axis axis)
 {
     return axis == Axis::Horizontal ? style.width : style.height;
 }
 
-/// @brief 显式指定的交叉轴尺寸（style 快照，< 0 表示未显式指定）。
-double explicitCrossSize(const ResolvedStyle& style, Axis axis)
+/// @brief 显式指定的交叉轴尺寸（style 快照，空表示未显式指定）。
+Optional<double> explicitCrossSize(const ResolvedStyle& style, Axis axis)
 {
     return axis == Axis::Horizontal ? style.height : style.width;
 }
@@ -64,12 +64,14 @@ const QSet<QString>& linearLayoutAttributes()
 }
 
 void parseAttributes(const QDomElement& xml, LiteralHas hasLiteral, LiteralGet literal,
-                     QString& mainAlign, QString& crossAlign, double& space, bool& mainStretch)
+                     Axis axis, MainAlign& mainAlign, CrossAlign& crossAlign,
+                     double& space, bool& mainStretch)
 {
     if (hasLiteral(xml, "main-align"))
-        mainAlign = literal(xml, "main-align", QString());
+        mainAlign = parseMainAlign(literal(xml, "main-align", QString()), mainAlign);
     if (hasLiteral(xml, "cross-align"))
-        crossAlign = literal(xml, "cross-align", QString());
+        crossAlign = parseCrossAlign(literal(xml, "cross-align", QString()), crossAlign,
+                                     axis == Axis::Horizontal);
     if (hasLiteral(xml, "space"))
         Element::validateDouble(literal(xml, "space", QString()), "space", space);
     if (hasLiteral(xml, "main-stretch")) {
@@ -79,7 +81,7 @@ void parseAttributes(const QDomElement& xml, LiteralHas hasLiteral, LiteralGet l
 }
 
 MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node,
-                      Axis axis, const QString& crossAlign, double space, bool mainStretch)
+                      Axis axis, CrossAlign crossAlign, double space, bool mainStretch)
 {
     double totalMain = 0;
     double maxCross = 0;
@@ -88,15 +90,15 @@ MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constra
     const double decoW = RenderableElement::boxModelWidth(node.style);
     const double decoH = RenderableElement::boxModelHeight(node.style);
 
-    if (constraints.availableWidth > 0)
-        childConstraints.availableWidth = std::max(0.0, constraints.availableWidth - decoW);
-    if (constraints.availableHeight > 0)
-        childConstraints.availableHeight = std::max(0.0, constraints.availableHeight - decoH);
+    if (constraints.availableWidth)
+        childConstraints.availableWidth = std::max(0.0, *constraints.availableWidth - decoW);
+    if (constraints.availableHeight)
+        childConstraints.availableHeight = std::max(0.0, *constraints.availableHeight - decoH);
 
     const auto& children = node.children;
 
     // baseline 交叉轴模式：仅水平轴（RowLayout）生效，内容交叉轴尺寸 = 最大基线 + 最大基线以下高度
-    const bool baselineMode = (axis == Axis::Horizontal && crossAlign == "baseline");
+    const bool baselineMode = (axis == Axis::Horizontal && crossAlign == CrossAlign::Baseline);
     double maxBaseline = 0;
     double maxBelowBaseline = 0;
 
@@ -142,29 +144,40 @@ MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constra
     return MeasureResult{makeExtent(axis, totalMain + decoMain, maxCross + decoCross)};
 }
 
-void distributeMainAxis(const QString& mainAlign, double extraSpace, size_t count,
+void distributeMainAxis(MainAlign mainAlign, double extraSpace, size_t count,
                         double baseSpace, double& startPos, double& spacing)
 {
     spacing = baseSpace;
-    if (mainAlign == "center") {
+    switch (mainAlign) {
+    case MainAlign::Center:
         startPos += extraSpace / 2.0;
-    } else if (mainAlign == "end") {
+        break;
+    case MainAlign::End:
         startPos += extraSpace;
-    } else if (mainAlign == "space-between" && count > 1) {
-        spacing = baseSpace + extraSpace / (static_cast<double>(count) - 1);
-    } else if (mainAlign == "space-around") {
+        break;
+    case MainAlign::SpaceBetween:
+        if (count > 1)
+            spacing = baseSpace + extraSpace / (static_cast<double>(count) - 1);
+        break;
+    case MainAlign::SpaceAround: {
         double perItem = extraSpace / static_cast<double>(count);
         startPos += perItem / 2.0;
         spacing = baseSpace + perItem;
-    } else if (mainAlign == "space-evenly") {
+        break;
+    }
+    case MainAlign::SpaceEvenly: {
         double perGap = extraSpace / static_cast<double>(count + 1);
         startPos += perGap;
         spacing = baseSpace + perGap;
+        break;
+    }
+    case MainAlign::Start:
+        break;
     }
 }
 
 void layoutChildren(const LayoutContext& ctx, const QRectF& contentRect, Node& node,
-                    Axis axis, const QString& mainAlign, const QString& crossAlign,
+                    Axis axis, MainAlign mainAlign, CrossAlign crossAlign,
                     double space, bool mainStretch)
 {
     auto& children = node.children;
@@ -176,11 +189,11 @@ void layoutChildren(const LayoutContext& ctx, const QRectF& contentRect, Node& n
     LayoutConstraints childConstraints;
     // 主轴不设约束，交叉轴约束为内容区交叉轴尺寸
     if (axis == Axis::Horizontal) {
-        childConstraints.availableWidth = -1;
+        childConstraints.availableWidth = nullopt;
         childConstraints.availableHeight = contentRect.height();
     } else {
         childConstraints.availableWidth = contentRect.width();
-        childConstraints.availableHeight = -1;
+        childConstraints.availableHeight = nullopt;
     }
 
     if (mainStretch) {
@@ -190,7 +203,7 @@ void layoutChildren(const LayoutContext& ctx, const QRectF& contentRect, Node& n
             auto result = children[i]->element->measure(ctx, childConstraints, *children[i]);
             childSizes.push_back(result.intrinsicSize);
             maxChildMain = std::max(maxChildMain, mainExtent(result.intrinsicSize, axis));
-            hasExplicitMain.push_back(explicitMainSize(children[i]->style, axis) >= 0);
+            hasExplicitMain.push_back(explicitMainSize(children[i]->style, axis).has_value());
         }
         // 用 maxChildMain 作为主轴约束重新测量（使换行文本重新计算交叉轴尺寸）；
         // 显式指定主轴尺寸的子元素不被拉伸，但仍按同一约束测量
@@ -224,7 +237,7 @@ void layoutChildren(const LayoutContext& ctx, const QRectF& contentRect, Node& n
     double offset = contentMainPos;
 
     // baseline 交叉轴模式：仅水平轴生效；不做拉伸，先求各子基线与最大基线（无基线回退为底边对齐）
-    const bool baselineMode = (axis == Axis::Horizontal && crossAlign == "baseline");
+    const bool baselineMode = (axis == Axis::Horizontal && crossAlign == CrossAlign::Baseline);
     std::vector<double> childBaselines;
     double maxBaseline = 0;
     if (baselineMode) {
@@ -247,18 +260,27 @@ void layoutChildren(const LayoutContext& ctx, const QRectF& contentRect, Node& n
 
         // 交叉轴拉伸：cross-align=stretch 或子元素自报恒填充（fillsCrossAxis）；
         // 内层显式交叉轴尺寸豁免判断不受 fillsCrossAxis 影响
-        if (crossAlign == "stretch" || children[i]->element->fillsCrossAxis()) {
-            if (explicitCrossSize(children[i]->style, axis) < 0)
+        if (crossAlign == CrossAlign::Stretch || children[i]->element->fillsCrossAxis()) {
+            if (!explicitCrossSize(children[i]->style, axis).has_value())
                 childCross = contentCrossSize;
         }
 
         double crossPos = contentCrossPos;
-        if (crossAlign == "center") {
+        switch (crossAlign) {
+        case CrossAlign::Center:
             crossPos = contentCrossPos + (contentCrossSize - childCross) / 2.0;
-        } else if (crossAlign == "end") {
+            break;
+        case CrossAlign::End:
             crossPos = contentCrossPos + contentCrossSize - childCross;
-        } else if (baselineMode) {
-            crossPos = contentCrossPos + (maxBaseline - childBaselines[i]);
+            break;
+        case CrossAlign::Baseline:
+            // 防御：垂直轴经 C++ 直造传入 Baseline 时保持 start 行为
+            if (baselineMode)
+                crossPos = contentCrossPos + (maxBaseline - childBaselines[i]);
+            break;
+        case CrossAlign::Start:
+        case CrossAlign::Stretch:
+            break;
         }
 
         children[i]->element->layout(ctx, makeRect(axis, offset, crossPos, childMain, childCross), *children[i]);

@@ -2,6 +2,7 @@
 
 #include <broaditem/context/LayoutContext.h>
 #include <broaditem/core/Node.h>
+#include <broaditem/element/Element.h>
 #include <QRectF>
 #include <QSizeF>
 #include <QPainter>
@@ -21,7 +22,7 @@ class LayoutEngine {
 public:
     /// @brief 物化模板树：返回实例节点树根。
     /// 根为控制元素时取展开结果的第一个节点；无法物化时返回 nullptr。
-    static std::unique_ptr<Node> materialize(const ElementPtr& root, const LayoutContext& ctx);
+    static std::unique_ptr<Node> materialize(const ConstElementPtr& root, const LayoutContext& ctx);
     /// @brief 在根节点上运行测量阶段，计算固有尺寸。
     static QSizeF measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node);
     /// @brief 运行布局阶段，在给定的矩形内分配位置和尺寸。

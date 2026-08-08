@@ -1,4 +1,6 @@
 #include <broaditem/element/ContainerElement.h>
+#include <broaditem/compat/QtCompat.h>
+#include <broaditem/compat/Optional.h>
 #include <QPainter>
 #include <QDomElement>
 
@@ -19,7 +21,7 @@ void ContainerElement::parse(const QDomElement& xml)
 /// @return 新创建的实例节点。
 std::unique_ptr<Node> ContainerElement::materialize(const LayoutContext& ctx) const
 {
-    auto node = std::make_unique<Node>();
+    auto node = makeUnique<Node>();
     node->element = this;
     resolveStyle(ctx, node->style);
     if (m_content)
@@ -38,10 +40,10 @@ MeasureResult ContainerElement::measure(const LayoutContext& ctx, const LayoutCo
     double decoW = boxModelWidth(node.style);
     double decoH = boxModelHeight(node.style);
 
-    if (constraints.availableWidth > 0)
-        childConstraints.availableWidth = std::max(0.0, constraints.availableWidth - decoW);
-    if (constraints.availableHeight > 0)
-        childConstraints.availableHeight = std::max(0.0, constraints.availableHeight - decoH);
+    if (constraints.availableWidth)
+        childConstraints.availableWidth = std::max(0.0, *constraints.availableWidth - decoW);
+    if (constraints.availableHeight)
+        childConstraints.availableHeight = std::max(0.0, *constraints.availableHeight - decoH);
 
     double contentW = 0;
     double contentH = 0;
@@ -68,7 +70,7 @@ void ContainerElement::layout(const LayoutContext& ctx, const QRectF& rect, Node
     QRectF cr = contentRect(rect, node.style);
     LayoutConstraints childConstraints;
     childConstraints.availableWidth = cr.width();
-    childConstraints.availableHeight = -1;
+    childConstraints.availableHeight = nullopt;
 
     double y = cr.y();
     for (const auto& child : node.children) {

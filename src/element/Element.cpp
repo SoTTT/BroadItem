@@ -83,6 +83,18 @@ bool Element::fillsCrossAxis() const
     return false;
 }
 
+/// @brief 基类挂载默认实现：忽略（叶子/无关类型走不到这里，见头文件契约）。
+void Element::addParsedChild(const ElementPtr& child)
+{
+    Q_UNUSED(child)
+}
+
+/// @brief 基类校验默认实现：通过。
+bool Element::validateChildren() const
+{
+    return true;
+}
+
 /// @brief 安全地将字符串解析为 double。
 /// @param value 要解析的字符串。
 /// @param defaultVal 解析失败时的返回值。
@@ -116,9 +128,8 @@ bool Element::parseBool(const QString& value)
 /// @return propName 是 bindPath 的前缀匹配时返回 true。
 bool Element::matchesProperty(const QString& bindPath, const QString& propName)
 {
-    return bindPath == propName
-        || bindPath.startsWith(propName + ".")
-        || bindPath.startsWith(propName + "[");
+    // 前缀匹配语义唯一实现在 Expression::pathMatches()。
+    return Expression::pathMatches(bindPath, propName);
 }
 
 /// @brief 通过与 supportedAttributes() 比较来报告未知 XML 属性（BI-P-011）。
@@ -331,6 +342,20 @@ double Element::resolveDouble(const QString& attribute, const LayoutContext& ctx
     if (!v.isValid())
         return fallback;
     double out = fallback;
+    if (!validateDouble(v.toString(), bindingFor(attribute)->attributeName(), out,
+                        bindingFor(attribute)->path()))
+        return fallback;
+    return out;
+}
+
+/// @brief 求值绑定为可空 double：无效绑定或转换失败返回可空 fallback。
+Optional<double> Element::resolveDouble(const QString& attribute, const LayoutContext& ctx,
+                                        const Optional<double>& fallback) const
+{
+    QVariant v = boundValue(attribute, ctx);
+    if (!v.isValid())
+        return fallback;
+    double out = fallback.value_or(0);
     if (!validateDouble(v.toString(), bindingFor(attribute)->attributeName(), out,
                         bindingFor(attribute)->path()))
         return fallback;

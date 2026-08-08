@@ -1,5 +1,7 @@
 #include <broaditem/element/layout/GridLayout.h>
+#include <broaditem/element/layout/CellElement.h>
 #include <broaditem/diagnostics/Diagnostics.h>
+#include <broaditem/compat/QtCompat.h>
 #include <algorithm>
 #include <QDomElement>
 
@@ -53,19 +55,44 @@ void GridLayout::parse(const QDomElement& xml)
     }
 }
 
+/// @brief 解析期收尾校验：子元素必须全为 \<cell\> 且数量等于 columns×rows
+///        （BI-P-008/009 由 parser 迁入；cell 判定的一处 dynamic_cast 局限在本类内部）。
+/// @return 校验通过返回 true。
+bool GridLayout::validateChildren() const
+{
+    int cellCount = 0;
+    for (const auto& child : m_children) {
+        if (std::dynamic_pointer_cast<CellElement>(child)) {
+            cellCount++;
+        } else {
+            Diagnostics::reportParse(ErrorCode::GridNonCellChild,
+                                     QStringLiteral("GridLayout: child must be <cell>"));
+            return false;
+        }
+    }
+    const int expected = m_columns * m_rows;
+    if (cellCount != expected) {
+        Diagnostics::reportParse(ErrorCode::GridCellCountMismatch,
+                                 QStringLiteral("GridLayout: expected %1 cells (%2x%3), got %4")
+                                     .arg(expected).arg(m_columns).arg(m_rows).arg(cellCount));
+        return false;
+    }
+    return true;
+}
+
 /// @brief 物化：创建 GridNode 并拼接所有模板子元素的物化结果。
 /// @param ctx 布局上下文。
 /// @return 新创建的 GridNode 实例节点。
 std::unique_ptr<Node> GridLayout::materialize(const LayoutContext& ctx) const
 {
-    auto node = std::make_unique<GridNode>();
+    auto node = makeUnique<GridNode>();
     node->element = this;
     resolveStyle(ctx, node->style);
     materializeChildrenInto(ctx, *node);
     return node;
 }
 
-/// @brief 测量网格：从子节点尺寸计算列宽和行高，缓存进 GridNode。
+/// @brief 测量网格：从子节点尺寸计算列宽和行高，缓存进 GridNode（并置位 measured 标记）。
 /// @param ctx 布局上下文。
 /// @param constraints 可用宽高约束。
 /// @param node 实例节点（GridNode）。
@@ -78,10 +105,10 @@ MeasureResult GridLayout::measure(const LayoutContext& ctx, const LayoutConstrai
     double decoH = boxModelHeight(node.style);
 
     LayoutConstraints childConstraints = constraints;
-    if (constraints.availableWidth > 0)
-        childConstraints.availableWidth = std::max(0.0, constraints.availableWidth - decoW);
-    if (constraints.availableHeight > 0)
-        childConstraints.availableHeight = std::max(0.0, constraints.availableHeight - decoH);
+    if (constraints.availableWidth)
+        childConstraints.availableWidth = std::max(0.0, *constraints.availableWidth - decoW);
+    if (constraints.availableHeight)
+        childConstraints.availableHeight = std::max(0.0, *constraints.availableHeight - decoH);
 
     gridNode.colWidths.assign(m_columns, 0.0);
     gridNode.rowHeights.assign(m_rows, 0.0);
@@ -108,6 +135,7 @@ MeasureResult GridLayout::measure(const LayoutContext& ctx, const LayoutConstrai
     totalHeight += (m_rows - 1) * rowSpace();
 
     QSizeF sz(totalWidth + decoW, totalHeight + decoH);
+    gridNode.measured = true;
     return MeasureResult{sz};
 }
 
@@ -119,17 +147,26 @@ void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect, Node& node
 {
     auto& gridNode = static_cast<GridNode&>(node);
 
+    // 时序守卫：缓存须由 measure 先行填充（管线正常路径恒成立，
+    // 乱序直调 LayoutEngine 时在此显式失败，而非空 vector 越界 UB）
+    Q_ASSERT(gridNode.measured);
+
     node.rect = rect;
 
     QRectF cr = contentRect(rect, node.style);
 
+    // 拷出局部副本分配剩余空间：缓存保持 measure 的纯输出不被改写，
+    // 使同一 measure 之后 layout 可重入（重复 layout 不会重复膨胀列宽）。
+    std::vector<double> colWidths = gridNode.colWidths;
+    std::vector<double> rowHeights = gridNode.rowHeights;
+
     double measuredWidth = 0;
-    for (double w : gridNode.colWidths)
+    for (double w : colWidths)
         measuredWidth += w;
     measuredWidth += (m_columns - 1) * columnSpace();
 
     double measuredHeight = 0;
-    for (double h : gridNode.rowHeights)
+    for (double h : rowHeights)
         measuredHeight += h;
     measuredHeight += (m_rows - 1) * rowSpace();
 
@@ -138,12 +175,12 @@ void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect, Node& node
 
     if (extraW > 0 && m_columns > 0) {
         double add = extraW / m_columns;
-        for (double& w : gridNode.colWidths)
+        for (double& w : colWidths)
             w += add;
     }
     if (extraH > 0 && m_rows > 0) {
         double add = extraH / m_rows;
-        for (double& h : gridNode.rowHeights)
+        for (double& h : rowHeights)
             h += add;
     }
 
@@ -156,11 +193,11 @@ void GridLayout::layout(const LayoutContext& ctx, const QRectF& rect, Node& node
             if (idx >= static_cast<int>(children.size()))
                 break;
 
-            QRectF cellRect(x, y, gridNode.colWidths[col], gridNode.rowHeights[row]);
+            QRectF cellRect(x, y, colWidths[col], rowHeights[row]);
             children[idx]->element->layout(ctx, cellRect, *children[idx]);
-            x += gridNode.colWidths[col] + columnSpace();
+            x += colWidths[col] + columnSpace();
         }
-        y += gridNode.rowHeights[row] + rowSpace();
+        y += rowHeights[row] + rowSpace();
     }
 }
 

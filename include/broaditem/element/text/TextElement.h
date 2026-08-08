@@ -1,14 +1,15 @@
 #pragma once
 
 #include <broaditem/element/SizedElement.h>
+#include <broaditem/element/Alignment.h>
+#include <broaditem/compat/Optional.h>
 #include <broaditem/expression/Binding.h>
 
 namespace BroadItem {
 
-/// @brief TextElement 的实例节点，持有物化时解析的文本与布局缓存。
+/// @brief TextElement 的实例节点，持有物化时解析的文本与样式快照。
 struct TextNode : Node {
     QString text;        ///< 物化时解析后的文本。
-    QRectF contentRect;  ///< 布局阶段缓存的内容区域。
     QColor color = Qt::black;   ///< 物化时求值的文字颜色。
     double fontSize = 12;       ///< 物化时求值的字体大小。
     bool bold = false;          ///< 物化时求值的加粗。
@@ -43,12 +44,12 @@ private:
     bool m_hasContentLiteral = false; ///< 是否提供了字面量 content。
     Binding m_binding{"b:content", QString{}}; ///< b:content 属性的绑定。
     QFont m_font;                ///< 渲染所用的字体。
-    QString m_vAlign = "top"; ///< 垂直对齐（"top"、"center"、"bottom"）。
-    QString m_hAlign = "left";   ///< 水平对齐（"left"、"center"、"right"）。
+    VAlign m_vAlign = VAlign::Top;   ///< 垂直对齐。
+    HAlign m_hAlign = HAlign::Left;  ///< 水平对齐。
     bool m_bold = false;         ///< 是否加粗。
     bool m_underLine = false;    ///< 是否下划线。
     bool m_wrap = false;         ///< 是否在元素宽度处自动换行。
-    double m_maxWidth = -1;      ///< 换行的最大宽度（-1 = 无限制）。
+    Optional<double> m_maxWidth;   ///< 换行的最大宽度（空 = 无限制）。
     double m_fontSize = kDefaultFontSize;  ///< 字号（px）。
     QString m_fontFamily;        ///< 字体族名。
     QColor m_color = Qt::black;  ///< 文字颜色。

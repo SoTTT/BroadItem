@@ -129,8 +129,8 @@ private slots:
         LayoutContext lctx{&r.propCtx};
         r.node = LayoutEngine::materialize(r.root, lctx);
         QVERIFY(r.node != nullptr);
-        QCOMPARE(r.node->style.width, 40.0);
-        QCOMPARE(r.node->style.height, 2.0);
+        QCOMPARE(r.node->style.width.value_or(0), 40.0);
+        QCOMPARE(r.node->style.height.value_or(0), 2.0);
         QVERIFY(r.node->style.background.enabled);
         QCOMPARE(r.node->style.background.color, QColor(QStringLiteral("#aabbcc")));
         QVERIFY(r.root->bindsProperty(QStringLiteral("w")));

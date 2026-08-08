@@ -215,6 +215,20 @@ private slots:
 
     // ---------- 路径：下标 ----------
 
+    /// @brief 病态路径统一判非法——语法权威在 Expression，
+    /// 运行期不再各自解释（"device." 曾为运行期静默接受的分歧点）。
+    void testMapPathInvalidSyntax()
+    {
+        BroadItem::MapPropertyContext ctx;
+        QVariantMap device;
+        device["cpu"] = "45%";
+        ctx.setProperty("device", device);
+
+        // 结尾点号与 ']' 后裸键均为语法错误，统一返回无效值（伴随 BI-R-005 诊断）。
+        QVERIFY(!ctx.property("device.").isValid());
+        QVERIFY(!ctx.property("device[0]cpu").isValid());
+    }
+
     /// @brief 测试下标路径读取列表元素
     void testMapPathBracket()
     {

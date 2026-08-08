@@ -16,10 +16,17 @@ const QSet<QString>& SizedElement::resolvedAttributes() const
 void SizedElement::parse(const QDomElement& xml)
 {
     Element::parse(xml);
-    if (hasLiteralAttribute(xml, "width"))
-        m_width = parseDouble(literalAttribute(xml, "width"), -1);
-    if (hasLiteralAttribute(xml, "height"))
-        m_height = parseDouble(literalAttribute(xml, "height"), -1);
+    // 保留原静默回退行为：非法/负值字面量视为未指定（不进入 Optional）。
+    if (hasLiteralAttribute(xml, "width")) {
+        const double w = parseDouble(literalAttribute(xml, "width"), -1);
+        if (w >= 0)
+            m_width = w;
+    }
+    if (hasLiteralAttribute(xml, "height")) {
+        const double h = parseDouble(literalAttribute(xml, "height"), -1);
+        if (h >= 0)
+            m_height = h;
+    }
 }
 
 void SizedElement::resolveSize(const LayoutContext& ctx, ResolvedStyle& out) const
@@ -28,6 +35,11 @@ void SizedElement::resolveSize(const LayoutContext& ctx, ResolvedStyle& out) con
     out.height = m_height;
     out.width = resolveDouble("width", ctx, out.width);
     out.height = resolveDouble("height", ctx, out.height);
+    // 负值（非法字面量/绑定值）一律视为未指定，与 parse 侧过滤对齐
+    if (out.width && *out.width < 0)
+        out.width.reset();
+    if (out.height && *out.height < 0)
+        out.height.reset();
 }
 
 } // namespace BroadItem

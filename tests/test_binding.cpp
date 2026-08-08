@@ -56,9 +56,12 @@ private slots:
         const auto& expr = binding.expression();
         const auto segs = expr.segments();
         QCOMPARE(segs.size(), 3);
-        QCOMPARE(segs.at(0), QString("items"));
-        QCOMPARE(segs.at(1), QString("0"));
-        QCOMPARE(segs.at(2), QString("name"));
+        QVERIFY(!segs.at(0).isIndex());
+        QCOMPARE(segs.at(0).key(), QString("items"));
+        QVERIFY(segs.at(1).isIndex());
+        QCOMPARE(segs.at(1).index(), 0);
+        QVERIFY(!segs.at(2).isIndex());
+        QCOMPARE(segs.at(2).key(), QString("name"));
     }
 
     void testBindingAttributeName()

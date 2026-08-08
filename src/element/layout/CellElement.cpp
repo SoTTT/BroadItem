@@ -18,9 +18,17 @@ void CellElement::parse(const QDomElement& xml)
     ContainerElement::parse(xml);
     validateAttributes(xml);
     if (hasLiteralAttribute(xml, "v-align"))
-        m_vAlign = literalAttribute(xml, "v-align");
+        m_vAlign = parseVAlign(literalAttribute(xml, "v-align"), m_vAlign);
     if (hasLiteralAttribute(xml, "h-align"))
-        m_hAlign = literalAttribute(xml, "h-align");
+        m_hAlign = parseHAlign(literalAttribute(xml, "h-align"), m_hAlign);
+}
+
+/// @brief 解析期挂载：保留第一个子元素作为内容，多余忽略（现状行为）。
+/// @param child 解析完成的子元素。
+void CellElement::addParsedChild(const ElementPtr& child)
+{
+    if (!content())
+        setContent(child);
 }
 
 /// @brief 在单元格内布局子节点：多节点视为垂直堆叠块，块整体按对齐配置定位，
@@ -49,18 +57,8 @@ void CellElement::layout(const LayoutContext& ctx, const QRectF& rect, Node& nod
         blockH += result.intrinsicSize.height();
     }
 
-    double cx = contentArea.x();
-    double cy = contentArea.y();
-
-    if (m_hAlign == "center")
-        cx = contentArea.x() + (contentArea.width() - blockW) / 2.0;
-    else if (m_hAlign == "right")
-        cx = contentArea.x() + contentArea.width() - blockW;
-
-    if (m_vAlign == "center")
-        cy = contentArea.y() + (contentArea.height() - blockH) / 2.0;
-    else if (m_vAlign == "bottom")
-        cy = contentArea.y() + contentArea.height() - blockH;
+    double cx = hAligned(contentArea.x(), contentArea.width(), blockW, m_hAlign);
+    double cy = vAligned(contentArea.y(), contentArea.height(), blockH, m_vAlign);
 
     double y = cy;
     for (size_t i = 0; i < node.children.size(); ++i) {

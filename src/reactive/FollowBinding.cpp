@@ -5,6 +5,8 @@
 #include <broaditem/reactive/ReactiveBinding.h>
 #include <broaditem/reactive/ReactiveProperty.h>
 
+#include "ReentrancyGuard.h"
+
 #include <QDebug>
 #include <QGraphicsObject>
 
@@ -153,7 +155,7 @@ void FollowBinding::sync()
         return;
     }
 
-    m_updating = true;
+    ReentrancyGuard guard(m_updating);
     const QPointF targetScenePos = m_leader->scenePos() + m_offset;
 
     QGraphicsItem* parent = m_follower->parentItem();
@@ -162,7 +164,6 @@ void FollowBinding::sync()
                                        : targetScenePos;
 
     m_follower->setPos(targetLocalPos);
-    m_updating = false;
 }
 
 /// @brief 获取 leader 对象。

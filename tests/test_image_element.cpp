@@ -63,9 +63,11 @@ private:
         if (type >= QtWarningMsg && s_out)
             s_out->append(msg);
     }
-    static inline QStringList* s_out = nullptr;  ///< 当前捕获目标（单线程测试假设）。
+    static QStringList* s_out;               ///< 当前捕获目标（单线程测试假设）。
     QtMessageHandler m_prev;                     ///< 被替换的原 handler，析构时恢复。
 };
+
+QStringList* WarningCapture::s_out = nullptr;
 
 class TestImageElement : public QObject {
     Q_OBJECT

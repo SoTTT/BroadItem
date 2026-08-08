@@ -39,6 +39,7 @@ const CodeInfo kCodeTable[] = {
     { "BI-P-021", Severity::Warning, Recovery::Skip    },  // RegistryFileSkipped
     { "BI-P-022", Severity::Error,   Recovery::Abort   },  // RootChildDiscarded
     { "BI-P-023", Severity::Warning, Recovery::Default },  // BindingNotSupported
+    { "BI-P-024", Severity::Error,   Recovery::Default },  // InvalidEnumLiteral
     // ---- 运行时（BI-R-xxx） ----
     { "BI-R-001", Severity::Error,   Recovery::Default },  // ObjectFirstKeyMissing
     { "BI-R-002", Severity::Error,   Recovery::Default },  // NestedKeyMissing
@@ -55,7 +56,7 @@ const CodeInfo kCodeTable[] = {
 
 // 码表与 ErrorCode 枚举按声明顺序一一对应：新增/插入枚举值时必须同步维护码表，
 // 否则此断言编译失败，防止错位导致静默错配或越界。
-static_assert(std::size(kCodeTable) == static_cast<size_t>(ErrorCode::BoundValueTypeError) + 1,
+static_assert(sizeof(kCodeTable) / sizeof(kCodeTable[0]) == static_cast<size_t>(ErrorCode::BoundValueTypeError) + 1,
               "kCodeTable 与 ErrorCode 枚举项数不一致");
 
 const CodeInfo& infoOf(ErrorCode code)
@@ -87,8 +88,8 @@ void DefaultErrorCollector::report(const Diagnostic& diagnostic)
     QString text = QStringLiteral("[%1] ").arg(codeToString(diagnostic.code));
     if (!diagnostic.file.isEmpty()) {
         text += diagnostic.file;
-        if (diagnostic.line > 0)
-            text += QStringLiteral(":%1:%2").arg(diagnostic.line).arg(diagnostic.column);
+        if (diagnostic.line)
+            text += QStringLiteral(":%1:%2").arg(*diagnostic.line).arg(*diagnostic.column);
         text += QStringLiteral(": ");
     }
     if (!diagnostic.elementPath.isEmpty())
@@ -155,7 +156,7 @@ void popElementSegment()
 }
 
 void reportParse(ErrorCode code, const QString& message,
-                 const QString& file, int line, int column)
+                 const QString& file, const Optional<int>& line, const Optional<int>& column)
 {
     Diagnostic d;
     d.code = code;

@@ -6,6 +6,7 @@
 #include <broaditem/reactive/ReactiveBinding.h>
 #include <broaditem/reactive/ReactiveProperty.h>
 
+#include "ReentrancyGuard.h"
 #include "ZOrder.h"
 
 #include <QGraphicsScene>
@@ -122,18 +123,18 @@ AnchorDecorator* AnchorDecorator::create(QGraphicsScene* scene,
     // z 值层级约定见 ZOrder.h：装饰器外框与连接线同为 z=1
     decorator->setZValue(kDecorationZValue);
 
+    // 观察者回调：避免在 ReactiveBinding::evaluate 栈内同步调用 computeAndApplyGeometry，
+    // 否则调整 decorated pos 会触发同一 observer 重入，被判定为 cycle。
+    const ReactiveBinding::Transform resyncCallback = [decorator](const QVariant&) -> QVariant {
+        if (!decorator->m_inGeometryUpdate) {
+            QMetaObject::invokeMethod(decorator, "resync", Qt::QueuedConnection);
+        }
+        return {};
+    };
+
     // 创建 pos 观察者——始终连接，因 pos 属性的 NOTIFY 信号天然存在
     decorator->m_posObserver = ReactiveBinding::createObserver(
-        decorated, Property::Pos,
-        [decorator](const QVariant&) -> QVariant {
-            // 避免在 ReactiveBinding::evaluate 栈内同步调用 computeAndApplyGeometry，
-            // 否则调整 decorated pos 会触发同一 observer 重入，被判定为 cycle。
-            if (!decorator->m_inGeometryUpdate) {
-                QMetaObject::invokeMethod(decorator, "resync", Qt::QueuedConnection);
-            }
-            return {};
-        },
-        decorator);
+        decorated, Property::Pos, resyncCallback, decorator);
 
     if (!decorator->m_posObserver) {
         qWarning() << "AnchorDecorator::create: pos observer creation failed";
@@ -142,38 +143,23 @@ AnchorDecorator* AnchorDecorator::create(QGraphicsScene* scene,
         return nullptr;
     }
 
-    // 创建 width 观察者——仅当 decorated 的 width 属性可写且带 NOTIFY 信号时
+    // 创建 width/height 观察者——仅当对应属性可写且带 NOTIFY 信号时
     // 预检避免 createObserver 因属性无效而输出 qWarning
-    if (ReactiveBinding::isValidProperty(decorated, Property::Width)) {
-        decorator->m_widthObserver = ReactiveBinding::createObserver(
-            decorated, Property::Width,
-            [decorator](const QVariant&) -> QVariant {
-                if (!decorator->m_inGeometryUpdate) {
-                    QMetaObject::invokeMethod(decorator, "resync", Qt::QueuedConnection);
-                }
-                return {};
-            },
-            decorator);
-        // width observer 创建失败不是致命错误，仅记录日志
-        if (!decorator->m_widthObserver) {
-            qWarning() << "AnchorDecorator::create: width observer creation failed";
+    const struct {
+        const QString& property;
+        ReactiveBinding** slot;
+    } observerSpecs[] = {
+        { Property::Width, &decorator->m_widthObserver },
+        { Property::Height, &decorator->m_heightObserver },
+    };
+    for (const auto& spec : observerSpecs) {
+        if (!ReactiveBinding::isValidProperty(decorated, spec.property)) {
+            continue;
         }
-    }
-
-    // 创建 height 观察者——仅当 decorated 的 height 属性可写且带 NOTIFY 信号时
-    if (ReactiveBinding::isValidProperty(decorated, Property::Height)) {
-        decorator->m_heightObserver = ReactiveBinding::createObserver(
-            decorated, Property::Height,
-            [decorator](const QVariant&) -> QVariant {
-                if (!decorator->m_inGeometryUpdate) {
-                    QMetaObject::invokeMethod(decorator, "resync", Qt::QueuedConnection);
-                }
-                return {};
-            },
-            decorator);
-        // height observer 创建失败不是致命错误，仅记录日志
-        if (!decorator->m_heightObserver) {
-            qWarning() << "AnchorDecorator::create: height observer creation failed";
+        *spec.slot = ReactiveBinding::createObserver(decorated, spec.property, resyncCallback, decorator);
+        // width/height observer 创建失败不是致命错误，仅记录日志
+        if (!*spec.slot) {
+            qWarning() << "AnchorDecorator::create: observer creation failed for property" << spec.property;
         }
     }
 
@@ -385,11 +371,10 @@ void AnchorDecorator::computeAndApplyGeometry()
 {
     // 防止 observer 回调触发递归：本函数内部会调整 decorated pos
     Q_ASSERT(!m_inGeometryUpdate);
-    m_inGeometryUpdate = true;
+    ReentrancyGuard guard(m_inGeometryUpdate);
 
     // 步骤 1：守卫检查——decorated 已销毁则跳过
     if (!m_decorated) {
-        m_inGeometryUpdate = false;
         return;
     }
 
@@ -432,8 +417,6 @@ void AnchorDecorator::computeAndApplyGeometry()
     // 步骤 8：通知 QGraphicsView 几何体已变更，触发重绘
     prepareGeometryChange();
     update();
-
-    m_inGeometryUpdate = false;
 }
 
 void AnchorDecorator::updateAnchorPositions()

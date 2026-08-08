@@ -19,6 +19,7 @@ void RowLayout::parse(const QDomElement& xml)
     validateAttributes(xml);
     // 受保护的字面量读取助手以函数指针传入（受保护访问须在派生类成员上下文中发生）
     LinearLayout::parseAttributes(xml, &hasLiteralAttribute, &literalAttribute,
+                                  LinearLayout::Axis::Horizontal,
                                   m_mainAlign, m_crossAlign, m_space, m_mainStretch);
 }
 

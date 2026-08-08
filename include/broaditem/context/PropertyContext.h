@@ -8,6 +8,7 @@
 #include <functional>
 
 #include <broaditem/diagnostics/Diagnostics.h>
+#include <broaditem/expression/Expression.h>
 
 namespace BroadItem {
 
@@ -100,76 +101,48 @@ protected:
     }
 
     /**
-     * @brief 求路径中从 from 起首段的结束位置。
+     * @brief 分段路径遍历引擎（唯一实现）。
      *
-     * 首段结束于下一个 '.' 或 '['（取两者中较小者），均无则结束于路径末尾。
-     * 供各路径遍历函数分割 "key" 段使用。
+     * 消费 Expression 产出的类型化分段，逐段执行类型断言与存在性检查，
+     * 失败时报告结构化诊断（BI-R 系列）并返回无效值。
+     * 语法校验由 Expression 统一完成，本函数不再解释路径字符串。
      *
-     * @param path 路径字符串。
-     * @param from 搜索起始位置。
-     * @return 首段结束位置（不含分隔符本身）。
-     */
-    static int segmentEnd(const QString& path, int from)
-    {
-        int dotPos = path.indexOf('.', from);
-        int bracketPos = path.indexOf('[', from);
-        if (dotPos >= 0 && bracketPos >= 0)
-            return qMin(dotPos, bracketPos);
-        if (dotPos >= 0)
-            return dotPos;
-        if (bracketPos >= 0)
-            return bracketPos;
-        return path.length();
-    }
-
-    /**
-     * @brief 纯嵌套路径遍历引擎。
-     *
-     * 从已解析的首段值出发，递进处理后续的 .key 和 [n] 操作。
-     * 每步执行类型断言，失败时报告结构化诊断（BI-R 系列）并返回无效值。
-     *
-     * @param current 首段 key 解析后的值（已通过首段查找获得）。
+     * @param current 首段解析后的值（调用方已完成首段查找）。
+     * @param segs    类型化分段序列。
+     * @param start   起始分段下标（跳过已消费的首段）。
      * @param path    原始路径字符串（仅用于结构化诊断）。
-     * @param pos     下次解析的起始位置（跳过首段 key 及消化完的 [n] 和 .）。
-     * @return 路径终点值，解析失败时返回无效 QVariant。
+     * @return 路径终点值，遍历失败时返回无效 QVariant。
      */
-    static QVariant walkNested(QVariant current, const QString& path, int pos);
+    static QVariant walkSegments(QVariant current, const std::vector<PathSegment>& segs,
+                                 size_t start, const QString& path);
 
     /**
      * @brief 基于 QObject 属性的路径遍历。
      *
-     * 解析首段 key，通过 QObject::property() 获取首段值，
-     * 消化 [n] 索引后交给 walkNested 继续遍历。
+     * 经 Expression 解析后，通过 QObject::property() 获取首段值，
+     * 余下分段交给 walkSegments。
      * 由 QPropertyContext 和 ItemPropertyContext 复用。
      *
      * @param obj  目标 QObject（不可为 nullptr）。
      * @param path 路径字符串，如 "device.cpu" 或 "items[0].name"。
-     * @return 路径终点值，解析失败时返回无效 QVariant。
+     * @return 路径终点值，解析/遍历失败时返回无效 QVariant。
      */
     static QVariant walkPathFromObject(const QObject* obj, const QString& path);
 
     /**
-     * @brief 嵌套写入辅助：沿 path[pos:] 遍历 current 的嵌套结构，在叶子位置设置 value。
+     * @brief 分段嵌套写入：沿分段遍历 current 的嵌套结构，在叶子位置设置 value。
      *
      * 每步执行类型断言，失败时返回 false 且不修改 current（无副作用）。
      *
      * @param[in,out] current 当前值引用。成功时在叶子位置被修改。
-     * @param path    原始路径（用于结构化诊断及遍历）。
-     * @param pos     起始位置（跳过首段 key）。
+     * @param segs    类型化分段序列。
+     * @param start   起始分段下标（跳过已消费的首段）。
+     * @param path    原始路径（仅用于结构化诊断）。
      * @param value   待设置的值。
      * @return true 写入成功；false 类型/存在性校验失败。
      */
-    static bool setWalkInto(QVariant& current, const QString& path, int pos, const QVariant& value);
-
-    /**
-     * @brief 消化路径中的数组索引 [n]，修改 current 并返回新位置。
-     *
-     * @param[in,out] current 当前值，成功消化后指向索引的元素。
-     * @param path            原始路径（用于结构化诊断）。
-     * @param pos             当前处理位置。
-     * @return 消化后的新位置，出错时返回 -1。
-     */
-    static int advanceBrackets(QVariant& current, const QString& path, int pos);
+    static bool setWalkSegments(QVariant& current, const std::vector<PathSegment>& segs,
+                                size_t start, const QString& path, const QVariant& value);
 
 private:
     OnChanged m_onChanged;  ///< 已注册的属性变更通知回调。

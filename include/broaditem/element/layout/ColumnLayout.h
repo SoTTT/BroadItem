@@ -1,6 +1,7 @@
 #pragma once
 
 #include <broaditem/element/layout/MultiChildContainer.h>
+#include <broaditem/element/Alignment.h>
 
 namespace BroadItem {
 
@@ -17,8 +18,8 @@ public:
     const QSet<QString>& supportedAttributes() const override;
 
 private:
-    QString m_mainAlign = "start";       ///< 主轴对齐（"start"、"center"、"end"）。
-    QString m_crossAlign = "stretch";    ///< 交叉轴对齐（"start"、"center"、"end"、"stretch"）。
+    MainAlign m_mainAlign = MainAlign::Start;      ///< 主轴对齐。
+    CrossAlign m_crossAlign = CrossAlign::Stretch; ///< 交叉轴对齐（column 不接受 Baseline）。
     double m_space = 0;                  ///< 子元素间距（px）。
     bool m_mainStretch = false;          ///< 是否将所有子元素拉伸为相同的主轴尺寸。
 

@@ -52,7 +52,7 @@ int LayoutRegistry::loadLayoutsFromDirectory(const QString& dirPath)
 /// @brief 在给定 ID 下注册布局元素树。
 /// @param id 与布局关联的标识符。
 /// @param root 布局树的根元素。
-void LayoutRegistry::registerLayout(int id, const ElementPtr& root)
+void LayoutRegistry::registerLayout(int id, const ConstElementPtr& root)
 {
     m_layouts.insert(id, root);
 }
@@ -60,7 +60,7 @@ void LayoutRegistry::registerLayout(int id, const ElementPtr& root)
 /// @brief 按 ID 检索注册的布局。
 /// @param id 布局标识符。
 /// @return 根元素；未找到时返回 nullptr。
-ElementPtr LayoutRegistry::getLayout(int id) const
+ConstElementPtr LayoutRegistry::getLayout(int id) const
 {
     return m_layouts.value(id, nullptr);
 }

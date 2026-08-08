@@ -20,6 +20,8 @@ public:
     void addChild(ElementPtr child);
     /// @brief 返回 true：多子容器可以有子元素。
     bool canHaveChildren() const override { return true; }
+    /// @brief 解析期挂载：追加到模板子元素列表（column/row/grid 共用）。
+    void addParsedChild(const ElementPtr& child) override;
 
 protected:
     std::vector<ElementPtr> m_children;   ///< 模板子元素列表（含未展开的控制元素）。

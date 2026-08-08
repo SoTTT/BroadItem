@@ -32,6 +32,9 @@ private slots:
     void testColumnDoesNotStretchSpecifiedWidth();
     void testColumnStretchesUnspecifiedWidth();
 
+    // 非法枚举取值回退（BI-P-024）
+    void testColumnInvalidCrossAlignFallsBackToStretch();
+
     // 主轴拉伸：RowLayout
     void testRowMainStretchEqualWidths();
     void testRowMainStretchRespectsExplicitWidth();
@@ -199,6 +202,32 @@ void TestLayoutBehavior::testColumnStretchesUnspecifiedWidth()
     double w = children[0]->rect.width();
     QVERIFY2(w > 50,
              QString("未指定 width 的文本应被拉伸，实际为 %1").arg(w).toUtf8());
+}
+
+/// @brief 非法 cross-align 取值报 BI-P-024 并回退默认（stretch）：
+///        子元素未显式 width 时仍被拉伸至列宽，而非静默落入 start 行为。
+void TestLayoutBehavior::testColumnInvalidCrossAlignFallsBackToStretch()
+{
+    QString xml = R"(
+        <root>
+            <column cross-align="strecth">
+                <text>No width specified</text>
+            </column>
+        </root>
+    )";
+
+    QRectF bigRect(0, 0, 300, 200);
+    auto result = parseAndLayout(xml, bigRect);
+    QVERIFY(result != nullptr);
+
+    const auto& children = result->node->children;
+    QVERIFY(!children.empty());
+    QVERIFY(asText(children[0].get()) != nullptr);
+
+    // 非法取值回退默认 stretch：文本被拉伸至内容区宽度（start 兜底则保持固有宽度）
+    double w = children[0]->rect.width();
+    QVERIFY2(w > 50,
+             QString("非法 cross-align 应回退默认 stretch 并拉伸文本，实际宽度为 %1").arg(w).toUtf8());
 }
 
 // ── Grid 单元格数量校验 ──

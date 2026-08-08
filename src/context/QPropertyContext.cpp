@@ -1,5 +1,6 @@
 #include <broaditem/context/QPropertyContext.h>
 #include <broaditem/diagnostics/Diagnostics.h>
+#include <broaditem/expression/Expression.h>
 #include <QDynamicPropertyChangeEvent>
 #include <QMetaProperty>
 #include <QTimer>
@@ -118,14 +119,15 @@ bool QPropertyContext::eventFilter(QObject* obj, QEvent* event)
 /// @param value 待设置的值。
 void QPropertyContext::setPropertyNested(const QString& path, const QVariant& value)
 {
-    int segEnd = segmentEnd(path, 0);
-
-    QString firstKey = path.left(segEnd);
-    if (firstKey.isEmpty()) {
+    const Expression expr(path);
+    if (!expr.isValid()) {
         Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
-                                   QStringLiteral("empty first key in path"));
+                                   QStringLiteral("invalid path syntax"));
         return;
     }
+    const auto& segs = expr.segments();
+    // 语法保证首段必为键分段。
+    const QString& firstKey = segs.front().key();
 
     ensureConnected();
     QObject* obj = m_target ? m_target : this;
@@ -138,7 +140,7 @@ void QPropertyContext::setPropertyNested(const QString& path, const QVariant& va
         return;
     }
 
-    if (!setWalkInto(root, path, segEnd, value))
+    if (!setWalkSegments(root, segs, 1, path, value))
         return;
 
     if (obj->metaObject()->indexOfProperty(firstKeyBa.constData()) >= 0) {

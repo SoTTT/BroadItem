@@ -44,6 +44,14 @@ void ForElement::setTemplate(ElementPtr templ)
     m_template = std::move(templ);
 }
 
+/// @brief 解析期挂载：保留第一个子元素作为迭代模板，多余忽略（现状行为）。
+/// @param child 解析完成的子元素。
+void ForElement::addParsedChild(const ElementPtr& child)
+{
+    if (!m_template)
+        setTemplate(child);
+}
+
 /// @brief 通过遍历绑定的列表将此控制元素物化为实例节点序列。
 ///
 /// 支持 b:of 为 QStringList 或 QVariantList。为每个迭代项创建 per-item

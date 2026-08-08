@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QString>
+#include <broaditem/compat/Optional.h>
 
 namespace BroadItem {
 
@@ -30,6 +31,7 @@ enum class ErrorCode {
     RegistryFileSkipped,     ///< BI-P-021 Registry 批量加载：单文件解析失败
     RootChildDiscarded,      ///< BI-P-022 根唯一子元素降级为空（如 deprecated 装饰器），无可用内容
     BindingNotSupported,     ///< BI-P-023 布局策略属性不参与绑定（解析期拒绝，不注册）
+    InvalidEnumLiteral,      ///< BI-P-024 枚举属性取值非法（h-align/v-align/main-align/cross-align）
     // ---- 运行时（BI-R-xxx） ----
     ObjectFirstKeyMissing,   ///< BI-R-001 绑定路径首段属性在 QObject 上不存在
     NestedKeyMissing,        ///< BI-R-002 路径中段键在 map 中不存在
@@ -69,8 +71,8 @@ Recovery recoveryOf(ErrorCode code);
 struct Diagnostic {
     ErrorCode code;       ///< 错误码（级别/恢复策略由码决定）。
     QString file;         ///< 布局文件路径（解析期；无文件概念时为空）。
-    int line = -1;        ///< 行号（仅 XML 语法错误可得，否则 -1）。
-    int column = -1;      ///< 列号（仅 XML 语法错误可得，否则 -1）。
+    Optional<int> line;   ///< 行号（仅 XML 语法错误可得）。
+    Optional<int> column; ///< 列号（仅 XML 语法错误可得）。
     QString elementPath;  ///< 元素路径（解析期语义错误，如 root/column[2]/text）。
     QString bindingPath;  ///< 绑定路径（运行时错误）。
     QString message;      ///< 英文模板化消息。

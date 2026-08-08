@@ -1,4 +1,5 @@
 #include <broaditem/element/rect/RectElement.h>
+#include <broaditem/compat/QtCompat.h>
 #include <QPainter>
 #include <QDomElement>
 
@@ -32,7 +33,7 @@ void RectElement::parse(const QDomElement& xml)
 /// @return 新创建的实例节点。
 std::unique_ptr<Node> RectElement::materialize(const LayoutContext& ctx) const
 {
-    auto node = std::make_unique<Node>();
+    auto node = makeUnique<Node>();
     node->element = this;
     resolveStyle(ctx, node->style);
     resolveSize(ctx, node->style);
@@ -52,8 +53,8 @@ MeasureResult RectElement::measure(const LayoutContext& ctx, const LayoutConstra
 {
     Q_UNUSED(ctx)
     Q_UNUSED(constraints)
-    double w = node.style.width >= 0 ? node.style.width : 0.0;
-    double h = node.style.height >= 0 ? node.style.height : 0.0;
+    double w = node.style.width.value_or(0.0);
+    double h = node.style.height.value_or(0.0);
     w += boxModelWidth(node.style);
     h += boxModelHeight(node.style);
     return MeasureResult{QSizeF(w, h)};

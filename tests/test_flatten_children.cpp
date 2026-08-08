@@ -1,5 +1,6 @@
 #include <QtTest/QtTest>
 #include <broaditem/core/Node.h>
+#include <broaditem/compat/QtCompat.h>
 #include <broaditem/core/LayoutEngine.h>
 #include <broaditem/element/layout/RowLayout.h>
 #include <broaditem/element/layout/CellElement.h>
@@ -18,7 +19,7 @@ namespace {
 struct SimpleLeaf : BroadItem::Element {
     std::unique_ptr<BroadItem::Node> materialize(const BroadItem::LayoutContext&) const override
     {
-        auto node = std::make_unique<BroadItem::Node>();
+        auto node = BroadItem::makeUnique<BroadItem::Node>();
         node->element = this;
         return node;
     }

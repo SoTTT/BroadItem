@@ -1,6 +1,7 @@
 #pragma once
 
 #include <broaditem/element/BoxModel.h>
+#include <broaditem/compat/Optional.h>
 
 namespace BroadItem {
 
@@ -18,8 +19,8 @@ struct ResolvedStyle {
     Border border;          ///< 求值后的边框。
     Background background;  ///< 求值后的背景。
     Padding padding;        ///< 求值后的内边距。
-    double width = -1;      ///< 求值后的指定宽度；-1 表示未指定（与 SizedElement 哨兵语义一致）。
-    double height = -1;     ///< 求值后的指定高度；-1 表示未指定（与 SizedElement 哨兵语义一致）。
+    Optional<double> width;     ///< 求值后的指定宽度；空表示未指定（与 SizedElement 语义一致）。
+    Optional<double> height;    ///< 求值后的指定高度；空表示未指定（与 SizedElement 语义一致）。
 };
 
 } // namespace BroadItem

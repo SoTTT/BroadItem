@@ -1,6 +1,7 @@
 #pragma once
 
 #include <broaditem/element/ContainerElement.h>
+#include <broaditem/element/Alignment.h>
 
 namespace BroadItem {
 
@@ -12,10 +13,12 @@ public:
 
     const QSet<QString>& supportedAttributes() const override;
     bool canHaveChildren() const override { return true; }
+    /// @brief 解析期挂载：保留第一个子元素作为内容，多余忽略。
+    void addParsedChild(const ElementPtr& child) override;
 
 private:
-    QString m_vAlign = "center";  ///< 内容的垂直对齐（"top"、"center"、"bottom"）。
-    QString m_hAlign = "center";  ///< 内容的水平对齐（"left"、"center"、"right"）。
+    VAlign m_vAlign = VAlign::Center;  ///< 内容的垂直对齐。
+    HAlign m_hAlign = HAlign::Center;  ///< 内容的水平对齐。
 };
 
 } // namespace BroadItem

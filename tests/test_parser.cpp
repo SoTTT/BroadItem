@@ -1,5 +1,6 @@
 #include <QtTest/QtTest>
 #include <broaditem/parser/XmlLayoutParser.h>
+#include <broaditem/compat/QtCompat.h>
 #include <broaditem/context/LayoutContext.h>
 #include <broaditem/context/MapPropertyContext.h>
 #include <broaditem/context/QPropertyContext.h>
@@ -16,7 +17,7 @@ class NullTestElement : public BroadItem::Element {
 public:
     std::unique_ptr<BroadItem::Node> materialize(const BroadItem::LayoutContext&) const override
     {
-        auto node = std::make_unique<BroadItem::Node>();
+        auto node = BroadItem::makeUnique<BroadItem::Node>();
         node->element = this;
         return node;
     }

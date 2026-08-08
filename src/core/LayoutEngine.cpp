@@ -8,7 +8,7 @@ namespace BroadItem {
 /// @param root 模板树根元素。
 /// @param ctx 布局上下文，提供属性绑定。
 /// @return 实例节点树根；root 为空或物化结果为空时返回 nullptr。
-std::unique_ptr<Node> LayoutEngine::materialize(const ElementPtr& root, const LayoutContext& ctx)
+std::unique_ptr<Node> LayoutEngine::materialize(const ConstElementPtr& root, const LayoutContext& ctx)
 {
     if (!root)
         return nullptr;

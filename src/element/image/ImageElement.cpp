@@ -1,5 +1,6 @@
 #include <broaditem/element/image/ImageElement.h>
 #include <broaditem/diagnostics/Diagnostics.h>
+#include <broaditem/compat/QtCompat.h>
 #include <QPainter>
 #include <QDomElement>
 
@@ -57,7 +58,7 @@ void ImageElement::parse(const QDomElement& xml)
 /// @return 新创建的 ImageNode 实例节点。
 std::unique_ptr<Node> ImageElement::materialize(const LayoutContext& ctx) const
 {
-    auto node = std::make_unique<ImageNode>();
+    auto node = makeUnique<ImageNode>();
     node->element = this;
     resolveStyle(ctx, node->style);
     resolveSize(ctx, node->style);
@@ -105,13 +106,17 @@ MeasureResult ImageElement::measure(const LayoutContext& ctx, const LayoutConstr
     const double pw = pixmap.isNull() ? 0.0 : pixmap.width();
     const double ph = pixmap.isNull() ? 0.0 : pixmap.height();
 
-    double w = node.style.width;
-    double h = node.style.height;
-    if (w >= 0 && h >= 0) {
+    double w = 0;
+    double h = 0;
+    if (node.style.width && node.style.height) {
         // 双显式：内容区即显式尺寸。
-    } else if (w >= 0) {
+        w = *node.style.width;
+        h = *node.style.height;
+    } else if (node.style.width) {
+        w = *node.style.width;
         h = (pw > 0) ? w * ph / pw : 0.0;
-    } else if (h >= 0) {
+    } else if (node.style.height) {
+        h = *node.style.height;
         w = (ph > 0) ? h * pw / ph : 0.0;
     } else {
         w = pw;

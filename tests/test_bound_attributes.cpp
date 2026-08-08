@@ -122,7 +122,7 @@ private slots:
                  "background-color 绑定命中时应启用背景");
     }
 
-    /// @brief 用例8：b:width 求值——命中时写入 style.width；类型失配回退 -1 哨兵。
+    /// @brief 用例8：b:width 求值——命中时写入 style.width；类型失配回退空 Optional。
     void resolveWidthHeight()
     {
         auto root = parse(QStringLiteral("<text b:width=\"w\">x</text>"));
@@ -132,14 +132,21 @@ private slots:
         map.setProperty(QStringLiteral("w"), 120);
         auto node = materializeFirst(root, map);
         QVERIFY2(node, "物化失败");
-        QCOMPARE(node->style.width, 120.0);
+        QCOMPARE(node->style.width.value_or(0), 120.0);
 
-        // 失配："abc" 无法转为 double，回退 -1（未指定哨兵）
+        // 失配："abc" 无法转为 double，回退空（未指定）
         MapPropertyContext bad;
         bad.setProperty(QStringLiteral("w"), QStringLiteral("abc"));
         auto badNode = materializeFirst(root, bad);
         QVERIFY2(badNode, "物化失败");
-        QCOMPARE(badNode->style.width, -1.0);
+        QVERIFY2(!badNode->style.width.has_value(), "类型失配时 style.width 应为空");
+
+        // 负值：非法尺寸，视为未指定（与 parse 侧负值过滤对齐）
+        MapPropertyContext neg;
+        neg.setProperty(QStringLiteral("w"), -5);
+        auto negNode = materializeFirst(root, neg);
+        QVERIFY2(negNode, "物化失败");
+        QVERIFY2(!negNode->style.width.has_value(), "负值绑定时 style.width 应为空");
     }
 
     /// @brief 用例9：bindsProperty 沿容器传播——column 聚合子文本的绑定。

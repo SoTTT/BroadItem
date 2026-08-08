@@ -1,4 +1,5 @@
 #include <broaditem/element/layout/MultiChildContainer.h>
+#include <broaditem/compat/QtCompat.h>
 #include <algorithm>
 
 namespace BroadItem {
@@ -10,13 +11,20 @@ void MultiChildContainer::addChild(ElementPtr child)
     m_children.push_back(std::move(child));
 }
 
+/// @brief 解析期挂载：复用 addChild 追加到模板子元素列表。
+/// @param child 解析完成的子元素。
+void MultiChildContainer::addParsedChild(const ElementPtr& child)
+{
+    addChild(child);
+}
+
 /// @brief 物化：对每个模板子元素调 materializeChildren() 拼接进 node->children。
 ///   ForElement 每个迭代值产生一组节点；IfElement 根据条件产生节点或跳过。
 /// @param ctx 布局上下文。
 /// @return 新创建的实例节点。
 std::unique_ptr<Node> MultiChildContainer::materialize(const LayoutContext& ctx) const
 {
-    auto node = std::make_unique<Node>();
+    auto node = makeUnique<Node>();
     node->element = this;
     resolveStyle(ctx, node->style);
     materializeChildrenInto(ctx, *node);
@@ -45,7 +53,7 @@ bool MultiChildContainer::bindsProperty(const QString& name) const
     if (ContainerElement::bindsProperty(name))
         return true;
     return std::any_of(m_children.begin(), m_children.end(),
-        [&](const auto& child) { return child && child->bindsProperty(name); });
+        [&](const ElementPtr& child) { return child && child->bindsProperty(name); });
 }
 
 } // namespace BroadItem

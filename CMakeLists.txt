@@ -57,11 +57,13 @@ add_library(BroadItem STATIC
     include/broaditem/expression/Binding.h
 
     # element — 元素基类层级
+    src/element/Alignment.cpp
     src/element/Element.cpp
     src/element/RenderableElement.cpp
     src/element/ControlElement.cpp
     src/element/SizedElement.cpp
     src/element/ContainerElement.cpp
+    include/broaditem/element/Alignment.h
     include/broaditem/element/Element.h
     include/broaditem/element/ControlElement.h
     include/broaditem/element/RenderableElement.h

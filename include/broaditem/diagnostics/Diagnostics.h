@@ -1,6 +1,7 @@
 #pragma once
 
 #include <broaditem/diagnostics/ErrorCollector.h>
+#include <broaditem/compat/Optional.h>
 #include <QString>
 #include <QStringList>
 #include <memory>
@@ -39,10 +40,11 @@ void popElementSegment();
 /// @param code    错误码。
 /// @param message 模板化消息。
 /// @param file    无会话时的文件路径（有会话时忽略，取会话值）。
-/// @param line    行号（仅 XML 语法错误）。
-/// @param column  列号（仅 XML 语法错误）。
+/// @param line    行号（仅 XML 语法错误可得）。
+/// @param column  列号（仅 XML 语法错误可得）。
 void reportParse(ErrorCode code, const QString& message,
-                 const QString& file = QString(), int line = -1, int column = -1);
+                 const QString& file = QString(),
+                 const Optional<int>& line = nullopt, const Optional<int>& column = nullopt);
 
 /// @brief 运行时诊断报告。
 ///
@@ -90,7 +92,7 @@ private:
     QStringList m_segments;             ///< 元素路径段栈。
     bool m_sawAbort = false;            ///< Abort 级错误发生标志。
 
-    friend void reportParse(ErrorCode, const QString&, const QString&, int, int);
+    friend void reportParse(ErrorCode, const QString&, const QString&, const Optional<int>&, const Optional<int>&);
 };
 
 /// @brief 运行时作用域（RAII），仅 Frame 在管线期间构造。

@@ -41,6 +41,24 @@ QString segmentFor(const QDomElement& xml)
     return QStringLiteral("%1[%2]").arg(tag).arg(index);
 }
 
+using ElementFactory = ElementPtr (*)();
+
+template <typename T>
+ElementPtr makeElement() { return std::make_shared<T>(); }
+
+// 新增部件的唯一 parser 侧登记点
+const std::pair<const char*, ElementFactory> kElementFactories[] = {
+    {"text",   &makeElement<TextElement>},
+    {"image",  &makeElement<ImageElement>},
+    {"rect",   &makeElement<RectElement>},
+    {"column", &makeElement<ColumnLayout>},
+    {"row",    &makeElement<RowLayout>},
+    {"grid",   &makeElement<GridLayout>},
+    {"cell",   &makeElement<CellElement>},
+    {"for",    &makeElement<ForElement>},
+    {"if",     &makeElement<IfElement>},
+};
+
 } // namespace
 
 /// @brief 读取并将 XML 布局文件解析为元素树。
@@ -135,24 +153,10 @@ ElementPtr XmlLayoutParser::parseStringInternal(const QString& xmlContent, const
 /// @return 对应类型的新元素；未知标签返回 nullptr。
 ElementPtr XmlLayoutParser::createElement(const QString& tagName)
 {
-    if (tagName == QLatin1String("text"))
-        return std::make_shared<TextElement>();
-    if (tagName == QLatin1String("image"))
-        return std::make_shared<ImageElement>();
-    if (tagName == QLatin1String("rect"))
-        return std::make_shared<RectElement>();
-    if (tagName == QLatin1String("column"))
-        return std::make_shared<ColumnLayout>();
-    if (tagName == QLatin1String("row"))
-        return std::make_shared<RowLayout>();
-    if (tagName == QLatin1String("grid"))
-        return std::make_shared<GridLayout>();
-    if (tagName == QLatin1String("cell"))
-        return std::make_shared<CellElement>();
-    if (tagName == QLatin1String("for"))
-        return std::make_shared<ForElement>();
-    if (tagName == QLatin1String("if"))
-        return std::make_shared<IfElement>();
+    for (const auto& entry : kElementFactories) {
+        if (tagName == QLatin1String(entry.first))
+            return entry.second();
+    }
     if (tagName == QLatin1String("margin") || tagName == QLatin1String("border")
         || tagName == QLatin1String("padding") || tagName == QLatin1String("background")) {
         Diagnostics::reportParse(ErrorCode::DeprecatedDecoratorTag,
@@ -195,70 +199,16 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
         return nullptr;
     }
 
-    auto column = std::dynamic_pointer_cast<ColumnLayout>(element);
-    auto row = std::dynamic_pointer_cast<RowLayout>(element);
-    auto grid = std::dynamic_pointer_cast<GridLayout>(element);
-    auto cell = std::dynamic_pointer_cast<CellElement>(element);
-    auto forEl = std::dynamic_pointer_cast<ForElement>(element);
-    auto ifEl = std::dynamic_pointer_cast<IfElement>(element);
-
-    if (column || row || grid) {
-        for (QDomElement child = xml.firstChildElement(); !child.isNull(); child = child.nextSiblingElement()) {
-            auto childEl = parseNode(child);
-            if (childEl) {
-                if (column) column->addChild(childEl);
-                else if (row) row->addChild(childEl);
-                else if (grid) grid->addChild(childEl);
-            }
-        }
-        if (grid) {
-            int cellCount = 0;
-            for (const auto& child : grid->children()) {
-                if (std::dynamic_pointer_cast<CellElement>(child)) {
-                    cellCount++;
-                } else {
-                    Diagnostics::reportParse(ErrorCode::GridNonCellChild,
-                                             QStringLiteral("GridLayout: child must be <cell>"));
-                    return nullptr;
-                }
-            }
-            int expected = grid->columns() * grid->rows();
-            if (cellCount != expected) {
-                Diagnostics::reportParse(ErrorCode::GridCellCountMismatch,
-                                         QStringLiteral("GridLayout: expected %1 cells (%2x%3), got %4")
-                                             .arg(expected).arg(grid->columns()).arg(grid->rows()).arg(cellCount));
-                return nullptr;
-            }
-        }
-    } else if (cell) {
-        QDomElement child = xml.firstChildElement();
-        if (!child.isNull()) {
-            auto childEl = parseNode(child);
-            if (childEl)
-                cell->setContent(childEl);
-        }
-    } else if (forEl) {
-        QDomElement child = xml.firstChildElement();
-        if (!child.isNull()) {
-            auto templ = parseNode(child);
-            if (templ)
-                forEl->setTemplate(templ);
-        }
-        // b:of/b:as 已由 ForElement::parse() 解析，此处只补模板子元素。
-    } else if (ifEl) {
-        if (!ifEl->isConditionValid()) {
-            Diagnostics::reportParse(ErrorCode::IfMissingProp,
-                                     QStringLiteral("<if> requires b:prop to specify the condition path"));
-            return nullptr;
-        }
-        QDomElement child = xml.firstChildElement();
-        if (!child.isNull()) {
-            auto childEl = parseNode(child);
-            if (childEl)
-                ifEl->setChild(childEl);
-        }
+    // 挂载语义在各元素的 addParsedChild 中
+    for (QDomElement child = xml.firstChildElement(); !child.isNull(); child = child.nextSiblingElement()) {
+        auto childEl = parseNode(child);
+        if (childEl)
+            element->addParsedChild(childEl);
     }
-    // 无子元素的叶子容器无需额外处理。
+
+    // 结构校验在各元素的 validateChildren 中
+    if (!element->validateChildren())
+        return nullptr;
 
     if (wrapFor) {
         auto wrapper = std::make_shared<ForElement>();

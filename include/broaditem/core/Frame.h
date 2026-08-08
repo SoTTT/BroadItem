@@ -10,6 +10,7 @@
 #include <memory>
 
 #include <broaditem/element/Element.h>
+#include <broaditem/compat/Optional.h>
 #include <broaditem/core/Node.h>
 #include <broaditem/context/LayoutContext.h>
 #include <broaditem/context/PropertyContext.h>
@@ -93,10 +94,11 @@ public:
     }
 
     /// @brief 执行完整的物化（必要时）/测量/布局周期，返回计算后的尺寸。
-    /// @param availableWidth  可用宽度，-1 表示无限制。
-    /// @param availableHeight 可用高度，-1 表示无限制。
+    /// @param availableWidth  可用宽度，空表示无限制。
+    /// @param availableHeight 可用高度，空表示无限制。
     /// @return 布局后的帧尺寸。
-    QSizeF performLayout(double availableWidth = -1, double availableHeight = -1);
+    QSizeF performLayout(const Optional<double>& availableWidth = nullopt,
+                         const Optional<double>& availableHeight = nullopt);
 
     /// @brief 使用给定的 painter 渲染帧。
     /// @param painter 目标 QPainter，必须已初始化。
@@ -123,7 +125,7 @@ public:
 private:
     Frame() = default;
 
-    ElementPtr m_rootTemplate;                          ///< 共享、不可变的模板树（Registry 安全）。
+    ConstElementPtr m_rootTemplate;                     ///< 共享、不可变的模板树（Registry 安全）。
     std::unique_ptr<Node> m_rootNode;                   ///< 每实例节点树（物化产物）。
     bool m_dirty = true;                                ///< 数据变更后为 true，下次 performLayout 重新物化。
     std::shared_ptr<PropertyContext> m_propertyContext; ///< 数据绑定的属性上下文。

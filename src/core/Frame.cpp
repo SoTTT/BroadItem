@@ -2,6 +2,7 @@
 #include <broaditem/core/LayoutEngine.h>
 #include <broaditem/context/MapPropertyContext.h>
 #include <broaditem/diagnostics/Diagnostics.h>
+#include <broaditem/compat/QtCompat.h>
 #include <broaditem/parser/XmlLayoutParser.h>
 #include <broaditem/parser/LayoutRegistry.h>
 #include <QCoreApplication>
@@ -77,7 +78,7 @@ void Frame::requestUpdate()
     m_updateScheduled = true;
 
     if (!m_timerContext)
-        m_timerContext = std::make_unique<QObject>();
+        m_timerContext = makeUnique<QObject>();
 
     QTimer::singleShot(0, m_timerContext.get(), [this] {
         if (!m_updateScheduled)
@@ -138,10 +139,10 @@ bool Frame::hasDynamicProperty(const QString& name) const
 /// 或节点树尚不存在时才重新物化，语义与旧版逐次展开等价。
 /// 根模板为控制元素时取物化结果的第一个节点（保持旧版"只取第一项"行为）。
 ///
-/// @param availableWidth  可用宽度，-1 表示无限制。
-/// @param availableHeight 可用高度，-1 表示无限制。
+/// @param availableWidth  可用宽度，空表示无限制。
+/// @param availableHeight 可用高度，空表示无限制。
 /// @return 布局后的帧尺寸。
-QSizeF Frame::performLayout(double availableWidth, double availableHeight)
+QSizeF Frame::performLayout(const Optional<double>& availableWidth, const Optional<double>& availableHeight)
 {
     if (!m_rootTemplate)
         return QSizeF();
@@ -161,9 +162,7 @@ QSizeF Frame::performLayout(double availableWidth, double availableHeight)
         return QSizeF();
     }
 
-    LayoutConstraints constraints;
-    constraints.availableWidth = availableWidth;
-    constraints.availableHeight = availableHeight;
+    const LayoutConstraints constraints(availableWidth, availableHeight);
 
     const QSizeF intrinsic = LayoutEngine::measure(m_context, constraints, *m_rootNode);
     m_boundingRect = QRectF(0, 0, intrinsic.width(), intrinsic.height());

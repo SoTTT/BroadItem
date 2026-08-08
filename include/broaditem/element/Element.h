@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 #include <broaditem/context/LayoutContext.h>
+#include <broaditem/compat/Optional.h>
 #include <broaditem/core/Node.h>
 #include <broaditem/expression/Binding.h>
 
@@ -29,6 +30,9 @@ bool isBindingAttribute(const QDomAttr& attr);
 
 class Element;
 using ElementPtr = std::shared_ptr<Element>;
+/// @brief 共享模板的只读句柄：注册表/Frame/布局引擎等共享边界一律使用本类型。
+/// 构建期（XmlLayoutParser）使用 ElementPtr，交付共享时隐式转换为本类型。
+using ConstElementPtr = std::shared_ptr<const Element>;
 
 /// @brief 所有布局元素的基类（模板层）。
 ///
@@ -119,6 +123,21 @@ public:
     /// @brief 如果该元素类型可以有子元素，返回 true。
     virtual bool canHaveChildren() const { return false; }
 
+    /// @brief 挂载一个解析完成的模板子元素（解析期由 XmlLayoutParser 逐个子元素调用）。
+    ///
+    /// 默认实现忽略（叶子元素走不到这里：canHaveChildren() 为 false 且含子元素时
+    /// 已由 parser 报 BI-P-007）。容器类按自身语义接收：多子容器追加；
+    /// 单子元素类型（cell/for/if）保留第一个、忽略多余。
+    /// @param child 解析完成的子元素。
+    virtual void addParsedChild(const ElementPtr& child);
+
+    /// @brief 子元素挂载完成后的解析期收尾校验。
+    ///
+    /// 默认通过。需要做结构校验的类型在此覆盖（grid 的 cell 计数、if 的条件存在性），
+    /// 失败时报诊断并返回 false，parser 按子树解析失败处理。
+    /// @return 校验通过返回 true。
+    virtual bool validateChildren() const;
+
     /// @brief 根据 supportedAttributes 验证 XML 元素中的属性。
     void validateAttributes(const QDomElement& xml) const;
 
@@ -195,6 +214,9 @@ protected:
 
     /// @brief 求值绑定为 double，失败返回 fallback。
     double resolveDouble(const QString& attribute, const LayoutContext& ctx, double fallback) const;
+    /// @brief 求值绑定为可空 double，失败返回可空 fallback。
+    Optional<double> resolveDouble(const QString& attribute, const LayoutContext& ctx,
+                                   const Optional<double>& fallback) const;
     /// @brief 求值绑定为 QColor，失败返回 fallback。
     QColor resolveColor(const QString& attribute, const LayoutContext& ctx, const QColor& fallback) const;
     /// @brief 求值绑定为 bool，失败返回 fallback。
