@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(BroadItem VERSION 0.9.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_AUTOMOC ON)
@@ -12,6 +11,14 @@ set(CMAKE_AUTOUIC ON)
 # 下游统一使用 Qt${QT_VERSION_MAJOR}:: 形式的导入目标。
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Widgets Xml)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets Xml)
+
+# 源码按 C++11 基线编写（生态位面向 Qt5 时代的老工程）；
+# Qt6 头文件硬性要求 C++17，Qt6 构建时标准整体提到 17。
+if (QT_VERSION_MAJOR EQUAL 6)
+    set(CMAKE_CXX_STANDARD 17)
+else ()
+    set(CMAKE_CXX_STANDARD 11)
+endif ()
 
 add_library(BroadItem STATIC
     # core — 顶层编排
@@ -101,6 +108,7 @@ add_library(BroadItem STATIC
     include/broaditem/parser/LayoutRegistry.h
 
     # reactive — 属性键与响应式绑定
+    src/reactive/ReactiveProperty.cpp
     src/reactive/ReactiveBinding.cpp
     src/reactive/FollowBinding.cpp
     src/reactive/ConnectionLine.cpp
@@ -116,11 +124,13 @@ add_library(BroadItem STATIC
 
 target_include_directories(BroadItem PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party>
     $<INSTALL_INTERFACE:include>
 )
 
-# 让下游经 find_package 消费时同样以 C++17 编译（全局 CMAKE_CXX_STANDARD 不进导出目标）。
-target_compile_features(BroadItem PUBLIC cxx_std_17)
+# 让下游经 find_package 消费时至少以 C++11 编译（全局 CMAKE_CXX_STANDARD 不进导出目标）。
+# Qt6 构建下 Qt6::Core 的 INTERFACE_COMPILE_FEATURES 会自动把标准提到 17。
+target_compile_features(BroadItem PUBLIC cxx_std_11)
 
 target_link_libraries(BroadItem PUBLIC Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Xml)
 
@@ -142,12 +152,17 @@ install(DIRECTORY include/broaditem
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
+# vendored 单头依赖（tl::optional、mpark/variant，命名空间均已隔离），随项目头文件一同安装。
+install(DIRECTORY third_party/tl third_party/mpark
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
 # 布局结构约束文件，供下游校验 XML 使用。
 install(FILES broaditem.xsd
     DESTINATION ${CMAKE_INSTALL_DATADIR}/broaditem
 )
 
-install(FILES LICENSE
+install(FILES LICENSE THIRD_PARTY_NOTICES.md
     DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/broaditem
 )
 

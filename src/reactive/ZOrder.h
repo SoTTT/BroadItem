@@ -11,9 +11,9 @@ namespace BroadItem {
 /// 本头为 src/reactive 内部实现细节，不对外导出。
 
 /// @brief 连接线与装饰器外框的 z 值。
-inline constexpr qreal kDecorationZValue = 1.0;
+constexpr qreal kDecorationZValue = 1.0;
 
 /// @brief 锚点的 z 值，高于连接线与装饰器外框。
-inline constexpr qreal kAnchorZValue = 2.0;
+constexpr qreal kAnchorZValue = 2.0;
 
 } // namespace BroadItem

@@ -25,12 +25,4 @@ struct Property
     static const QString Height;
 };
 
-inline const QString Property::Pos      = QStringLiteral("pos");
-inline const QString Property::Scale    = QStringLiteral("scale");
-inline const QString Property::Rotation = QStringLiteral("rotation");
-inline const QString Property::Opacity  = QStringLiteral("opacity");
-inline const QString Property::Visible  = QStringLiteral("visible");
-inline const QString Property::Width    = QStringLiteral("width");
-inline const QString Property::Height   = QStringLiteral("height");
-
 } // namespace BroadItem

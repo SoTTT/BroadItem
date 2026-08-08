@@ -4,9 +4,25 @@
 #include <QString>
 #include <QtGlobal>
 
+#include <memory>
+#include <utility>
+
 class QDomDocument;
 
 namespace BroadItem {
+
+/// @brief C++11 下的 std::make_unique 替代（std::make_unique 为 C++14 引入）。
+///
+/// 项目源码按 C++11 基线编写，所有 unique_ptr 构造统一经本函数，
+/// 避免源码中散落裸 new。
+///
+/// @param args 转发给 T 构造函数的参数。
+/// @return 新创建的 unique_ptr。
+template <typename T, typename... Args>
+std::unique_ptr<T> makeUnique(Args&&... args)
+{
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
 
 /// @brief 跨 Qt5/Qt6 的"值为 null"判定（<if> 存在性语义与空值移除语义的统一入口）。
 ///
