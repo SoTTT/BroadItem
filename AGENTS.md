@@ -34,7 +34,7 @@ ctest --test-dir build-qt6 --output-on-failure  # Qt6：18 个（含金图，基
 
 - `test_parser`、`test_property_context`、`test_sized_element`、`test_layout_behavior`、`test_for_element`、`test_flatten_children`、`test_binding`、`test_expression`、`test_reactive_binding`、`test_connection_line`、`test_anchor_decorator`、`test_regression`、`test_bound_attributes`
 - `test_update_coalescing`：P0-4 变更合并（`UpdatePolicy`/`flush()`/守卫位）
-- `test_diagnostics`：P1-1 结构化诊断。码表 33 个错误码逐一一个用例 + 行为用例（嵌套 Abort 整文件失败、全收集、运行时模板级去重、静默清单、Default 语义回归）
+- `test_diagnostics`：P1-1 结构化诊断。码表 33 个错误码逐一一个用例 + 行为用例（嵌套 Abort 整文件失败、全收集、运行时实例级去重、并发 parse 隔离、静默清单、Default 语义回归）
 - `test_image_element`：`<image>` 部件测试，首个 qrc 测试基建（`tests/assets/icons.qrc` 经 `qt5/qt6_add_resources` 编入该目标）
 - `test_rect_element`：`<rect>` 部件测试（逐维度 measure、fillsCrossAxis 交叉轴恒填充、显式尺寸豁免与居中、绑定求值与拒绝路径、cell/根退化、BI-P-007）
 - `test_golden_render`：黄金镜像校验。`tests/golden/golden_render.cpp` 是采集/校验工具（`--capture <dir>` 按内置 manifest 渲染 PNG；`--verify <dir>` 逐像素比对，等价组不一致则退出码 1）。**该测试固定 `QT_QPA_PLATFORM=offscreen`**（`set_tests_properties`），cocoa 下字体光栅化不确定性会破坏逐像素比对，改金图基建时不得去掉此环境变量。**基线按 Qt 版本分套**：`tests/golden/golden/`（Qt5）与 `tests/golden/golden-qt6/`（Qt6，字体度量/光栅化有亚像素级漂移，逐像素比对不可跨栈共用），`tests/CMakeLists.txt` 按 `QT_VERSION_MAJOR` 指向对应基线；改渲染行为时两套都要重新采集。
@@ -82,14 +82,14 @@ ctest --test-dir build-qt6 --output-on-failure  # Qt6：18 个（含金图，基
 
 - `core/`：`BroadItem`、`Frame`、`LayoutEngine`（管线唯一入口，`Frame::performLayout`/`paint` 委托其静态方法，经 `Node::element` 派发）、`Node`、`ResolvedStyle`
 - `context/`：属性上下文体系——`PropertyContext`（接口）、`MapPropertyContext`（默认，map 存储）、`QPropertyContext`（proxy 模式，连接目标对象全部 Q_PROPERTY NOTIFY 信号）、`ItemPropertyContext`、`LayoutContext`
-- `diagnostics/`：结构化诊断——`Diagnostic`（错误码枚举 BI-P-xxx/BI-R-xxx，级别与恢复策略由码表唯一决定）、`ErrorCollector`（可注入收集器，默认转发 qWarning/qCritical）、`Diagnostics`（`reportParse`/`reportRuntime` 入口；`ParseSession` 解析会话提供元素路径与 Abort 标记，`RuntimeScope` 由 Frame 管线安装、承担模板级去重）。错误码总表见 `doc/设计.md`「诊断」节
+- `diagnostics/`：结构化诊断——`Diagnostic`（错误码枚举 BI-P-xxx/BI-R-xxx，级别与恢复策略由码表唯一决定）、`ErrorCollector`（可注入收集器，默认转发 qWarning/qCritical）、`Diagnostics`（`reportParse`/`reportRuntime` 入口；`ParseSession` 解析会话提供元素路径与 Abort 标记，`RuntimeScope` 由 Frame 管线安装、承担实例级去重，状态为 Frame 成员）。线程模型：作用域栈 thread_local，进程级收集器读写经互斥锁（锁内拷贝、锁外调用）。错误码总表见 `doc/设计.md`「诊断」节
 - `compat/`：Qt5/Qt6 兼容层（P1-3）+ C++ 标准库 polyfill。版本差异点唯一落点：`variantIsNull()`（null 语义统一）、`domSetContent()`（setContent 新旧重载）、`makeUnique()`（C++14 `make_unique`）、`Optional<T>`（C++17 `optional`，`Optional.h` 内为 vendored tl::optional 的别名，接口对齐 std 以便升标后整体退役）。新增版本差异一律收进本模块，源码中禁止散落的 `QT_VERSION_CHECK`（测试断言除外）
 - `expression/`：`Expression`（路径语法唯一权威：字符串 → 类型化分段 `PathSegment`，运行期遍历一律消费分段）、`Binding`
 - `element/`：元素基类层级——`Element` → `ControlElement` / `RenderableElement` → `SizedElement` / `ContainerElement`；`BoxModel`。解析期挂载协议：parser 统一经虚函数 `addParsedChild()`（挂载子元素）与 `validateChildren()`（结构校验）驱动，新增部件自带挂载/校验语义，parser 零改动（doc/解析器挂载下沉.md）
   - `element/layout/`：`MultiChildContainer`、`ColumnLayout`、`RowLayout`、`GridLayout`、`CellElement`；Row/Column 的轴无关公共实现（parse、main-align 分发布、main-stretch 双遍测量）收口在 src 内部单元 `src/element/layout/LinearLayoutCommon.h/.cpp`（不进公共 include 树）
   - `element/control/`：`ForElement`、`IfElement`（`<if>`：裸 `b:prop` 存在性 / `equals`|`b:equals` 字符串化值比较 / `not` 整体取反不可绑定）
   - `element/text/`：`TextElement`
-  - `element/image/`：`ImageElement`（自计算部件；`src` 支持 `:/` Qt 资源路径与文件系统路径；模板级 `QPixmap` 缓存，同一模板多次物化共享）
+  - `element/image/`：`ImageElement`（自计算部件；`src` 支持 `:/` Qt 资源路径与文件系统路径；图像缓存为进程级路径键缓存 `src/element/image/ImageCache`，含互斥锁、跨模板共享）
   - `element/rect/`：`RectElement`（自计算部件；作者定尺寸纯色块，零自有属性；`fillsCrossAxis()` 覆写 true——未给交叉轴尺寸时恒填充，统一覆盖分割线/方形色块/圆形指示灯）
 - `parser/`：`XmlLayoutParser`、`LayoutRegistry`
 - `reactive/`：QGraphicsItem 实例间纯元对象驱动的属性同步。`ReactiveBinding`（静态 `create()` 工厂，经 `QMetaProperty::notifySignal()` 自动发现 NOTIFY 信号，`QObject::property()`/`setProperty()` 读写，`pos` 走 `xChanged()`/`yChanged()` 特判；支持可选 transform、环检测、源/目标销毁自动清理）、`FollowBinding`、`ConnectionLine`、`AnchorPoint`、`AnchorDecorator`、`ReactiveProperty`（`Property` 属性键常量）。z 值层级约定（连接线与装饰器 1、锚点 2）收口在 src 内部头 `src/reactive/ZOrder.h`。**本版本未与 XML 布局或 `PropertyContext` 集成。**

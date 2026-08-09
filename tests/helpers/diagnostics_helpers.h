@@ -6,14 +6,21 @@
 #include <broaditem/diagnostics/Diagnostics.h>
 
 #include <QList>
+#include <QMutex>
+#include <QMutexLocker>
 
 namespace BroadItem {
 namespace TestHelpers {
 
-/// @brief 捕获型收集器：记录全部诊断供断言。
+/// @brief 捕获型收集器：记录全部诊断供断言（report 经互斥锁保护，可多线程并发投递；
+///        count/find/list 读取须在投递结束后进行）。
 class CaptureCollector : public ErrorCollector {
 public:
-    void report(const Diagnostic& d) override { list.append(d); }
+    void report(const Diagnostic& d) override
+    {
+        QMutexLocker lock(&m_mutex);
+        list.append(d);
+    }
 
     QList<Diagnostic> list;  ///< 已捕获的诊断序列。
 
@@ -35,6 +42,9 @@ public:
                 return &d;
         return nullptr;
     }
+
+private:
+    QMutex m_mutex;  ///< 保护 list 的互斥锁（多线程 parse/管线并发投递场景）。
 };
 
 } // namespace TestHelpers

@@ -8,6 +8,20 @@ namespace BroadItem {
 /// @brief 绑定属性的 XML 命名空间 URI。
 const QString BINDING_NS = QStringLiteral("urn:broaditem:binding");
 
+// 保留绑定名常量定义（C++11 无 inline 变量，定义收口在本翻译单元）。
+const QString BindingName::Of      = QStringLiteral("of");
+const QString BindingName::Prop    = QStringLiteral("prop");
+const QString BindingName::As      = QStringLiteral("as");
+const QString BindingName::Content = QStringLiteral("content");
+const QString BindingName::Not     = QStringLiteral("not");
+
+const QSet<QString>& reservedBindingNames()
+{
+    static const QSet<QString> names{BindingName::Of, BindingName::Prop, BindingName::As,
+                                     BindingName::Content, BindingName::Not};
+    return names;
+}
+
 /// @brief 判断属性是否为 xmlns 命名空间声明。
 /// @param attr 要检查的 DOM 属性。
 /// @return 属性名以 "xmlns" 开头时返回 true。
@@ -251,9 +265,7 @@ const QSet<QString>& Element::resolvedAttributes() const
 /// @param xml 要解析绑定属性的 DOM 元素。
 void Element::parseBindings(const QDomElement& xml)
 {
-    static const QSet<QString> reserved{QStringLiteral("of"), QStringLiteral("prop"),
-                                        QStringLiteral("as"), QStringLiteral("content"),
-                                        QStringLiteral("not")};
+    const QSet<QString>& reserved = reservedBindingNames();
     const QSet<QString>& known = supportedAttributes();
     QDomNamedNodeMap attrs = xml.attributes();
     for (int i = 0; i < attrs.size(); ++i) {

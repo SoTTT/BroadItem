@@ -147,8 +147,8 @@ QSizeF Frame::performLayout(const Optional<double>& availableWidth, const Option
     if (!m_rootTemplate)
         return QSizeF();
 
-    // 运行时诊断去重作用域：覆盖物化/测量/布局全管线
-    const Diagnostics::RuntimeScope runtimeScope(m_rootTemplate.get());
+    // 运行时诊断去重作用域：覆盖物化/测量/布局全管线（状态为本实例成员）
+    const Diagnostics::RuntimeScope runtimeScope(&m_reportedDiagnostics);
 
     m_context.ctx = m_propertyContext.get();
 
@@ -181,7 +181,7 @@ QSizeF Frame::performLayout(const Optional<double>& availableWidth, const Option
 void Frame::paint(QPainter* painter) const
 {
     if (m_rootNode) {
-        const Diagnostics::RuntimeScope runtimeScope(m_rootTemplate.get());
+        const Diagnostics::RuntimeScope runtimeScope(&m_reportedDiagnostics);
         m_context.ctx = m_propertyContext.get();
         LayoutEngine::render(painter, m_context, *m_rootNode);
     }

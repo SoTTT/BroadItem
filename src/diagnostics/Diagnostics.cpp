@@ -1,6 +1,8 @@
 #include <broaditem/diagnostics/Diagnostics.h>
 #include <broaditem/element/Element.h>
 #include <QDebug>
+#include <QMutex>
+#include <QMutexLocker>
 #include <iterator>
 
 namespace BroadItem {
@@ -106,28 +108,41 @@ void DefaultErrorCollector::report(const Diagnostic& diagnostic)
 
 // ========== Diagnostics 命名空间 ==========
 
+uint qHash(const DiagnosticKey& key)
+{
+    return ::qHash(key.bindingPath) ^ ::qHash(static_cast<int>(key.code));
+}
+
 namespace Diagnostics {
 
 namespace {
 
-/// 进程级收集器（默认 DefaultErrorCollector）。
+/// 进程级收集器（默认 DefaultErrorCollector）。读写均须持 collectorMutex()。
 std::shared_ptr<ErrorCollector>& processCollector()
 {
     static std::shared_ptr<ErrorCollector> c = std::make_shared<DefaultErrorCollector>();
     return c;
 }
 
-/// 会话栈（单线程假设）。
+/// 进程级收集器的互斥锁。注意：持锁期间不得调用 collector->report()
+/// （用户收集器可能回调 Diagnostics 造成重入死锁）——锁内拷贝快照，锁外调用。
+QMutex& collectorMutex()
+{
+    static QMutex m;
+    return m;
+}
+
+/// 会话栈（thread_local：栈语义跨线程必串线，每线程各一条）。
 std::vector<ParseSession*>& sessionStack()
 {
-    static std::vector<ParseSession*> stack;
+    thread_local std::vector<ParseSession*> stack;
     return stack;
 }
 
-/// 运行时作用域栈（单线程假设）。
-std::vector<const Element*>& runtimeStack()
+/// 运行时作用域栈（thread_local，同上）。
+std::vector<QSet<DiagnosticKey>*>& runtimeStack()
 {
-    static std::vector<const Element*> stack;
+    thread_local std::vector<QSet<DiagnosticKey>*> stack;
     return stack;
 }
 
@@ -135,11 +150,13 @@ std::vector<const Element*>& runtimeStack()
 
 std::shared_ptr<ErrorCollector> collector()
 {
+    QMutexLocker lock(&collectorMutex());
     return processCollector();
 }
 
 void setCollector(std::shared_ptr<ErrorCollector> c)
 {
+    QMutexLocker lock(&collectorMutex());
     processCollector() = c ? std::move(c) : std::make_shared<DefaultErrorCollector>();
 }
 
@@ -175,24 +192,28 @@ void reportParse(ErrorCode code, const QString& message,
     } else {
         d.file = file;
     }
-    processCollector()->report(d);
+    collector()->report(d);
 }
 
 void reportRuntime(ErrorCode code, const QString& bindingPath, const QString& message)
 {
-    // 模板级去重：同一（模板 × 错误码 × 绑定路径）只投递一次
+    // 去重：同一（错误码 × 绑定路径）在当前 scope 的状态集合中只投递一次
+    // （Frame 管线安装 scope，窗口为 Frame 实例生命周期；无 scope 照报）
     if (!runtimeStack().empty()) {
-        const Element* root = runtimeStack().back();
-        const QString key = codeToString(code) + QLatin1Char('|') + bindingPath;
-        if (root && !root->markDiagnosticReported(key))
-            return;
+        QSet<DiagnosticKey>* state = runtimeStack().back();
+        if (state) {
+            const DiagnosticKey key{code, bindingPath};
+            if (state->contains(key))
+                return;
+            state->insert(key);
+        }
     }
 
     Diagnostic d;
     d.code = code;
     d.bindingPath = bindingPath;
     d.message = message;
-    processCollector()->report(d);
+    collector()->report(d);
 }
 
 // ---- ParseSession ----
@@ -222,10 +243,10 @@ void ParseSession::popSegment()
 
 // ---- RuntimeScope ----
 
-RuntimeScope::RuntimeScope(const Element* templateRoot)
-    : m_root(templateRoot)
+RuntimeScope::RuntimeScope(QSet<DiagnosticKey>* dedupState)
+    : m_state(dedupState)
 {
-    runtimeStack().push_back(m_root);
+    runtimeStack().push_back(m_state);
 }
 
 RuntimeScope::~RuntimeScope()

@@ -27,16 +27,16 @@ void IfElement::parse(const QDomElement& xml)
 {
     Element::parse(xml);
     validateAttributes(xml);
-    if (xml.hasAttributeNS(BINDING_NS, "prop")) {
+    if (xml.hasAttributeNS(BINDING_NS, BindingName::Prop)) {
         // 获取实际的 XML 限定属性名（如 b:prop 或用户自定义前缀）
-        QDomNode attrNode = xml.attributes().namedItemNS(BINDING_NS, "prop");
+        QDomNode attrNode = xml.attributes().namedItemNS(BINDING_NS, BindingName::Prop);
         QString attrName = attrNode.isNull() ? "b:prop" : attrNode.nodeName();
-        m_binding = Binding(attrName, xml.attributeNS(BINDING_NS, "prop", QString()));
+        m_binding = Binding(attrName, xml.attributeNS(BINDING_NS, BindingName::Prop, QString()));
     }
     // QDom 命名空间模式下 hasAttribute 按局部名匹配（会命中 b:not 自身），字面量判定走 hasLiteralAttribute
-    m_not = hasLiteralAttribute(xml, "not");
+    m_not = hasLiteralAttribute(xml, BindingName::Not);
     // not 是结构性修饰符，不参与绑定；parseBindings 已将 not 列为保留名，此处显式报告
-    if (xml.hasAttributeNS(BINDING_NS, "not"))
+    if (xml.hasAttributeNS(BINDING_NS, BindingName::Not))
         Diagnostics::reportParse(ErrorCode::NotBindingIgnored,
                                  QStringLiteral("<if>: b:not is not supported; not is a structural modifier "
                                                 "and cannot be bound"));

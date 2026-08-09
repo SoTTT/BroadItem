@@ -96,6 +96,8 @@ add_library(BroadItem STATIC
     include/broaditem/element/text/TextElement.h
 
     # image — 自计算图片叶子元素
+    src/element/image/ImageCache.cpp
+    src/element/image/ImageCache.h
     src/element/image/ImageElement.cpp
     include/broaditem/element/image/ImageElement.h
 

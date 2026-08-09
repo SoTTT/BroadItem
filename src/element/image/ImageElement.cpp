@@ -1,6 +1,7 @@
 #include <broaditem/element/image/ImageElement.h>
 #include <broaditem/diagnostics/Diagnostics.h>
 #include <broaditem/compat/QtCompat.h>
+#include "ImageCache.h"
 #include <QPainter>
 #include <QDomElement>
 
@@ -43,13 +44,13 @@ void ImageElement::parse(const QDomElement& xml)
         m_keepAspect = parseBool(literalAttribute(xml, "keep-aspect"));
 }
 
-/// @brief 物化：求值样式与尺寸，解析 src 并经模板级缓存加载图像。
+/// @brief 物化：求值样式与尺寸，解析 src 并经进程级缓存加载图像。
 ///
-/// 缓存语义（模板层首个 mutable 状态，依赖 GUI 单线程假设，无需同步）：
-/// - m_pixmapCache 命中：直接复用，避免重复磁盘加载；
-/// - m_failedPaths 命中：跳过加载，静默空白（告警去重由运行时诊断统一机制承担）；
-/// - 均未命中：尝试 QPixmap(path) 加载，成功入 m_pixmapCache，
-///   失败报 BI-R-010 一次并入 m_failedPaths；缓存永不淘汰，生命周期随模板。
+/// 缓存语义（ImageCache：路径键、进程级、互斥锁保护，模板零 mutable 状态）：
+/// - Hit：直接复用，避免重复磁盘加载；
+/// - Failed：跳过加载，静默空白（告警去重由运行时诊断统一机制承担）；
+/// - Miss：尝试 QPixmap(path) 加载，成功写成功表，失败报 BI-R-010 一次并写失败表；
+///   缓存永不淘汰，生命周期随进程。
 ///
 /// src 为空串（未指定或绑定求值为空）时静默空白——node->pixmap 保持为空，
 /// 渲染阶段只画盒模型装饰，不绘制占位错误图。
@@ -68,21 +69,26 @@ std::unique_ptr<Node> ImageElement::materialize(const LayoutContext& ctx) const
 
     const QString& path = node->srcPath;
     if (!path.isEmpty()) {
-        auto it = m_pixmapCache.constFind(path);
-        if (it != m_pixmapCache.constEnd()) {
-            node->pixmap = it.value();
-        } else if (!m_failedPaths.contains(path)) {
-            QPixmap pixmap(path);
-            if (pixmap.isNull()) {
+        QPixmap pixmap;
+        switch (ImageCache::lookup(path, pixmap)) {
+        case ImageCache::Lookup::Hit:
+            node->pixmap = pixmap;
+            break;
+        case ImageCache::Lookup::Failed:
+            break;  // 失败表命中：跳过加载，pixmap 保持为空（静默空白）
+        case ImageCache::Lookup::Miss: {
+            QPixmap loaded(path);
+            if (loaded.isNull()) {
                 Diagnostics::reportRuntime(ErrorCode::ImageLoadFailed, path,
                                            QStringLiteral("ImageElement: failed to load image"));
-                m_failedPaths.insert(path);
+                ImageCache::storeFailed(path);
             } else {
-                m_pixmapCache.insert(path, pixmap);
-                node->pixmap = pixmap;
+                ImageCache::storeHit(path, loaded);
+                node->pixmap = loaded;
             }
+            break;
         }
-        // m_failedPaths 命中：跳过加载，pixmap 保持为空（静默空白）。
+        }
     }
     return node;
 }

@@ -181,15 +181,15 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
     const SegmentGuard guard(segmentFor(xml));
     QString tag = xml.tagName();
 
-    bool wrapFor = xml.hasAttributeNS(BINDING_NS, "of") && tag != QLatin1String("for") && tag != QLatin1String("if");
-    bool wrapIf = xml.hasAttributeNS(BINDING_NS, "prop") && tag != QLatin1String("for") && tag != QLatin1String("if");
+    bool wrapFor = xml.hasAttributeNS(BINDING_NS, BindingName::Of) && tag != QLatin1String("for") && tag != QLatin1String("if");
+    bool wrapIf = xml.hasAttributeNS(BINDING_NS, BindingName::Prop) && tag != QLatin1String("for") && tag != QLatin1String("if");
 
     ElementPtr element = createElement(tag);
     if (!element)
         return nullptr;
 
     element->parse(xml);
-    // parseBindings 对控制元素同样调用；保留名 {of,prop,as,content,not} 在 parseBindings 内部豁免，
+    // parseBindings 对控制元素同样调用；保留名（reservedBindingNames()）在 parseBindings 内部豁免，
     // 上方与下方的伪属性包装逻辑（wrapFor/wrapIf）不受影响
     element->parseBindings(xml);
 
@@ -212,21 +212,21 @@ ElementPtr XmlLayoutParser::parseNode(const QDomElement& xml)
 
     if (wrapFor) {
         auto wrapper = std::make_shared<ForElement>();
-        wrapper->setBindProperty(xml.attributeNS(BINDING_NS, "of", QString()));
-        if (xml.hasAttributeNS(BINDING_NS, "as"))
-            wrapper->setAsVariable(xml.attributeNS(BINDING_NS, "as", QString()));
+        wrapper->setBindProperty(xml.attributeNS(BINDING_NS, BindingName::Of, QString()));
+        if (xml.hasAttributeNS(BINDING_NS, BindingName::As))
+            wrapper->setAsVariable(xml.attributeNS(BINDING_NS, BindingName::As, QString()));
         wrapper->setTemplate(element);
         return wrapper;
     }
 
     if (wrapIf) {
         auto wrapper = std::make_shared<IfElement>();
-        wrapper->setBindProperty(xml.attributeNS(BINDING_NS, "prop", QString()));
+        wrapper->setBindProperty(xml.attributeNS(BINDING_NS, BindingName::Prop, QString()));
         wrapper->setChild(element);
         return wrapper;
     }
 
-    if (tag != QLatin1String("for") && xml.hasAttributeNS(BINDING_NS, "as") && !xml.hasAttributeNS(BINDING_NS, "of"))
+    if (tag != QLatin1String("for") && xml.hasAttributeNS(BINDING_NS, BindingName::As) && !xml.hasAttributeNS(BINDING_NS, BindingName::Of))
         Diagnostics::reportParse(ErrorCode::AsWithoutOf,
                                  QStringLiteral("<%1> has b:as but no b:of; b:as only works with iteration").arg(tag));
 

@@ -1,6 +1,7 @@
 #include <QtTest/QtTest>
 #include <QTemporaryFile>
 #include <QTemporaryDir>
+#include <QThread>
 #include <broaditem/diagnostics/Diagnostics.h>
 #include <broaditem/parser/XmlLayoutParser.h>
 #include <broaditem/parser/LayoutRegistry.h>
@@ -617,8 +618,8 @@ private slots:
         QCOMPARE(cap.count(ErrorCode::UnknownAttribute), 1);
     }
 
-    /// @brief 运行时模板级去重：连发重布局只报一次；无 scope 直接物化照报。
-    void runtimeDedupOncePerTemplate()
+    /// @brief 运行时实例级去重：连发重布局只报一次；无 scope 直接物化照报。
+    void runtimeDedupOncePerFrame()
     {
         auto cap = std::make_shared<CaptureCollector>();
         const ProcessCollectorGuard guard(cap);
@@ -645,6 +646,75 @@ private slots:
         root->materializeChildren(lctx);
         root->materializeChildren(lctx);
         QCOMPARE(cap->count(ErrorCode::NestedKeyMissing), 3);  // 1（Frame）+ 2（无 scope）
+    }
+
+    /// @brief 实例级去重窗口：共享同一模板的两个 Frame 各报一次（窗口 = Frame 生命周期）。
+    void runtimeDedupPerFrameInstance()
+    {
+        auto cap = std::make_shared<CaptureCollector>();
+        const ProcessCollectorGuard guard(cap);
+
+        auto root = XmlLayoutParser::parseString(
+            wrap(QStringLiteral("<text b:content=\"a.b\"/>")));
+        QVERIFY(root != nullptr);
+        const int layoutId = 424242;
+        LayoutRegistry::instance().registerLayout(layoutId, root);
+
+        auto makeFrame = [&]() {
+            auto ctx = std::make_shared<MapPropertyContext>();
+            ctx->setProperty(QStringLiteral("a"), QVariantMap{});
+            return Frame::fromRegistry(layoutId, ctx);
+        };
+
+        auto frame1 = makeFrame();
+        QVERIFY(frame1 != nullptr);
+        QCOMPARE(cap->count(ErrorCode::NestedKeyMissing), 1);
+
+        // 同一模板、第二个 Frame：实例级窗口下各自报告一次（旧模板级窗口下此处会被抑制）
+        auto frame2 = makeFrame();
+        QVERIFY(frame2 != nullptr);
+        QCOMPARE(cap->count(ErrorCode::NestedKeyMissing), 2);
+    }
+
+    /// @brief TLS 会话栈 + 收集器锁：两线程并发 parse，诊断不串线、不丢失。
+    void concurrentParseSessionIsolation()
+    {
+        // 进程级收集器并发接收两线程投递（验证 collector 锁 + 快照调用）
+        auto capAll = std::make_shared<CaptureCollector>();
+        const ProcessCollectorGuard guard(capAll);
+
+        // 线程 A 反复解析含 <badA/> 的文档，线程 B 反复解析嵌套文档；
+        // 会话栈若非 thread_local，交叉压弹会使元素路径张冠李戴（偶发）——多轮放大竞争窗口。
+        const int iterations = 400;
+        CaptureCollector capA;
+        CaptureCollector capB;
+
+        QThread* ta = QThread::create([&]() {
+            for (int i = 0; i < iterations; ++i)
+                XmlLayoutParser::parseString(QStringLiteral("<root><badA/></root>"), &capA);
+        });
+        QThread* tb = QThread::create([&]() {
+            for (int i = 0; i < iterations; ++i)
+                XmlLayoutParser::parseString(
+                    QStringLiteral("<root><column><badB/></column></root>"), &capB);
+        });
+        ta->start();
+        tb->start();
+        ta->wait();
+        tb->wait();
+        delete ta;
+        delete tb;
+
+        // 每线程的本次调用收集器：路径互不串扰（TLS 会话栈的直接证据）
+        QCOMPARE(capA.count(ErrorCode::UnknownElementTag), iterations);
+        QCOMPARE(capB.count(ErrorCode::UnknownElementTag), iterations);
+        for (const auto& d : capA.list)
+            QCOMPARE(d.elementPath, QStringLiteral("root/badA"));
+        for (const auto& d : capB.list)
+            QCOMPARE(d.elementPath, QStringLiteral("root/column/badB"));
+
+        // 进程级收集器：并发投递无丢失（override + 进程级各一份）
+        QCOMPARE(capAll->count(ErrorCode::UnknownElementTag), 2 * iterations);
     }
 
     /// @brief 静默清单：绑定属性未注入、<if> 存在性落空 → 零诊断。

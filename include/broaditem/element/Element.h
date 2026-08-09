@@ -18,6 +18,23 @@ namespace BroadItem {
 /// @brief 绑定属性的 XML 命名空间 URI。
 extern const QString BINDING_NS;
 
+/// @brief 绑定命名空间的保留属性名（伪属性）常量。
+///
+/// 这些名字与控制元素/文本语义耦合，走各自的专用解析通道（<for>/<if> 伪属性
+/// 包装、TextElement 内容绑定），永不进入通用绑定表——参见 Element::parseBindings。
+/// 定义在 Element.cpp（C++11 无 inline 变量，仿 ReactiveProperty 模式）。
+struct BindingName {
+    static const QString Of;      ///< "of" —— <for> 数据源。
+    static const QString Prop;    ///< "prop" —— <if> 条件属性。
+    static const QString As;      ///< "as" —— <for> 迭代变量名。
+    static const QString Content; ///< "content" —— 文本内容。
+    static const QString Not;     ///< "not" —— <if> 取反修饰符（结构性，不可绑定）。
+};
+
+/// @brief 返回保留绑定名集合（parseBindings 据此把伪属性排除出通用绑定表）。
+/// @return 静态集合引用，含 BindingName 的全部五个名字。
+const QSet<QString>& reservedBindingNames();
+
 /// @brief 判断属性是否为 xmlns 命名空间声明。
 /// @param attr 要检查的 DOM 属性。
 /// @return 属性名以 "xmlns" 开头时返回 true。
@@ -141,20 +158,6 @@ public:
     /// @brief 根据 supportedAttributes 验证 XML 元素中的属性。
     void validateAttributes(const QDomElement& xml) const;
 
-    /// @brief 运行时诊断去重标记：key 首次插入返回 true，已存在返回 false。
-    ///
-    /// 仅模板根元素的集合被 Diagnostics::RuntimeScope 使用
-    /// （仿 ImageElement::m_failedPaths 的模板级先例）。
-    /// @param key 去重键（错误码|绑定路径）。
-    /// @return 首次报告返回 true。
-    bool markDiagnosticReported(const QString& key) const
-    {
-        if (m_reportedDiagnostics.contains(key))
-            return false;
-        m_reportedDiagnostics.insert(key);
-        return true;
-    }
-
     /// @brief 验证属性值是否为 double，有效返回 true。
     ///
     /// 校验失败时：runtimePath 为空按解析期字面量错误（BI-P-015）报告；
@@ -227,10 +230,6 @@ protected:
     /// @brief 通用绑定表：局部属性名 → Binding。
     /// Binding 无默认构造函数，只允许 insert/constFind 访问。
     QHash<QString, Binding> m_bindings;
-
-private:
-    /// 运行时诊断去重集合（模板级，mutable 因报告发生在 const 管线中）。
-    mutable QSet<QString> m_reportedDiagnostics;
 };
 
 } // namespace BroadItem

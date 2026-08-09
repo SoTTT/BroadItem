@@ -60,7 +60,7 @@ void TextElement::parse(const QDomElement& xml)
     m_text = xml.text().trimmed();
 
     bool hasContentLiteral = hasLiteralAttribute(xml, "content");
-    bool hasContentBinding = xml.hasAttributeNS(BINDING_NS, "content");
+    bool hasContentBinding = xml.hasAttributeNS(BINDING_NS, BindingName::Content);
 
     if (hasContentLiteral && hasContentBinding) {
         Diagnostics::reportParse(ErrorCode::MutexLiteralBinding,
@@ -72,9 +72,9 @@ void TextElement::parse(const QDomElement& xml)
         m_contentLiteral = literalAttribute(xml, "content");
         m_hasContentLiteral = true;
     }
-    if (xml.hasAttributeNS(BINDING_NS, "content")) {
-        auto attr = xml.attributes().namedItemNS(BINDING_NS, "content");
-        m_binding = Binding(attr.nodeName(), xml.attributeNS(BINDING_NS, "content", QString()));
+    if (xml.hasAttributeNS(BINDING_NS, BindingName::Content)) {
+        auto attr = xml.attributes().namedItemNS(BINDING_NS, BindingName::Content);
+        m_binding = Binding(attr.nodeName(), xml.attributeNS(BINDING_NS, BindingName::Content, QString()));
     }
     if (hasLiteralAttribute(xml, "v-align"))
         m_vAlign = parseVAlign(literalAttribute(xml, "v-align"), m_vAlign);

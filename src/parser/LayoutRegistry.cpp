@@ -2,6 +2,7 @@
 #include <broaditem/parser/XmlLayoutParser.h>
 #include <broaditem/diagnostics/Diagnostics.h>
 #include <QDir>
+#include <QMutexLocker>
 
 namespace BroadItem {
 
@@ -37,6 +38,8 @@ int LayoutRegistry::loadLayoutsFromDirectory(const QString& dirPath)
     for (const QFileInfo& info : files) {
         auto root = XmlLayoutParser::parseFile(info.absoluteFilePath());
         if (root) {
+            // 锁仅护 ID 分配与插入；解析（慢、且自身会报诊断）在锁外进行
+            QMutexLocker lock(&m_mutex);
             int id = m_nextId++;
             m_layouts.insert(id, root);
             ++count;
@@ -54,6 +57,7 @@ int LayoutRegistry::loadLayoutsFromDirectory(const QString& dirPath)
 /// @param root 布局树的根元素。
 void LayoutRegistry::registerLayout(int id, const ConstElementPtr& root)
 {
+    QMutexLocker lock(&m_mutex);
     m_layouts.insert(id, root);
 }
 
@@ -62,6 +66,7 @@ void LayoutRegistry::registerLayout(int id, const ConstElementPtr& root)
 /// @return 根元素；未找到时返回 nullptr。
 ConstElementPtr LayoutRegistry::getLayout(int id) const
 {
+    QMutexLocker lock(&m_mutex);
     return m_layouts.value(id, nullptr);
 }
 

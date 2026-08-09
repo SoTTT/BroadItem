@@ -20,12 +20,12 @@ void ForElement::parse(const QDomElement& xml)
 {
     Element::parse(xml);
     validateAttributes(xml);
-    if (xml.hasAttributeNS(BINDING_NS, QStringLiteral("of"))) {
-        QDomNode ofNode = xml.attributes().namedItemNS(BINDING_NS, QStringLiteral("of"));
+    if (xml.hasAttributeNS(BINDING_NS, BindingName::Of)) {
+        QDomNode ofNode = xml.attributes().namedItemNS(BINDING_NS, BindingName::Of);
         QString ofQName = ofNode.isNull() ? QStringLiteral("b:of") : ofNode.nodeName();
-        m_binding = Binding(ofQName, xml.attributeNS(BINDING_NS, QStringLiteral("of"), QString()));
+        m_binding = Binding(ofQName, xml.attributeNS(BINDING_NS, BindingName::Of, QString()));
     }
-    QString asVal = xml.attributeNS(BINDING_NS, QStringLiteral("as"), QString());
+    QString asVal = xml.attributeNS(BINDING_NS, BindingName::As, QString());
     if (!asVal.isEmpty())
         m_asVariable = asVal;
 }

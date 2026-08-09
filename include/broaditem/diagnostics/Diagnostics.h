@@ -2,6 +2,7 @@
 
 #include <broaditem/diagnostics/ErrorCollector.h>
 #include <broaditem/compat/Optional.h>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <memory>
@@ -10,10 +11,27 @@ namespace BroadItem {
 
 class Element;
 
+/// @brief 运行时诊断去重键（取代 codeToString + '|' + bindingPath 的字符串拼接）。
+struct DiagnosticKey {
+    ErrorCode code;      ///< 错误码。
+    QString bindingPath; ///< 触发诊断的绑定路径。
+
+    bool operator==(const DiagnosticKey& other) const
+    {
+        return code == other.code && bindingPath == other.bindingPath;
+    }
+};
+
+/// @brief DiagnosticKey 的散列（供 QSet 使用）。
+/// @param key 去重键。
+/// @return 散列值。
+uint qHash(const DiagnosticKey& key);
+
 /// @brief 诊断报告入口与解析/运行时作用域。
 ///
-/// 单线程假设（与库其余部分一致）：作用域栈为函数级静态对象，
-/// 仅供 GUI 主线程使用。
+/// 线程模型：解析/运行时作用域栈为 thread_local（每线程各一条，多线程
+/// parse/管线互不串扰）；进程级收集器的读写经互斥锁保护；LayoutRegistry
+/// 单例内部自锁。Frame 持有的去重状态假定随 Frame 单线程使用（GUI 栈前提）。
 namespace Diagnostics {
 
 /// @brief 返回进程级收集器（默认为 DefaultErrorCollector）。
@@ -48,8 +66,9 @@ void reportParse(ErrorCode code, const QString& message,
 
 /// @brief 运行时诊断报告。
 ///
-/// 存在当前 RuntimeScope 时按（模板 × 错误码 × 绑定路径）去重——同一组合
-/// 只投递一次；无 scope（直接跑 LayoutEngine、写时错误等）不去重照报。
+/// 存在当前 RuntimeScope 时按（错误码 × 绑定路径）去重——同一组合在该
+/// scope 的状态集合中只投递一次（Frame 管线安装 scope，窗口为 Frame 实例
+/// 生命周期）；无 scope（直接跑 LayoutEngine、写时错误等）不去重照报。
 ///
 /// @param code        错误码。
 /// @param bindingPath 触发诊断的绑定路径（去重键的一部分）。
@@ -95,21 +114,23 @@ private:
     friend void reportParse(ErrorCode, const QString&, const QString&, const Optional<int>&, const Optional<int>&);
 };
 
-/// @brief 运行时作用域（RAII），仅 Frame 在管线期间构造。
+/// @brief 运行时作用域（RAII），Frame 在管线期间构造。
 ///
-/// 持有模板根元素指针；reportRuntime 以其为去重作用域。
+/// 持有外部去重状态集合的指针（不拥有）；reportRuntime 以栈顶 scope 的
+/// 集合做去重判决。状态由 Frame 成员持有，窗口为 Frame 实例生命周期；
+/// 直调 LayoutEngine 的调用方可自建 QSet<DiagnosticKey> 并显式安装。
 class RuntimeScope {
 public:
     /// @brief 开启运行时作用域。
-    /// @param templateRoot 模板根元素（去重集合宿主）。
-    explicit RuntimeScope(const Element* templateRoot);
+    /// @param dedupState 去重状态集合（须长于本作用域存活；可为 nullptr，等价无 scope）。
+    explicit RuntimeScope(QSet<DiagnosticKey>* dedupState);
     ~RuntimeScope();
 
     RuntimeScope(const RuntimeScope&) = delete;
     RuntimeScope& operator=(const RuntimeScope&) = delete;
 
 private:
-    const Element* m_root;  ///< 模板根元素。
+    QSet<DiagnosticKey>* m_state;  ///< 去重状态集合（不持有）。
 
     friend void reportRuntime(ErrorCode, const QString&, const QString&);
 };

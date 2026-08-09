@@ -2,7 +2,6 @@
 
 #include <broaditem/element/SizedElement.h>
 #include <QPixmap>
-#include <QHash>
 #include <QSet>
 
 namespace BroadItem {
@@ -21,10 +20,9 @@ struct ImageNode : Node {
 /// - 加载失败或未指定 src 时静默渲染为空白（仅盒模型装饰），不绘制占位错误图；
 /// - 无显式尺寸时按 pixmap 原始尺寸自计算；单尺寸指定时另一维按宽高比推导。
 ///
-/// 模板级缓存（m_pixmapCache / m_failedPaths）：
-/// - 本类是模板层首个引入 mutable 状态的元素——缓存生命周期随模板，永不淘汰；
-/// - 依赖 Qt GUI 单线程假设：parse/materialize 均在主线程发生，无需同步；
-/// - 失败路径入 m_failedPaths，避免重复磁盘加载（告警去重由运行时诊断统一机制承担）。
+/// 图像缓存：进程级路径键缓存（src/element/image/ImageCache，含互斥锁），
+/// 模板不再持有任何 mutable 状态；缓存跨模板共享、永不淘汰。
+/// 失败路径入失败表避免重复磁盘加载（告警去重由运行时诊断机制承担）。
 class ImageElement : public SizedElement {
 public:
     void parse(const QDomElement& xml) override;
@@ -43,9 +41,6 @@ protected:
 private:
     QString m_srcLiteral;       ///< parse 时读取的字面量 src（绑定时为空，求值走 resolveString）。
     bool m_keepAspect = true;   ///< 字面量 keep-aspect（默认 true）。
-
-    mutable QHash<QString, QPixmap> m_pixmapCache;  ///< 模板级成功缓存：路径 → 图像。
-    mutable QSet<QString> m_failedPaths;            ///< 模板级失败缓存：加载失败的路径集合。
 };
 
 } // namespace BroadItem

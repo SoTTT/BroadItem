@@ -14,6 +14,7 @@
 #include <broaditem/core/Node.h>
 #include <broaditem/context/LayoutContext.h>
 #include <broaditem/context/PropertyContext.h>
+#include <broaditem/diagnostics/Diagnostics.h>
 
 class QObject;
 
@@ -135,6 +136,7 @@ private:
     bool m_updateScheduled = false;                                 ///< 合并更新已排入事件循环（去重守卫）。
     std::function<void()> m_relayoutAction = [this] { performLayout(); }; ///< 重布局动作，可被持有方替换。
     std::unique_ptr<QObject> m_timerContext;                        ///< singleShot 的 context，Frame 销毁时待定任务自动取消。
+    mutable QSet<DiagnosticKey> m_reportedDiagnostics;              ///< 运行时诊断去重集合（实例级；mutable 支持 const paint 安装 scope）。
 
     /// @brief 连接属性上下文的变更回调（默认 MapPropertyContext 的创建在 fromFile/fromRegistry）。
     void setupPropertyContext();
