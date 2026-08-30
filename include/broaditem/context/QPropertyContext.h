@@ -88,7 +88,6 @@ private slots:
 private:
     void ensureConnected() const;
     bool isProxy() const { return m_target != nullptr; }
-    void commonSetup();
 
     void setPropertyNested(const QString& path, const QVariant& value);
 

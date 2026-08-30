@@ -12,6 +12,8 @@ QPropertyContext::QPropertyContext()
     : QObject(nullptr)
     , m_target(nullptr)
 {
+    // 延迟到事件循环下一拍连接：自宿主模式构造期派生类 Q_PROPERTY 尚未进入
+    // 元对象（三路径惰性连接的完整约束见 ensureConnected 注释）
     QTimer::singleShot(0, this, [this] { ensureConnected(); });
 }
 
@@ -28,6 +30,7 @@ QPropertyContext::QPropertyContext(QObject* target, QObject* parent)
             m_target = nullptr;
         });
     }
+    // 同默认构造：统一走定时器延迟 + 各 API/eventFilter 同步兜底（见 ensureConnected 注释）
     QTimer::singleShot(0, this, [this] { ensureConnected(); });
 }
 
@@ -39,6 +42,18 @@ QPropertyContext::~QPropertyContext()
 }
 
 /// @brief 确保通知信号连接已建立（首次访问时调用一次）。
+///
+/// 一次性惰性初始化的唯一汇合点。三条触发路径各补一个别的路径盖不住的场景，
+/// 均非冗余（土法编程审阅 #7 结论）：
+/// - 构造函数只排 QTimer::singleShot(0) 而非构造即连：自宿主模式下被连接的是
+///   this->metaObject()，基类构造期派生类的 Q_PROPERTY 尚未进入元对象，
+///   构造即连会静默漏掉全部派生属性；推迟到事件循环下一拍时对象已完整构造。
+/// - 各 API 入口（property/hasProperty/setProperty/setPropertyNested）同步兜底：
+///   定时器依赖事件循环——调用方不跑事件循环（headless 直调）或在循环启动前
+///   读写时，连接永不建立，变更通知静默丢失。
+/// - eventFilter 同步兜底：纯监听场景（目标动态属性不经过本上下文 API 而变化）
+///   下，DynamicPropertyChange 事件可能先于 singleShot(0) 到达。
+/// m_connected 守卫保证三条路径叠加仍只连接一次。
 void QPropertyContext::ensureConnected() const
 {
     if (m_connected)
@@ -103,6 +118,7 @@ bool QPropertyContext::event(QEvent* e)
 bool QPropertyContext::eventFilter(QObject* obj, QEvent* event)
 {
     if (event->type() == QEvent::DynamicPropertyChange && obj == m_target) {
+        // 纯监听场景同步兜底：动态属性事件可能先于 singleShot(0) 到达（见 ensureConnected 注释）
         ensureConnected();
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
         auto* de = static_cast<QDynamicPropertyChangeEvent*>(event);
@@ -129,6 +145,8 @@ void QPropertyContext::setPropertyNested(const QString& path, const QVariant& va
     // 语法保证首段必为键分段。
     const QString& firstKey = segs.front().key();
 
+    // 同步兜底：调用方可能不跑事件循环或在循环启动前写入，定时器永不触发
+    //（见 ensureConnected 注释）
     ensureConnected();
     QObject* obj = m_target ? m_target : this;
     QByteArray firstKeyBa = firstKey.toUtf8();
