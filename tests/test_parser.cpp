@@ -1,4 +1,5 @@
 #include <QtTest/QtTest>
+#include <QBuffer>
 #include <broaditem/parser/XmlLayoutParser.h>
 #include <broaditem/compat/QtCompat.h>
 #include <broaditem/context/LayoutContext.h>
@@ -7,13 +8,14 @@
 #include <broaditem/core/LayoutEngine.h>
 #include <broaditem/parser/LayoutRegistry.h>
 #include <broaditem/element/Element.h>
+#include <broaditem/element/RenderableElement.h>
 #include <broaditem/element/control/IfElement.h>
 #include <broaditem/element/control/ForElement.h>
 
 using namespace BroadItem;
 
 /// @brief 供 IfElement 空值测试使用的最小可渲染元素（模板/实例分离版）。
-class NullTestElement : public BroadItem::Element {
+class NullTestElement : public BroadItem::RenderableElement {
 public:
     std::unique_ptr<BroadItem::Node> materialize(const BroadItem::LayoutContext&) const override
     {
@@ -89,7 +91,28 @@ private slots:
     void testOldSyntaxRejected();
     void testNamespaceMissingRejected();
     void testWrongNamespaceUri();
+    void testParseDeviceBuffer();
+    void testParseDeviceNotReadable();
 };
+
+/// @brief QIODevice 入口：已打开的 QBuffer 解析成功，与 parseString 等价
+void TestParser::testParseDeviceBuffer()
+{
+    QByteArray data = R"(<root><text font-size="14">Hello</text></root>)";
+    QBuffer buffer(&data);
+    QVERIFY(buffer.open(QIODevice::ReadOnly));
+    auto root = BroadItem::XmlLayoutParser::parseDevice(&buffer);
+    QVERIFY(root != nullptr);
+}
+
+/// @brief QIODevice 入口：设备未以可读模式打开时按 BI-P-001 处理，返回 nullptr
+void TestParser::testParseDeviceNotReadable()
+{
+    QByteArray data;
+    QBuffer buffer(&data);  // 未 open
+    auto root = BroadItem::XmlLayoutParser::parseDevice(&buffer);
+    QVERIFY(root == nullptr);
+}
 
 /// @brief 解析最简单的文本元素并验证根节点不为空
 void TestParser::testParseSimpleText()

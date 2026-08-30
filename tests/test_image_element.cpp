@@ -1,6 +1,5 @@
 #include <QtTest/QtTest>
 #include <QTemporaryDir>
-#include <QTemporaryFile>
 #include <QImage>
 #include <broaditem/parser/XmlLayoutParser.h>
 #include <broaditem/element/Element.h>
@@ -11,6 +10,7 @@
 #include <broaditem/context/MapPropertyContext.h>
 
 #include "helpers/binding_helpers.h"
+#include "helpers/frame_helpers.h"
 
 using namespace BroadItem;
 using namespace BroadItem::TestHelpers;
@@ -25,20 +25,6 @@ static bool writeSolidPng(const QString& path, int size, const QColor& color)
     QImage img(size, size, QImage::Format_ARGB32);
     img.fill(color);
     return img.save(path, "PNG");
-}
-
-/// @brief 将布局片段写入临时文件并经 Frame::fromFile 完成物化/布局。
-/// @param xml 根元素唯一子元素的 XML 片段（内部自动包裹 root 头尾）。
-/// @return 布局完成的 Frame；临时文件在 fromFile 解析后即可析构。
-static std::unique_ptr<Frame> frameFromXml(const QString& xml)
-{
-    QTemporaryFile tmp(QDir::tempPath() + QStringLiteral("/bi_image_XXXXXX.xml"));
-    if (!tmp.open())
-        return nullptr;
-    tmp.write((QStringLiteral("<root xmlns:b=\"urn:broaditem:binding\">") + xml +
-               QStringLiteral("</root>")).toUtf8());
-    tmp.flush();
-    return Frame::fromFile(tmp.fileName(), nullptr);
 }
 
 /// @brief 测试期 Qt 告警捕获器（RAII）：安装自定义 message handler 记录
@@ -84,7 +70,7 @@ private slots:
         const QString path = dir.filePath(QStringLiteral("red.png"));
         QVERIFY2(writeSolidPng(path, 8, QColor(255, 0, 0)), "红色 PNG 生成失败");
 
-        auto frame = frameFromXml(QStringLiteral("<image src=\"%1\"/>").arg(path));
+        auto frame = frameFromXmlString(QStringLiteral("<image src=\"%1\"/>").arg(path));
         QVERIFY2(frame, "Frame::fromFile 失败");
         const QImage img = frame->toImage();
         QVERIFY2(!img.isNull(), "渲染结果为空");
@@ -103,7 +89,7 @@ private slots:
         QVERIFY2(writeSolidPng(redPath, 8, QColor(255, 0, 0)), "红色 PNG 生成失败");
         QVERIFY2(writeSolidPng(bluePath, 8, QColor(0, 0, 255)), "蓝色 PNG 生成失败");
 
-        auto frame = frameFromXml(QStringLiteral("<image b:src=\"icon\"/>"));
+        auto frame = frameFromXmlString(QStringLiteral("<image b:src=\"icon\"/>"));
         QVERIFY2(frame, "Frame::fromFile 失败");
 
         // 未注入 icon：pixmap 为空 → measure 0×0 → toImage 空图
@@ -164,7 +150,7 @@ private slots:
         {
             const WarningCapture cap(&warnings);
             // 显式尺寸保证有可见渲染区域，采样透明而非依赖 0×0 空图
-            auto frame = frameFromXml(QStringLiteral("<image b:src=\"icon\" width=\"8\" height=\"8\"/>"));
+            auto frame = frameFromXmlString(QStringLiteral("<image b:src=\"icon\" width=\"8\" height=\"8\"/>"));
             QVERIFY2(frame, "Frame::fromFile 失败");
             img = frame->toImage();
         }
@@ -180,7 +166,7 @@ private slots:
         QImage img;
         {
             const WarningCapture cap(&warnings);
-            auto frame = frameFromXml(QStringLiteral("<image src=\"\" width=\"8\" height=\"8\"/>"));
+            auto frame = frameFromXmlString(QStringLiteral("<image src=\"\" width=\"8\" height=\"8\"/>"));
             QVERIFY2(frame, "Frame::fromFile 失败");
             img = frame->toImage();
         }
@@ -198,7 +184,7 @@ private slots:
         const QString path = dir.filePath(QStringLiteral("green.png"));
         QVERIFY2(writeSolidPng(path, 10, QColor(0, 255, 0)), "绿色 PNG 生成失败");
 
-        auto frame = frameFromXml(
+        auto frame = frameFromXmlString(
             QStringLiteral("<image src=\"%1\" width=\"20\" height=\"40\"/>").arg(path));
         QVERIFY2(frame, "Frame::fromFile 失败");
         const QImage img = frame->toImage();
@@ -216,7 +202,7 @@ private slots:
         const QString path = dir.filePath(QStringLiteral("green.png"));
         QVERIFY2(writeSolidPng(path, 10, QColor(0, 255, 0)), "绿色 PNG 生成失败");
 
-        auto frame = frameFromXml(
+        auto frame = frameFromXmlString(
             QStringLiteral("<image src=\"%1\" width=\"20\" height=\"40\" keep-aspect=\"false\"/>")
                 .arg(path));
         QVERIFY2(frame, "Frame::fromFile 失败");
@@ -303,7 +289,7 @@ private slots:
         // 资源是否注册：":/" 前缀探测资源系统可见性
         QVERIFY2(QFile::exists(QStringLiteral(":/icons/red.png")),
                  "qrc 资源未注册进测试二进制");
-        auto frame = frameFromXml(QStringLiteral("<image src=\":/icons/red.png\"/>"));
+        auto frame = frameFromXmlString(QStringLiteral("<image src=\":/icons/red.png\"/>"));
         QVERIFY2(frame, "Frame::fromFile 失败");
         const QImage img = frame->toImage();
         QVERIFY2(!img.isNull(), "qrc 图像渲染为空");

@@ -7,9 +7,22 @@
 namespace BroadItem {
 
 /// @brief 具有可视化表现和盒模型装饰器的元素基类。
+///
+/// 三阶段流水线（测量、布局、渲染）的虚函数仅存在于本类：
+/// 控制元素物化时结构性展开、不入实例树（Node::element 指针类型即本类），
+/// 因此"控制元素不参与管线"由类型系统编译期强制，而非运行期兜底。
 class RenderableElement : public Element {
 public:
     virtual ~RenderableElement() = default;
+
+    /// @brief 测量阶段：计算元素的固有尺寸，状态经 node 进出。
+    virtual MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const = 0;
+
+    /// @brief 布局阶段：在 rect 内分配最终位置和尺寸，结果写入 node。
+    virtual void layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const = 0;
+
+    /// @brief 使用给定 painter 渲染 node 对应的实例子树。
+    virtual void render(QPainter* painter, const LayoutContext& ctx, const Node& node) const = 0;
 
     Margin  m_margin;       ///< 元素外边距。
     Border  m_border;       ///< 元素边框。

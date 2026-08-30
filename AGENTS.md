@@ -34,7 +34,7 @@ ctest --test-dir build-qt6 --output-on-failure  # Qt6：18 个（含金图，基
 
 - `test_parser`、`test_property_context`、`test_sized_element`、`test_layout_behavior`、`test_for_element`、`test_flatten_children`、`test_binding`、`test_expression`、`test_reactive_binding`、`test_connection_line`、`test_anchor_decorator`、`test_regression`、`test_bound_attributes`
 - `test_update_coalescing`：P0-4 变更合并（`UpdatePolicy`/`flush()`/守卫位）
-- `test_diagnostics`：P1-1 结构化诊断。码表 33 个错误码逐一一个用例 + 行为用例（嵌套 Abort 整文件失败、全收集、运行时实例级去重、并发 parse 隔离、静默清单、Default 语义回归）
+- `test_diagnostics`：P1-1 结构化诊断。码表 34 个错误码逐一一个用例 + 行为用例（嵌套 Abort 整文件失败、全收集、运行时实例级去重、并发 parse 隔离、静默清单、Default 语义回归）
 - `test_image_element`：`<image>` 部件测试，首个 qrc 测试基建（`tests/assets/icons.qrc` 经 `qt5/qt6_add_resources` 编入该目标）
 - `test_rect_element`：`<rect>` 部件测试（逐维度 measure、fillsCrossAxis 交叉轴恒填充、显式尺寸豁免与居中、绑定求值与拒绝路径、cell/根退化、BI-P-007）
 - `test_golden_render`：黄金镜像校验。`tests/golden/golden_render.cpp` 是采集/校验工具（`--capture <dir>` 按内置 manifest 渲染 PNG；`--verify <dir>` 逐像素比对，等价组不一致则退出码 1）。**该测试固定 `QT_QPA_PLATFORM=offscreen`**（`set_tests_properties`），cocoa 下字体光栅化不确定性会破坏逐像素比对，改金图基建时不得去掉此环境变量。**基线按 Qt 版本分套**：`tests/golden/golden/`（Qt5）与 `tests/golden/golden-qt6/`（Qt6，字体度量/光栅化有亚像素级漂移，逐像素比对不可跨栈共用），`tests/CMakeLists.txt` 按 `QT_VERSION_MAJOR` 指向对应基线；改渲染行为时两套都要重新采集。
@@ -42,7 +42,7 @@ ctest --test-dir build-qt6 --output-on-failure  # Qt6：18 个（含金图，基
 注意：
 
 - 普通测试目标经 `tests/CMakeLists.txt` 的 `bi_add_plain_test(<name>)` 函数注册（`BI_PLAIN_TESTS` 列表 + foreach），新增测试只需在列表加一行；qrc、金图等特例在该函数之外单独处理。
-- 跨套件共享的测试辅助收敛在 `tests/helpers/`（`binding_helpers.h`/`layout_helpers.h`/`diagnostics_helpers.h`/`reactive_helpers.h`，`BroadItem::TestHelpers` 命名空间），新增重复 helper 时优先放这里。注意：`reactive_helpers.h` 含 Q_OBJECT 类，AUTOMOC 不会自动 moc 子目录头文件，消费该头的 cpp 须在末尾 `#include "helpers/moc_reactive_helpers.cpp"`；新增含 Q_OBJECT 的共享头沿用此模式。
+- 跨套件共享的测试辅助收敛在 `tests/helpers/`（`binding_helpers.h`/`layout_helpers.h`/`diagnostics_helpers.h`/`reactive_helpers.h`/`frame_helpers.h`，`BroadItem::TestHelpers` 命名空间），新增重复 helper 时优先放这里。注意：`reactive_helpers.h` 含 Q_OBJECT 类，AUTOMOC 不会自动 moc 子目录头文件，消费该头的 cpp 须在末尾 `#include "helpers/moc_reactive_helpers.cpp"`；新增含 Q_OBJECT 的共享头沿用此模式。
 - 示例/测试使用的 XML 布局文件经 `configure_file` 拷入构建目录（见 `example/CMakeLists.txt`、`tests/CMakeLists.txt`）。测试报找不到 XML 时先重新构建。
 - 黄金基线 PNG 按 Qt 版本分套：`tests/golden/golden/`（Qt5）、`tests/golden/golden-qt6/`（Qt6），对应布局在 `tests/golden/layouts/`。
 - 布局 XML 的结构约束由仓库根目录的 `broaditem.xsd` 描述；新增/修改部件时应同步更新 XSD 与设计文档。

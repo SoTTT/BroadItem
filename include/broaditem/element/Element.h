@@ -75,18 +75,6 @@ public:
     /// @return 物化后的节点向量。
     virtual std::vector<std::unique_ptr<Node>> materializeChildren(const LayoutContext& ctx) const;
 
-    /// @brief 测量阶段：计算元素的固有尺寸，状态经 node 进出。
-    /// 基类默认实现为 qFatal——控制元素永不出现在实例树中。
-    virtual MeasureResult measure(const LayoutContext& ctx, const LayoutConstraints& constraints, Node& node) const;
-
-    /// @brief 布局阶段：在 rect 内分配最终位置和尺寸，结果写入 node。
-    /// 基类默认实现为 qFatal——控制元素永不出现在实例树中。
-    virtual void layout(const LayoutContext& ctx, const QRectF& rect, Node& node) const;
-
-    /// @brief 使用给定 painter 渲染 node 对应的实例子树。
-    /// 基类默认实现为 qFatal——控制元素永不出现在实例树中。
-    virtual void render(QPainter* painter, const LayoutContext& ctx, const Node& node) const;
-
     /// @brief 基线钩子：返回自身矩形顶边到基线的距离（px）。
     ///
     /// 供 RowLayout 的 cross-align="baseline" 分支在 measure/layout 阶段查询。

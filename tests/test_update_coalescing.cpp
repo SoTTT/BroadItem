@@ -1,6 +1,7 @@
 #include <QtTest/QtTest>
-#include <QTemporaryFile>
 #include <broaditem/core/Frame.h>
+
+#include "helpers/frame_helpers.h"
 
 using namespace BroadItem;
 
@@ -11,17 +12,10 @@ using namespace BroadItem;
 class CoalescingFixture {
 public:
     /// @brief 构造绑定布局的 Frame。
-    /// @return 解析并布局完成的 Frame；临时文件创建失败返回 nullptr。
+    /// @return 解析并布局完成的 Frame。
     std::unique_ptr<Frame> makeFrame()
     {
-        m_tmp.reset(new QTemporaryFile(QDir::tempPath() + QStringLiteral("/bi_coalesce_XXXXXX.xml")));
-        if (!m_tmp->open())
-            return nullptr;
-        m_tmp->write("<root xmlns:b=\"urn:broaditem:binding\">"
-                     "<text b:content=\"msg\"/>"
-                     "</root>");
-        m_tmp->flush();
-        return Frame::fromFile(m_tmp->fileName());
+        return TestHelpers::frameFromXmlString(QStringLiteral("<text b:content=\"msg\"/>"));
     }
 
     int relayoutCount = 0;  ///< 重布局动作执行次数（由 installCounter 注入的 hook 累加）。
@@ -36,9 +30,6 @@ public:
         });
         relayoutCount = 0;
     }
-
-private:
-    std::unique_ptr<QTemporaryFile> m_tmp;  ///< 布局 XML 临时文件，生命周期覆盖 Frame 构造。
 };
 
 class TestUpdateCoalescing : public QObject {

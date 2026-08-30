@@ -2,6 +2,7 @@
 #include <broaditem/core/Node.h>
 #include <broaditem/compat/QtCompat.h>
 #include <broaditem/core/LayoutEngine.h>
+#include <broaditem/element/RenderableElement.h>
 #include <broaditem/element/layout/RowLayout.h>
 #include <broaditem/element/layout/CellElement.h>
 #include <broaditem/element/control/ForElement.h>
@@ -13,16 +14,24 @@ using namespace BroadItem;
 
 namespace {
 
-/// @brief 最小叶子元素：仅实现纯虚 materialize()，用作 for 模板或普通子元素。
+/// @brief 最小叶子元素：实现物化与三个管线纯虚，用作 for 模板或普通子元素。
 ///
 /// 物化时产生一个裸节点，其 element 指针指回该模板自身。
-struct SimpleLeaf : BroadItem::Element {
+struct SimpleLeaf : BroadItem::RenderableElement {
     std::unique_ptr<BroadItem::Node> materialize(const BroadItem::LayoutContext&) const override
     {
         auto node = BroadItem::makeUnique<BroadItem::Node>();
         node->element = this;
         return node;
     }
+    BroadItem::MeasureResult measure(const BroadItem::LayoutContext&,
+                                     const BroadItem::LayoutConstraints&,
+                                     BroadItem::Node&) const override
+    {
+        return {QSizeF(0, 0)};
+    }
+    void layout(const BroadItem::LayoutContext&, const QRectF&, BroadItem::Node&) const override {}
+    void render(QPainter*, const BroadItem::LayoutContext&, const BroadItem::Node&) const override {}
 };
 
 /// @brief 构造 ForElement：b:of=of、b:as=as，模板为 templ。

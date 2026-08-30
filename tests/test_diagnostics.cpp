@@ -1,5 +1,4 @@
 #include <QtTest/QtTest>
-#include <QTemporaryFile>
 #include <QTemporaryDir>
 #include <QThread>
 #include <broaditem/diagnostics/Diagnostics.h>
@@ -14,6 +13,7 @@
 
 #include "helpers/binding_helpers.h"
 #include "helpers/diagnostics_helpers.h"
+#include "helpers/frame_helpers.h"
 
 using namespace BroadItem;
 using namespace BroadItem::TestHelpers;
@@ -27,20 +27,14 @@ struct ProcessCollectorGuard {
     ~ProcessCollectorGuard() { Diagnostics::setCollector(nullptr); }
 };
 
-/// @brief Frame 测试基建：临时 XML 文件 + 预注入的 MapPropertyContext。
+/// @brief Frame 测试基建：布局片段 + 预注入的 MapPropertyContext。
 struct FrameFixture {
-    QTemporaryFile file;                                    ///< 布局临时文件。
     std::shared_ptr<MapPropertyContext> ctx = std::make_shared<MapPropertyContext>();  ///< 属性上下文。
 
-    /// @brief 落盘布局并构造 Frame（构造期完成首次物化/布局）。
+    /// @brief 从布局片段构造 Frame（构造期完成首次物化/布局）。
     std::unique_ptr<Frame> make(const QString& inner)
     {
-        file.setFileTemplate(QDir::tempPath() + QStringLiteral("/bi_diag_XXXXXX.xml"));
-        if (!file.open())
-            return nullptr;
-        file.write(wrap(inner).toUtf8());
-        file.flush();
-        return Frame::fromFile(file.fileName(), ctx);
+        return frameFromXmlString(inner, ctx);
     }
 };
 
@@ -61,7 +55,7 @@ class TestDiagnostics : public QObject {
 
 private slots:
     // NOLINTBEGIN(readability-convert-member-functions-to-static)
-    // ========== 解析期：22 个错误码 ==========
+    // ========== 解析期：23 个错误码 ==========
 
     /// @brief BI-P-001：文件无法打开 → Abort。
     void fileOpenFails()
@@ -415,6 +409,28 @@ private slots:
                                 "</column>")), &cap);
         QVERIFY(root != nullptr);
         QCOMPARE(cap.count(ErrorCode::InvalidEnumLiteral), 3);
+    }
+
+    /// @brief BI-P-025：布局 ID 重复注册 → Warning，后写者覆盖（last-wins）。
+    void registryDuplicateId()
+    {
+        auto cap = std::make_shared<CaptureCollector>();
+        const ProcessCollectorGuard guard(cap);
+        auto rootA = XmlLayoutParser::parseString(wrap(QStringLiteral("<text>A</text>")));
+        auto rootB = XmlLayoutParser::parseString(wrap(QStringLiteral("<text>B</text>")));
+        QVERIFY(rootA != nullptr && rootB != nullptr);
+
+        const int id = 434343;
+        auto& reg = LayoutRegistry::instance();
+        reg.registerLayout(id, rootA);   // 首次注册：无诊断
+        QVERIFY(cap->find(ErrorCode::RegistryDuplicateId) == nullptr);
+
+        reg.registerLayout(id, rootB);   // 重复注册：BI-P-025，B 覆盖 A
+        const Diagnostic* d = cap->find(ErrorCode::RegistryDuplicateId);
+        QVERIFY(d != nullptr);
+        QCOMPARE(severityOf(d->code), Severity::Warning);
+        QCOMPARE(recoveryOf(d->code), Recovery::Default);
+        QCOMPARE(reg.getLayout(id).get(), rootB.get());
     }
 
     /// @brief BI-P-020：Registry 目录不存在 → Warning，返回 0。

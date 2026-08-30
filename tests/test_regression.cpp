@@ -1,17 +1,16 @@
 #include <QtTest/QtTest>
 #include <QApplication>
 #include <QFont>
-#include <QTemporaryFile>
-#include <QDir>
 
 #include <broaditem/core/Frame.h>
 #include <broaditem/core/LayoutEngine.h>
 #include <broaditem/core/Node.h>
-#include <broaditem/parser/XmlLayoutParser.h>
 #include <broaditem/parser/LayoutRegistry.h>
 #include <broaditem/element/text/TextElement.h>
 #include <broaditem/context/LayoutContext.h>
 #include <broaditem/context/MapPropertyContext.h>
+
+#include "helpers/frame_helpers.h"
 
 using namespace BroadItem;
 
@@ -77,16 +76,14 @@ private slots:
         // macOS 环境运行，故硬编码该字体以避免字体回退带来的像素差异。
         QApplication::setFont(QFont(QStringLiteral("PingFang SC")));
 
-        const QString xml = QStringLiteral(
-            "<root xmlns:b=\"urn:broaditem:binding\">"
+        const QString inner = QStringLiteral(
             "<column>"
             "<for b:of=\"items\" b:as=\"it\">"
             "<text font-size=\"12\" b:content=\"it\"/>"
             "</for>"
-            "</column>"
-            "</root>");
+            "</column>");
 
-        auto root = BroadItem::XmlLayoutParser::parseString(xml);
+        auto root = BroadItem::TestHelpers::parse(inner);
         QVERIFY(root != nullptr);
         BroadItem::LayoutRegistry::instance().registerLayout(90001, root);
 
@@ -111,13 +108,9 @@ private slots:
         frameA->flush();
         frameB->flush();
 
-        // 参照物：同一 XML 落临时文件 + items={甲}，走 fromFile 独立渲染。
-        QTemporaryFile tmp(QDir::tempPath() + QStringLiteral("/bi_reg_XXXXXX.xml"));
-        QVERIFY(tmp.open());
-        tmp.write(xml.toUtf8());
-        tmp.flush();
+        // 参照物：同一布局 + items={甲}，独立 Frame 渲染。
         auto ctxRef = std::make_shared<BroadItem::MapPropertyContext>();
-        auto frameRef = BroadItem::Frame::fromFile(tmp.fileName(), ctxRef);
+        auto frameRef = BroadItem::TestHelpers::frameFromXmlString(inner, ctxRef);
         QVERIFY(frameRef != nullptr);
         frameRef->setDynamicProperty(QStringLiteral("items"),
                                      QStringList{QStringLiteral("甲")});
@@ -149,18 +142,16 @@ private slots:
     /// 而非 3，且只渲染第一行文本，本测试的计数与堆叠断言全部失败。
     void testCellForStacksVertically()
     {
-        const QString xml = QStringLiteral(
-            "<root xmlns:b=\"urn:broaditem:binding\">"
+        const QString inner = QStringLiteral(
             "<grid columns=\"1\" rows=\"1\">"
             "<cell padding=\"8\">"
             "<column space=\"4\" b:of=\"lines\" b:as=\"ln\">"
             "<text font-size=\"12\" b:content=\"ln\"/>"
             "</column>"
             "</cell>"
-            "</grid>"
-            "</root>");
+            "</grid>");
 
-        auto root = BroadItem::XmlLayoutParser::parseString(xml);
+        auto root = BroadItem::TestHelpers::parse(inner);
         QVERIFY(root != nullptr);
 
         BroadItem::MapPropertyContext mapCtx;
@@ -211,8 +202,7 @@ private slots:
     /// 计数与集合断言失败。
     void testNestedForExpands()
     {
-        const QString xml = QStringLiteral(
-            "<root xmlns:b=\"urn:broaditem:binding\">"
+        const QString inner = QStringLiteral(
             "<column>"
             "<for b:of=\"groups\" b:as=\"g\">"
             "<column>"
@@ -222,10 +212,9 @@ private slots:
             "</for>"
             "</column>"
             "</for>"
-            "</column>"
-            "</root>");
+            "</column>");
 
-        auto root = BroadItem::XmlLayoutParser::parseString(xml);
+        auto root = BroadItem::TestHelpers::parse(inner);
         QVERIFY(root != nullptr);
 
         QVariantMap g1;

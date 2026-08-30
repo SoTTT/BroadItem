@@ -4,6 +4,7 @@
 #include <memory>
 
 class QDomElement;
+class QIODevice;
 
 namespace BroadItem {
 
@@ -27,6 +28,16 @@ public:
     /// @param collector  本次调用专用诊断收集器（可空，叠加于进程级）。
     /// @return 根元素；发生 Abort 级错误返回 nullptr。
     static ElementPtr parseString(const QString& xmlContent, ErrorCollector* collector = nullptr);
+    /// @brief 从已打开的 QIODevice 解析布局，返回根元素。
+    ///
+    /// Qt I/O 抽象入口：QFile（含 qrc ":/" 路径）、QBuffer（内存字符串）等
+    /// 一切 QIODevice 子类均可。沿袭 QDomDocument::setContent 惯例——
+    /// 调用方持有设备并负责打开，本函数只读全部内容后解析。
+    /// 诊断来源标签：设备为 QFile 时取其 fileName()，否则用 "<device>"。
+    /// @param device    已以可读模式打开的设备（不可读时按 BI-P-001 报告）。
+    /// @param collector 本次调用专用诊断收集器（可空，叠加于进程级）。
+    /// @return 根元素；发生 Abort 级错误返回 nullptr。
+    static ElementPtr parseDevice(QIODevice* device, ErrorCollector* collector = nullptr);
 
 private:
     /// @brief 在已建立的解析会话下解析 XML 字符串（parseFile/parseString 共享实现）。

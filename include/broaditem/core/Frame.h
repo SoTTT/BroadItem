@@ -17,6 +17,7 @@
 #include <broaditem/diagnostics/Diagnostics.h>
 
 class QObject;
+class QIODevice;
 
 namespace BroadItem {
 
@@ -45,6 +46,16 @@ public:
     /// @return 新构造的 Frame（堆分配，回调捕获 this 安全）。
     static std::unique_ptr<Frame> fromRegistry(int layoutId,
                                                std::shared_ptr<PropertyContext> ctx = nullptr);
+
+    /// @brief 从已打开的 QIODevice 构造 Frame。
+    ///
+    /// Qt I/O 抽象入口：QFile（含 qrc ":/" 路径）、QBuffer（内存字符串）等
+    /// 一切 QIODevice 子类均可。调用方持有设备并负责打开，构造期读取全部内容。
+    /// @param device 已以可读模式打开的设备。
+    /// @param ctx    属性上下文，为 nullptr 时自动创建默认上下文。
+    /// @return 新构造的 Frame（堆分配，回调捕获 this 安全）。
+    static std::unique_ptr<Frame> fromDevice(QIODevice* device,
+                                             std::shared_ptr<PropertyContext> ctx = nullptr);
 
     /// @brief 设置动态属性值，如果该属性被元素绑定则触发重新布局。
     /// @param name  属性名。

@@ -13,6 +13,7 @@
 #include <broaditem/element/control/IfElement.h>
 #include <QDomDocument>
 #include <QFile>
+#include <QIODevice>
 
 namespace BroadItem {
 
@@ -86,6 +87,28 @@ ElementPtr XmlLayoutParser::parseFile(const QString& filePath, ErrorCollector* c
 ElementPtr XmlLayoutParser::parseString(const QString& xmlContent, ErrorCollector* collector)
 {
     return parseStringInternal(xmlContent, QString(), collector);
+}
+
+/// @brief 从已打开的 QIODevice 读取并解析元素树。
+///
+/// 与 parseFile 同一会话结构：外层会话护设备不可读时的 BI-P-001 投递，
+/// 内层由 parseStringInternal 自建。诊断来源标签：QFile 取 fileName()，否则 "<device>"。
+///
+/// @param device    已以可读模式打开的设备（调用方持有并负责打开）。
+/// @param collector 本次调用专用诊断收集器（可空）。
+/// @return 根元素；设备不可读或发生 Abort 级错误返回 nullptr。
+ElementPtr XmlLayoutParser::parseDevice(QIODevice* device, ErrorCollector* collector)
+{
+    const QFile* asFile = qobject_cast<const QFile*>(device);
+    const QString source = asFile ? asFile->fileName() : QStringLiteral("<device>");
+    Diagnostics::ParseSession session(source, collector);
+    if (!device || !device->isReadable()) {
+        Diagnostics::reportParse(ErrorCode::FileOpenFailed,
+                                 QStringLiteral("cannot read XML from device: %1").arg(source));
+        return nullptr;
+    }
+    const QString content = QString::fromUtf8(device->readAll());
+    return parseStringInternal(content, source, collector);
 }
 
 /// @brief 在解析会话下解析 XML 字符串：全收集语义——树遍历不提前中止，

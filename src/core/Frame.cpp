@@ -45,6 +45,20 @@ std::unique_ptr<Frame> Frame::fromRegistry(int layoutId, std::shared_ptr<Propert
     return frame;
 }
 
+/// @brief 从已打开的 QIODevice 构造 Frame。
+/// @param device 已以可读模式打开的设备（调用方持有并负责打开）。
+/// @param ctx 属性上下文，为 nullptr 时自动创建 MapPropertyContext。
+/// @return 解析并布局完成的 Frame 实例。
+std::unique_ptr<Frame> Frame::fromDevice(QIODevice* device, std::shared_ptr<PropertyContext> ctx)
+{
+    auto frame = std::unique_ptr<Frame>(new Frame());
+    frame->m_propertyContext = ctx ? std::move(ctx) : std::make_shared<MapPropertyContext>();
+    frame->setupPropertyContext();
+    frame->m_rootTemplate = XmlLayoutParser::parseDevice(device);
+    frame->performLayout();
+    return frame;
+}
+
 /// @brief 连接属性上下文变更回调：绑定的属性变化时标脏并按更新策略调度重布局。
 ///
 /// Frame 由工厂以 unique_ptr 堆分配返回，[this] 捕获在 Frame 生命周期内安全。

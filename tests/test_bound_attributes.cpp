@@ -1,5 +1,4 @@
 #include <QtTest/QtTest>
-#include <QTemporaryFile>
 #include <broaditem/parser/XmlLayoutParser.h>
 #include <broaditem/element/Element.h>
 #include <broaditem/element/text/TextElement.h>
@@ -11,6 +10,7 @@
 #include <broaditem/expression/Binding.h>
 
 #include "helpers/binding_helpers.h"
+#include "helpers/frame_helpers.h"
 
 using namespace BroadItem;
 using namespace BroadItem::TestHelpers;
@@ -176,17 +176,9 @@ private slots:
     /// 避开文字字形与图像边缘。
     void refreshChainPixel()
     {
-        const QString xml = QStringLiteral(
-            "<root xmlns:b=\"urn:broaditem:binding\">"
-            "<text b:background-color=\"bg\" padding=\"10\">Hi</text>"
-            "</root>");
-        QTemporaryFile tmp(QDir::tempPath() + QStringLiteral("/bi_bound_XXXXXX.xml"));
-        QVERIFY2(tmp.open(), "临时文件创建失败");
-        tmp.write(xml.toUtf8());
-        tmp.flush();
-
-        auto frame = Frame::fromFile(tmp.fileName(), nullptr);
-        QVERIFY2(frame, "Frame::fromFile 失败");
+        auto frame = frameFromXmlString(
+            QStringLiteral("<text b:background-color=\"bg\" padding=\"10\">Hi</text>"));
+        QVERIFY2(frame, "Frame 构造失败");
 
         // 初始：bg 未注入 → 背景不启用 → (5,5) 为透明
         const QImage before = frame->toImage();

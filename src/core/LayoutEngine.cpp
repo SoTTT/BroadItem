@@ -1,5 +1,6 @@
 #include <broaditem/core/LayoutEngine.h>
 #include <broaditem/element/Element.h>
+#include <broaditem/element/RenderableElement.h>
 #include <QPainter>
 
 namespace BroadItem {
