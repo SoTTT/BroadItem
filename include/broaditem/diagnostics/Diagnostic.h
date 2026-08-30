@@ -32,6 +32,7 @@ enum class ErrorCode {
     RootChildDiscarded,      ///< BI-P-022 根唯一子元素降级为空（如 deprecated 装饰器），无可用内容
     BindingNotSupported,     ///< BI-P-023 布局策略属性不参与绑定（解析期拒绝，不注册）
     InvalidEnumLiteral,      ///< BI-P-024 枚举属性取值非法（h-align/v-align/main-align/cross-align）
+    RegistryDuplicateId,     ///< BI-P-025 Registry 布局 ID 重复注册（后写者覆盖，可见化告警）
     // ---- 运行时（BI-R-xxx） ----
     ObjectFirstKeyMissing,   ///< BI-R-001 绑定路径首段属性在 QObject 上不存在
     NestedKeyMissing,        ///< BI-R-002 路径中段键在 map 中不存在

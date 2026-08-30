@@ -42,6 +42,7 @@ const CodeInfo kCodeTable[] = {
     { "BI-P-022", Severity::Error,   Recovery::Abort   },  // RootChildDiscarded
     { "BI-P-023", Severity::Warning, Recovery::Default },  // BindingNotSupported
     { "BI-P-024", Severity::Error,   Recovery::Default },  // InvalidEnumLiteral
+    { "BI-P-025", Severity::Warning, Recovery::Default },  // RegistryDuplicateId
     // ---- 运行时（BI-R-xxx） ----
     { "BI-R-001", Severity::Error,   Recovery::Default },  // ObjectFirstKeyMissing
     { "BI-R-002", Severity::Error,   Recovery::Default },  // NestedKeyMissing

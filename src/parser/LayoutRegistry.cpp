@@ -39,9 +39,21 @@ int LayoutRegistry::loadLayoutsFromDirectory(const QString& dirPath)
         auto root = XmlLayoutParser::parseFile(info.absoluteFilePath());
         if (root) {
             // 锁仅护 ID 分配与插入；解析（慢、且自身会报诊断）在锁外进行
-            QMutexLocker lock(&m_mutex);
-            int id = m_nextId++;
-            m_layouts.insert(id, root);
+            int id;
+            bool duplicate;
+            {
+                QMutexLocker lock(&m_mutex);
+                id = m_nextId++;
+                duplicate = m_layouts.contains(id);
+                m_layouts.insert(id, root);
+            }
+            // 重复 ID：后写者覆盖（last-wins），诊断在锁外报告（BI-P-025）
+            if (duplicate) {
+                Diagnostics::reportParse(ErrorCode::RegistryDuplicateId,
+                                         QStringLiteral("layout id %1 already registered, overwriting (file: %2)")
+                                             .arg(id).arg(info.absoluteFilePath()),
+                                         info.absoluteFilePath());
+            }
             ++count;
         } else {
             Diagnostics::reportParse(ErrorCode::RegistryFileSkipped,
@@ -53,12 +65,23 @@ int LayoutRegistry::loadLayoutsFromDirectory(const QString& dirPath)
 }
 
 /// @brief 在给定 ID 下注册布局元素树。
+///
+/// ID 已存在时后写者覆盖（last-wins）并报 BI-P-025——覆盖是合法用法
+/// （如热替换），但不再静默。
 /// @param id 与布局关联的标识符。
 /// @param root 布局树的根元素。
 void LayoutRegistry::registerLayout(int id, const ConstElementPtr& root)
 {
-    QMutexLocker lock(&m_mutex);
-    m_layouts.insert(id, root);
+    bool duplicate;
+    {
+        QMutexLocker lock(&m_mutex);
+        duplicate = m_layouts.contains(id);
+        m_layouts.insert(id, root);
+    }
+    if (duplicate) {
+        Diagnostics::reportParse(ErrorCode::RegistryDuplicateId,
+                                 QStringLiteral("layout id %1 already registered, overwriting").arg(id));
+    }
 }
 
 /// @brief 按 ID 检索注册的布局。
