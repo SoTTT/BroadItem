@@ -82,7 +82,7 @@ ctest --test-dir build-qt6 --output-on-failure  # Qt6：18 个（含金图，基
 ### 模块划分（`include/broaditem/` 与 `src/` 镜像对应）
 
 - `core/`：`BroadItem`、`Frame`、`LayoutEngine`（管线唯一入口，`Frame::performLayout`/`paint` 委托其静态方法，经 `Node::element` 派发）、`Node`、`ResolvedStyle`
-- `context/`：属性上下文体系——`PropertyContext`（接口）、`MapPropertyContext`（默认，map 存储）、`ItemPropertyContext`、`LayoutContext`
+- `context/`：属性上下文体系——`PropertyContext`（接口）、`MapPropertyContext`（默认，map 存储）、`LayoutContext`；`<for>` 迭代作用域经 `LayoutContext::Scope` 栈链表达（项级优先、as 前缀剥离、回退全局），无独立上下文类
 - `diagnostics/`：结构化诊断——`Diagnostic`（错误码枚举 BI-P-xxx/BI-R-xxx，级别与恢复策略由码表唯一决定）、`ErrorCollector`（可注入收集器，默认转发 qWarning/qCritical）、`Diagnostics`（`reportParse`/`reportRuntime` 入口；`ParseSession` 解析会话提供元素路径与 Abort 标记，`RuntimeScope` 由 Frame 管线安装、承担实例级去重，状态为 Frame 成员）。线程模型：作用域栈 thread_local，进程级收集器读写经互斥锁（锁内拷贝、锁外调用）。错误码总表见 `doc/设计.md`「诊断」节
 - `compat/`：Qt5/Qt6 兼容层（P1-3）+ C++ 标准库 polyfill。版本差异点唯一落点：`variantIsNull()`（null 语义统一）、`domSetContent()`（setContent 新旧重载）、`makeUnique()`（C++14 `make_unique`）、`Optional<T>`（C++17 `optional`，`Optional.h` 内为 vendored tl::optional 的别名，接口对齐 std 以便升标后整体退役）。新增版本差异一律收进本模块，源码中禁止散落的 `QT_VERSION_CHECK`（测试断言除外）
 - `expression/`：`Expression`（路径语法唯一权威：字符串 → 类型化分段 `PathSegment`，运行期遍历一律消费分段）、`Binding`

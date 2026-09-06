@@ -1,6 +1,5 @@
 #include <broaditem/element/control/ForElement.h>
 #include <broaditem/context/MapPropertyContext.h>
-#include <broaditem/context/ItemPropertyContext.h>
 #include <broaditem/diagnostics/Diagnostics.h>
 #include <QDomElement>
 
@@ -55,9 +54,9 @@ void ForElement::addParsedChild(const ElementPtr& child)
 /// @brief 通过遍历绑定的列表将此控制元素物化为实例节点序列。
 ///
 /// 支持 b:of 为 QStringList 或 QVariantList。为每个迭代项创建 per-item
-/// MapPropertyContext（含层次和平铺键），通过 ItemPropertyContext 链到全局 context，
-/// 并以 itemCtx 递归调用模板的 materializeChildren() 后拼接——嵌套 for 由此
-/// 能拿到外层的 as 变量。
+/// MapPropertyContext（含层次和平铺键），通过 LayoutContext::Scope 栈链挂接
+/// per-item 作用域后递归调用模板的 materializeChildren() 再拼接——嵌套 for
+/// 由此沿 parent 链拿到外层的 as 变量。
 ///
 /// @param ctx 提供数据属性的布局上下文。
 /// @return 物化后的实例节点向量。
@@ -82,8 +81,9 @@ std::vector<std::unique_ptr<Node>> ForElement::materializeChildren(const LayoutC
         for (const auto& val : values) {
             auto itemCtx = std::make_shared<MapPropertyContext>();
             itemCtx->setProperty(m_asVariable, val);
-            ItemPropertyContext chainedCtx(itemCtx.get(), ctx.ctx, m_asVariable);
-            LayoutContext itemLayoutCtx{&chainedCtx};
+            LayoutContext::Scope scopeNode{itemCtx.get(), m_asVariable, ctx.scope};
+            LayoutContext itemLayoutCtx = ctx;
+            itemLayoutCtx.scope = &scopeNode;
 
             auto nodes = m_template->materializeChildren(itemLayoutCtx);
             for (auto& n : nodes)
@@ -104,8 +104,9 @@ std::vector<std::unique_ptr<Node>> ForElement::materializeChildren(const LayoutC
                 for (auto it = map.begin(); it != map.end(); ++it)
                     itemCtx->setProperty(it.key(), it.value());
             }
-            ItemPropertyContext chainedCtx(itemCtx.get(), ctx.ctx, m_asVariable);
-            LayoutContext itemLayoutCtx{&chainedCtx};
+            LayoutContext::Scope scopeNode{itemCtx.get(), m_asVariable, ctx.scope};
+            LayoutContext itemLayoutCtx = ctx;
+            itemLayoutCtx.scope = &scopeNode;
 
             auto nodes = m_template->materializeChildren(itemLayoutCtx);
             for (auto& n : nodes)

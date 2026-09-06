@@ -198,7 +198,7 @@ private slots:
     }
 
     /// @brief 用例12（附加）：for 项级上下文解析——每次迭代的 b:color 绑定
-    /// 经 ItemPropertyContext 解析到各自的 u.color。
+    /// 经 LayoutContext 作用域链解析到各自的 u.color。
     void itemContextResolution()
     {
         auto root = parse(QStringLiteral(
