@@ -34,12 +34,10 @@ enum class ErrorCode {
     InvalidEnumLiteral,      ///< BI-P-024 枚举属性取值非法（h-align/v-align/main-align/cross-align）
     RegistryDuplicateId,     ///< BI-P-025 Registry 布局 ID 重复注册（后写者覆盖，可见化告警）
     // ---- 运行时（BI-R-xxx） ----
-    ObjectFirstKeyMissing,   ///< BI-R-001 绑定路径首段属性在 QObject 上不存在
     NestedKeyMissing,        ///< BI-R-002 路径中段键在 map 中不存在
     TraverseTypeMismatch,    ///< BI-R-003 路径遍历类型不符
     IndexOutOfBounds,        ///< BI-R-004 数组下标非法/越界
     PathSyntaxError,         ///< BI-R-005 路径语法错误
-    SetPropertyTypeMismatch, ///< BI-R-006 setProperty 类型不匹配
     ForMissingAs,            ///< BI-R-007 <for> 缺 b:as
     ForDataNotList,          ///< BI-R-008 <for> 数据源非列表
     ForNullItemSkipped,      ///< BI-R-009 <for> 列表含 null 项

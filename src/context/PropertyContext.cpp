@@ -44,31 +44,6 @@ QVariant PropertyContext::walkSegments(QVariant current, const std::vector<PathS
     return current;
 }
 
-// 基于 QObject 属性的路径遍历：Expression 统一解析，首段走 QObject::property()。
-QVariant PropertyContext::walkPathFromObject(const QObject* obj, const QString& path)
-{
-    if (!obj)
-        return QVariant();
-
-    const Expression expr(path);
-    if (!expr.isValid()) {
-        Diagnostics::reportRuntime(ErrorCode::PathSyntaxError, path,
-                                   QStringLiteral("invalid path syntax"));
-        return QVariant();
-    }
-    const auto& segs = expr.segments();
-    // 语法保证首段必为键分段（前导 '[' 在 Expression 侧已拒绝）。
-
-    QVariant current = obj->property(segs.front().key().toUtf8().constData());
-    if (!current.isValid()) {
-        Diagnostics::reportRuntime(ErrorCode::ObjectFirstKeyMissing, path,
-                                   QStringLiteral("property %1 not found on object").arg(segs.front().key()));
-        return QVariant();
-    }
-
-    return walkSegments(current, segs, 1, path);
-}
-
 // 分段嵌套写入：递归下沉，叶子写值后逐层回写；失败无副作用。
 bool PropertyContext::setWalkSegments(QVariant& current, const std::vector<PathSegment>& segs,
                                       size_t start, const QString& path, const QVariant& value)

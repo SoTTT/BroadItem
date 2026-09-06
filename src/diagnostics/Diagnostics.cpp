@@ -44,12 +44,10 @@ const CodeInfo kCodeTable[] = {
     { "BI-P-024", Severity::Error,   Recovery::Default },  // InvalidEnumLiteral
     { "BI-P-025", Severity::Warning, Recovery::Default },  // RegistryDuplicateId
     // ---- 运行时（BI-R-xxx） ----
-    { "BI-R-001", Severity::Error,   Recovery::Default },  // ObjectFirstKeyMissing
     { "BI-R-002", Severity::Error,   Recovery::Default },  // NestedKeyMissing
     { "BI-R-003", Severity::Error,   Recovery::Default },  // TraverseTypeMismatch
     { "BI-R-004", Severity::Error,   Recovery::Default },  // IndexOutOfBounds
     { "BI-R-005", Severity::Error,   Recovery::Default },  // PathSyntaxError
-    { "BI-R-006", Severity::Warning, Recovery::Default },  // SetPropertyTypeMismatch
     { "BI-R-007", Severity::Error,   Recovery::Default },  // ForMissingAs
     { "BI-R-008", Severity::Error,   Recovery::Default },  // ForDataNotList
     { "BI-R-009", Severity::Warning, Recovery::Skip    },  // ForNullItemSkipped

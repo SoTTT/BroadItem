@@ -10,7 +10,7 @@ namespace BroadItem {
  * @brief 基于 QVariantMap 的属性上下文（默认实现）。
  *
  * 内部维护一个 QVariantMap 存储所有属性。支持扁平键和嵌套路径，
- * 路径遍历通过基类的共享引擎 walkNested 实现。
+ * 路径遍历通过基类的共享引擎 walkSegments 实现。
  *
  * 空值语义：setProperty(name, QVariant()) 从 map 中删除该键，
  * hasProperty() 返回 false。这使 `<if>` 的条件隐藏可以自然工作。
@@ -26,7 +26,7 @@ public:
             return QVariant();
         if (!name.contains('.') && !name.contains('['))
             return m_map.value(name);
-        // 遍历失败的具体诊断已由 walkNested/advanceBrackets 报告；
+        // 遍历失败的具体诊断已由 walkSegments 报告；
         // 首段未注入属正常状态（诊断标准静默清单），此处不再重复报告。
         return resolveFirstThenWalk(name);
     }

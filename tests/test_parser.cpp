@@ -4,7 +4,6 @@
 #include <broaditem/compat/QtCompat.h>
 #include <broaditem/context/LayoutContext.h>
 #include <broaditem/context/MapPropertyContext.h>
-#include <broaditem/context/QPropertyContext.h>
 #include <broaditem/core/LayoutEngine.h>
 #include <broaditem/parser/LayoutRegistry.h>
 #include <broaditem/element/Element.h>
@@ -34,22 +33,6 @@ public:
     bool bindsProperty(const QString&) const override { return false; }
 };
 
-// 辅助类：声明了 Q_PROPERTY 的 QObject，用于测试 <if> 的空值行为
-class IfNullHelper : public QObject {
-    Q_OBJECT
-    Q_PROPERTY(QString warning READ warning WRITE setWarning NOTIFY warningChanged)
-public:
-    QString warning() const { return m_warning; }
-    void setWarning(const QString& v)
-    {
-        if (m_warning != v) { m_warning = v; emit warningChanged(); }
-    }
-signals:
-    void warningChanged();
-private:
-    QString m_warning; // 默认值 QString() 为 null
-};
-
 /// @brief 文件作用域消息捕获器：安装后收集所有 qWarning/qCritical 消息
 static QStringList s_warnings;
 
@@ -71,7 +54,6 @@ private slots:
     void testColumnMeasure();
     void testBindProperty();
     void testIf();
-    void testIfNullWithQPropertyContext();
     void testIfRequiresProp();
     void testIfHasTagRemoved();
     void testIfEqualsLiteral();
@@ -240,29 +222,6 @@ void TestParser::testIf()
     // 直接对控制元素模板调 measure 会命中 Element 基类的 qFatal
     auto result = node->element->measure(ctx, BroadItem::LayoutConstraints{}, *node);
     QVERIFY(result.intrinsicSize.width() > 0);
-}
-
-/// @brief 验证 QPropertyContext 中 null 值的 <if> 行为：默认 null 不展开，设非 null 后展开
-void TestParser::testIfNullWithQPropertyContext()
-{
-    IfNullHelper item;
-    BroadItem::QPropertyContext propCtx(&item);
-
-    auto ifEl = std::make_shared<BroadItem::IfElement>();
-    ifEl->setBindProperty("warning");
-    ifEl->setChild(std::make_shared<NullTestElement>());
-
-    BroadItem::LayoutContext ctx;
-    ctx.ctx = &propCtx;
-
-    // 默认 QString() 为 null → materializeChildren 返回空
-    auto result = ifEl->materializeChildren(ctx);
-    QCOMPARE(result.size(), size_t(0));
-
-    // 设置为非 null 值 → materializeChildren 返回 1 个子节点
-    item.setWarning("alert");
-    result = ifEl->materializeChildren(ctx);
-    QCOMPARE(result.size(), size_t(1));
 }
 
 /// @brief 验证 <if> 缺少 b:prop 时解析失败（条件必须有所作用的路径）

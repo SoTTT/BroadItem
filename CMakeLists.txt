@@ -32,12 +32,10 @@ add_library(BroadItem STATIC
 
     # context — 属性上下文体系
     src/context/PropertyContext.cpp
-    src/context/QPropertyContext.cpp
     src/context/ItemPropertyContext.cpp
     include/broaditem/context/PropertyContext.h
     include/broaditem/context/MapPropertyContext.h
     include/broaditem/context/ItemPropertyContext.h
-    include/broaditem/context/QPropertyContext.h
     include/broaditem/context/LayoutContext.h
 
     # diagnostics — 结构化诊断（错误码、收集器、作用域）

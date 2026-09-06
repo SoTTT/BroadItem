@@ -4,7 +4,6 @@
 #include <QVariantMap>
 #include <QVariantList>
 #include <QString>
-#include <QObject>
 #include <functional>
 
 #include <broaditem/diagnostics/Diagnostics.h>
@@ -115,19 +114,6 @@ protected:
      */
     static QVariant walkSegments(QVariant current, const std::vector<PathSegment>& segs,
                                  size_t start, const QString& path);
-
-    /**
-     * @brief 基于 QObject 属性的路径遍历。
-     *
-     * 经 Expression 解析后，通过 QObject::property() 获取首段值，
-     * 余下分段交给 walkSegments。
-     * 由 QPropertyContext 和 ItemPropertyContext 复用。
-     *
-     * @param obj  目标 QObject（不可为 nullptr）。
-     * @param path 路径字符串，如 "device.cpu" 或 "items[0].name"。
-     * @return 路径终点值，解析/遍历失败时返回无效 QVariant。
-     */
-    static QVariant walkPathFromObject(const QObject* obj, const QString& path);
 
     /**
      * @brief 分段嵌套写入：沿分段遍历 current 的嵌套结构，在叶子位置设置 value。

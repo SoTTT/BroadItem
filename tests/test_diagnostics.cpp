@@ -9,7 +9,6 @@
 #include <broaditem/element/text/TextElement.h>
 #include <broaditem/element/layout/GridLayout.h>
 #include <broaditem/context/MapPropertyContext.h>
-#include <broaditem/context/QPropertyContext.h>
 
 #include "helpers/binding_helpers.h"
 #include "helpers/diagnostics_helpers.h"
@@ -36,18 +35,6 @@ struct FrameFixture {
     {
         return frameFromXmlString(inner, ctx);
     }
-};
-
-/// @brief Q_PROPERTY 测试目标：只读 device 属性（BI-R-006 触发源）。
-class DiagTestObject : public QObject {
-    Q_OBJECT
-    Q_PROPERTY(QVariantMap device READ device)
-public:
-    QVariantMap device() const { return m_device; }
-    void setDevice(const QVariantMap& m) { m_device = m; }
-
-private:
-    QVariantMap m_device;
 };
 
 class TestDiagnostics : public QObject {
@@ -468,18 +455,7 @@ private slots:
         QVERIFY(cap->find(ErrorCode::RegistryFileSkipped) != nullptr);
     }
 
-    // ========== 运行时：11 个错误码 ==========
-
-    /// @brief BI-R-001：绑定路径首段属性在 QObject 上不存在。
-    void objectFirstKeyMissing()
-    {
-        auto cap = std::make_shared<CaptureCollector>();
-        const ProcessCollectorGuard guard(cap);
-        DiagTestObject obj;
-        QPropertyContext ctx(&obj);
-        ctx.property(QStringLiteral("foo.bar"));
-        QVERIFY(cap->find(ErrorCode::ObjectFirstKeyMissing) != nullptr);
-    }
+    // ========== 运行时：9 个错误码 ==========
 
     /// @brief BI-R-002：路径中段键在 map 中不存在。
     void nestedKeyMissing()
@@ -523,20 +499,6 @@ private slots:
         map.setProperty(QStringLiteral("a"), QStringList{QStringLiteral("x")});
         map.property(QStringLiteral("a["));
         QVERIFY(cap->find(ErrorCode::PathSyntaxError) != nullptr);
-    }
-
-    /// @brief BI-R-006：setProperty 类型不匹配（只读 Q_PROPERTY 拒绝写入）。
-    void setPropertyTypeMismatch()
-    {
-        auto cap = std::make_shared<CaptureCollector>();
-        const ProcessCollectorGuard guard(cap);
-        DiagTestObject obj;
-        obj.setDevice(QVariantMap{{QStringLiteral("cpu"), QStringLiteral("1%")}});
-        QPropertyContext ctx(&obj);
-        ctx.setProperty(QStringLiteral("device"), QStringLiteral("x"));
-        const Diagnostic* d = cap->find(ErrorCode::SetPropertyTypeMismatch);
-        QVERIFY(d != nullptr);
-        QCOMPARE(severityOf(d->code), Severity::Warning);
     }
 
     /// @brief BI-R-007：<for> 缺 b:as（物化期暴露）→ 迭代产出空。
