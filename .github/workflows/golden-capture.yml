@@ -1,0 +1,68 @@
+# Linux 金图基线采集流水线。
+#
+# 用途：在 Linux 上按内置 manifest 采集 golden PNG 候选基线，供人工审阅后入库。
+# 触发方式：仅手动（Actions 页面 → golden-capture → Run workflow）。
+#
+# 纪律：CI 只是采集机器，不是事实来源。采集结果经 artifact 下载、
+# `golden_render --review <候选> --against <本机基线>` 容差比对、人工逐张看图
+# 确认后才拷入 tests/golden/ 成为基线。本流水线不自动提交任何文件。
+#
+# 注意：基线渲染绑定 Qt 精确版本与 runner 字体环境，matrix 中的 Qt 版本
+# 与 fonts-noto-cjk 一经入库不要轻易变动，变了就要整套重新采集审阅。
+
+name: golden-capture
+
+on:
+  workflow_dispatch:
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - qt: 5.15.2
+            arch: gcc_64
+          - qt: 6.8.3
+            arch: linux_gcc_64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装系统依赖（offscreen 渲染 + 中日韩字体）
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgl1-mesa-dev libfontconfig1-dev libxkbcommon-dev libglib2.0-dev \
+            fonts-noto-cjk
+          # 刷新 fontconfig 缓存，确保 Noto CJK 立即可用
+          fc-cache -f
+
+      - name: 安装 Qt ${{ matrix.qt }}
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ matrix.qt }}
+          host: linux
+          target: desktop
+          arch: ${{ matrix.arch }}
+          cache: true
+
+      - name: 配置与构建 golden_render
+        run: |
+          cmake -B build -S . -G Ninja -DCMAKE_PREFIX_PATH="$QTDIR"
+          cmake --build build --target golden_render
+
+      - name: 采集候选基线
+        run: QT_QPA_PLATFORM=offscreen ./build/tests/golden_render --capture golden-out
+
+      # 同进程环境重渲染并逐像素自比：证明采集结果在该 runner 上确定幂等，
+      # 幂等性不过关的基线没有审阅价值
+      - name: 幂等自校验
+        run: QT_QPA_PLATFORM=offscreen ./build/tests/golden_render --verify golden-out
+
+      - name: 上传候选基线 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-linux-qt${{ matrix.qt }}
+          path: golden-out/*.png

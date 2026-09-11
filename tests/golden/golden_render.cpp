@@ -3,11 +3,19 @@
  * @brief 黄金镜像采集/校验工具。
  *
  * 用法：
- *   golden_render --capture <dir>  按内置 manifest 渲染 12 张 PNG 到 <dir>。
- *   golden_render --verify <dir>   重新渲染并与 <dir> 中的黄金 PNG 逐像素比对。
+ *   golden_render --capture <dir>            按内置 manifest 渲染 12 张 PNG 到 <dir>。
+ *   golden_render --verify <dir>             重新渲染并与 <dir> 中的黄金 PNG 逐像素比对。
+ *   golden_render --review <dir> --against <refDir>
+ *       审阅模式：比对两套已存在的基线目录（如 CI 采集的候选基线 vs 已人工认可的
+ *       本机基线），不重新渲染。降采样块均值容差比对，吸收跨平台字体光栅化的
+ *       亚像素漂移与字体度量导致的整体位移；字体 fallback、缺元素、颜色错误等
+ *       系统性问题会超差。辅助人工审阅，不替代人工看图。
  *
  * verify 语义：等价组（intentionalChange=false）必须像素完全一致，否则退出码 1；
  * 有意变更组（intentionalChange=true）只打印 MATCH/DIFF，不影响退出码。
+ *
+ * review 语义：任一条目超差（降采样后差异块比例超过阈值）退出码 1；
+ * 尺寸不一致只报告不判负（跨平台字体度量差异属预期）。
  */
 
 #include <QApplication>
@@ -343,6 +351,76 @@ static int verify(const QString& goldenDir)
     return failed ? 1 : 0;
 }
 
+/// @brief 审阅用降采样尺寸：把任意尺寸的图缩到固定网格再比对。
+///
+/// 缩到 96x64 块均值后，亚像素光栅化差异与 ±2px 量级的整体位移被平均吸收，
+/// 缺元素/颜色错/字形缺失（豆腐块）等结构性错误仍显著改变块均值。
+static QImage downsampleForReview(const QImage& src)
+{
+    return src.scaled(96, 64, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
+        .convertToFormat(QImage::Format_RGB32);
+}
+
+/// @brief 审阅模式：比对两套已存在的基线目录（不重新渲染）。
+///
+/// 逐条目加载候选目录与参考目录中的同名 PNG，各自降采样到固定网格后做
+/// 逐块三通道容差比对（单块任一通道差超过 tolerance 记为超差块），超差块
+/// 比例超过 maxRatio 判 SUSPECT。尺寸不一致属跨平台字体度量差异，只报告不判负。
+/// @param candidateDir 候选基线目录（如 CI 采集结果）。
+/// @param referenceDir 参考基线目录（已人工认可的本机基线）。
+/// @param tolerance    块均值单通道容差（0-255）。
+/// @param maxRatio     超差块比例上限（0-1）。
+/// @return 全部条目通过返回 0，任一 SUSPECT 或文件缺失返回 1。
+static int review(const QString& candidateDir, const QString& referenceDir,
+                  int tolerance, double maxRatio)
+{
+    const QDir candDir(candidateDir);
+    const QDir refDir(referenceDir);
+    bool failed = false;
+
+    for (const GoldenCase& c : manifest()) {
+        const QString fileName = c.name + QStringLiteral(".png");
+        const QImage cand(candDir.filePath(fileName));
+        const QImage ref(refDir.filePath(fileName));
+        if (cand.isNull() || ref.isNull()) {
+            qCritical().noquote() << QStringLiteral("[ERROR] %1 图片缺失（候选 %2 / 参考 %3）")
+                .arg(c.name, cand.isNull() ? QStringLiteral("缺") : QStringLiteral("在"),
+                     ref.isNull() ? QStringLiteral("缺") : QStringLiteral("在"));
+            failed = true;
+            continue;
+        }
+
+        const QImage candSmall = downsampleForReview(cand);
+        const QImage refSmall = downsampleForReview(ref);
+        int grossDiff = 0;
+        for (int y = 0; y < candSmall.height(); ++y) {
+            for (int x = 0; x < candSmall.width(); ++x) {
+                const QColor a = QColor::fromRgb(candSmall.pixel(x, y));
+                const QColor b = QColor::fromRgb(refSmall.pixel(x, y));
+                if (qAbs(a.red() - b.red()) > tolerance
+                    || qAbs(a.green() - b.green()) > tolerance
+                    || qAbs(a.blue() - b.blue()) > tolerance)
+                    ++grossDiff;
+            }
+        }
+        const double ratio = static_cast<double>(grossDiff)
+            / (candSmall.width() * candSmall.height());
+        const bool pass = ratio <= maxRatio;
+
+        const QString sizeNote = cand.size() == ref.size()
+            ? QStringLiteral("尺寸一致 %1x%2").arg(cand.width()).arg(cand.height())
+            : QStringLiteral("尺寸漂移 候选=%1x%2 参考=%3x%4")
+                .arg(cand.width()).arg(cand.height()).arg(ref.width()).arg(ref.height());
+        qInfo().noquote() << QStringLiteral("%1 %2 超差块=%3% %4")
+            .arg(pass ? QStringLiteral("[OK]     ") : QStringLiteral("[SUSPECT]"))
+            .arg(c.name, -16).arg(ratio * 100.0, 0, 'f', 2).arg(sizeNote);
+        if (!pass)
+            failed = true;
+    }
+
+    return failed ? 1 : 0;
+}
+
 } // namespace
 
 /// @brief 程序入口：解析命令行并分派 capture/verify。
@@ -361,18 +439,38 @@ int main(int argc, char* argv[])
     parser.addHelpOption();
     const QCommandLineOption captureOpt(QStringLiteral("capture"), QStringLiteral("采集黄金 PNG 到 <dir>"), QStringLiteral("dir"));
     const QCommandLineOption verifyOpt(QStringLiteral("verify"), QStringLiteral("与 <dir> 中黄金 PNG 校验"), QStringLiteral("dir"));
+    const QCommandLineOption reviewOpt(QStringLiteral("review"), QStringLiteral("审阅候选基线目录 <dir>（需配合 --against）"), QStringLiteral("dir"));
+    const QCommandLineOption againstOpt(QStringLiteral("against"), QStringLiteral("审阅参照的已认可基线目录 <dir>"), QStringLiteral("dir"));
+    const QCommandLineOption toleranceOpt(QStringLiteral("tolerance"), QStringLiteral("审阅块均值单通道容差（缺省 48）"), QStringLiteral("n"));
+    const QCommandLineOption maxRatioOpt(QStringLiteral("max-diff-ratio"), QStringLiteral("审阅超差块比例上限 %%（缺省 15）"), QStringLiteral("percent"));
     parser.addOption(captureOpt);
     parser.addOption(verifyOpt);
+    parser.addOption(reviewOpt);
+    parser.addOption(againstOpt);
+    parser.addOption(toleranceOpt);
+    parser.addOption(maxRatioOpt);
     parser.process(app);
 
-    if (parser.isSet(captureOpt) && parser.isSet(verifyOpt)) {
-        qCritical() << "--capture 与 --verify 不能同时使用";
+    const int modeCount = static_cast<int>(parser.isSet(captureOpt))
+        + static_cast<int>(parser.isSet(verifyOpt)) + static_cast<int>(parser.isSet(reviewOpt));
+    if (modeCount != 1) {
+        qCritical() << "--capture / --verify / --review 必须且只能指定一个";
         return 2;
     }
     if (parser.isSet(captureOpt))
         return capture(parser.value(captureOpt));
     if (parser.isSet(verifyOpt))
         return verify(parser.value(verifyOpt));
+    if (parser.isSet(reviewOpt)) {
+        if (!parser.isSet(againstOpt)) {
+            qCritical() << "--review 需要 --against 指定参考基线目录";
+            return 2;
+        }
+        const int tolerance = parser.isSet(toleranceOpt) ? parser.value(toleranceOpt).toInt() : 48;
+        const double maxRatio = parser.isSet(maxRatioOpt)
+            ? parser.value(maxRatioOpt).toDouble() / 100.0 : 0.15;
+        return review(parser.value(reviewOpt), parser.value(againstOpt), tolerance, maxRatio);
+    }
 
     parser.showHelp(2);
 }
