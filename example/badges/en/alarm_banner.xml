@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Alarm banner: compact single-line rows, severity chip + time + description + acknowledgement. -->
+<root xmlns:b="urn:broaditem:binding">
+    <column space="4">
+        <row background-color="#fdf0ef"
+             border-width="1" border-style="solid" border-color="#e3b8b3"
+             border-radius="2" background-radius="2"
+             padding="6" padding-top="4" padding-bottom="4" space="8" cross-align="center">
+            <column padding="5" padding-top="1" padding-bottom="1"
+                    background-color="#c62828" background-radius="2">
+                <text font-size="10" bold="true" color="#ffffff">Critical</text>
+            </column>
+            <text font-size="11" color="#6b7280">14:32:07</text>
+            <text font-size="11" color="#1f2937">T2 transformer oil temp 92°C over limit</text>
+            <text font-size="11" bold="true" color="#c62828">Unacknowledged</text>
+        </row>
+        <row background-color="#fdf8ec"
+             border-width="1" border-style="solid" border-color="#e8d9ae"
+             border-radius="2" background-radius="2"
+             padding="6" padding-top="4" padding-bottom="4" space="8" cross-align="center">
+            <column padding="5" padding-top="1" padding-bottom="1"
+                    background-color="#f59e0b" background-radius="2">
+                <text font-size="10" bold="true" color="#ffffff">Warning</text>
+            </column>
+            <text font-size="11" color="#6b7280">14:28:51</text>
+            <text font-size="11" color="#1f2937">T1 transformer load 86% for 10 min</text>
+            <text font-size="11" color="#6b7280">Acknowledged</text>
+        </row>
+    </column>
+</root>

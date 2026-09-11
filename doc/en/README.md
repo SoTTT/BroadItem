@@ -1,60 +1,79 @@
 # BroadItem
 
-[English](doc/en/README.md)
+[中文](../../README.md)
 
-**给已被锁定在 QGraphicsView 技术栈里的既有应用，提供数据驱动的场景内信息标牌。**
+**Data-driven in-scene information badges for existing applications locked into the
+QGraphicsView stack.**
 
-BroadItem 是一个 Qt5/Qt6 双栈的 C++ 静态库：从 XML 文件加载布局，渲染为 `QGraphicsItem`，支持数据绑定、条件分支（`<if>`）与循环（`<for>`）。布局 XML 可在现场调整，无需重新编译发版。
+BroadItem is a dual-stack (Qt5/Qt6) C++ static library: it loads layouts from XML files and renders
+them as `QGraphicsItem`, with support for data binding, conditional branches (`<if>`), and loops
+(`<for>`). Layout XML can be adjusted on site without recompiling or redeploying.
 
-## 生态位边界
+## Niche Boundaries
 
-| 方案 | 为什么不是它 | BroadItem 的落点 |
-|------|--------------|------------------|
-| QML / QtQuick | scene graph 与 GraphicsView 互不嵌套，进不了存量场景 | 原生 `QGraphicsItem`，直接 `scene.addItem()` |
-| HTML / WebEngine | 工业保守环境禁止引入 JS 引擎 | 纯 Qt 类型，零第三方依赖，全部源码可审计 |
-| QGraphicsProxyWidget | 缩放失真、交互开销大 | 自绘 `paint()`，无嵌套 widget |
-| 手写 `paint()` | 标牌变体 ≥5 种后边际成本线性增长 | XML 模板 + 数据绑定，变体零代码 |
-| Qwt | 面向曲线/表盘等绘图部件，非场景内标牌 | 互补：进度条、表盘、曲线留给 Qwt |
+| Approach | Why not | Where BroadItem fits |
+|----------|---------|----------------------|
+| QML / QtQuick | scene graph and GraphicsView cannot be nested, so it cannot enter legacy scenes | native `QGraphicsItem`, straight into `scene.addItem()` |
+| HTML / WebEngine | conservative industrial environments forbid embedding a JS engine | pure Qt types, zero third-party dependencies, fully auditable source |
+| QGraphicsProxyWidget | scaling artifacts, high interaction overhead | self-rendered `paint()`, no nested widgets |
+| Hand-written `paint()` | marginal cost grows linearly once badge variants reach 5+ | XML templates + data binding, variants with zero code |
+| Qwt | oriented to plotting widgets like curves and dials, not in-scene badges | complementary: progress bars, dials, and curves stay with Qwt |
 
-设计护栏：无交互、无动画、无脚本；零第三方依赖；静态库可整体 vendor。完整规格见 `doc/设计.md`。
+Design guardrails: no interaction, no animation, no scripting; zero third-party dependencies; static
+library that can be vendored wholesale. Full specification in `doc/设计.md` (Chinese).
 
-## 构建与安装
+## Build and Install
 
-依赖：CMake ≥ 3.16，Qt5 或 Qt6（Core / Widgets / Xml）。
+Requirements: CMake ≥ 3.16, Qt5 or Qt6 (Core / Widgets / Xml).
 
 ```bash
-# Qt5（CMAKE_PREFIX_PATH 指向 Qt5 安装前缀）
+# Qt5 (point CMAKE_PREFIX_PATH at the Qt5 installation prefix)
 cmake -B build -S . -DCMAKE_PREFIX_PATH=/path/to/qt5
 cmake --build build
 
-# Qt6：优先自动探测，亦可显式指定
+# Qt6: auto-detected with priority, or set explicitly
 cmake -B build-qt6 -S . -DCMAKE_PREFIX_PATH=/path/to/qt6
 cmake --build build-qt6
 
-# 安装（头文件 + 静态库 + CMake 包配置 + broaditem.xsd）
+# Install (headers + static library + CMake package config + broaditem.xsd)
 cmake --install build --prefix /your/prefix
 ```
 
-下游经 CMake 消费：
+Consuming downstream via CMake:
 
 ```cmake
 find_package(BroadItem CONFIG REQUIRED)
 target_link_libraries(your_target PRIVATE BroadItem::BroadItem)
 ```
 
-`find_package(BroadItem)` 会自动以**安装时构建所用的 Qt 主版本**执行 `find_dependency`——下游必须使用同一 Qt 主版本链接。也可不经安装，直接 `add_subdirectory(broaditem)`，同样提供 `BroadItem::BroadItem` 目标。
+`find_package(BroadItem)` automatically runs `find_dependency` with **the Qt major version used at
+build time** — downstream must link against the same Qt major version. You can also skip
+installation and use `add_subdirectory(broaditem)` directly, which provides the same
+`BroadItem::BroadItem` target.
 
-## 示例
+## Examples
 
-以下标牌均为 BroadItem 实际渲染输出（布局文件在 `example/badges/`，为静态演示值）。运行 `./build/example/badges` 可在同一场景中集中查看，或用 `./build/example/frame_image <布局.xml> <输出.png>` 渲染单张。
+All badges below are actual BroadItem rendering output (layout files in `example/badges/en/`, with
+static demo values). Run `./build/example/badges` to view the gallery together in one scene
+(Chinese layouts), or use `./build/example/frame_image <layout.xml> <output.png>` to render a
+single badge.
 
-实现手法上，这些标牌只用两类零件搭成：`column`/`row`/`grid` 容器与 `text` 叶子。外框是容器自带的盒模型装饰（1px 边框 + 2px 圆角 + 6–8px padding），尺寸完全由内容驱动，无需写死宽高；状态 chip 是「带背景色的小 `column` 包一个 `text`」（`text` 自身没有盒模型装饰，底色需由容器提供）；标签/值对齐和端口矩阵靠 `grid` 的规整行列实现；深色变体（泵组状态牌）只是同一套结构换了背景色与文字色。实际项目中把 `content`、`color`、`background-color` 等字面量换成 `b:` 绑定即接入数据，端口矩阵这类重复结构用 `<for>` 绑定列表生成。
+These badges are built from only two kinds of parts: `column`/`row`/`grid` containers and `text`
+leaves. The outer frame is the container's built-in box-model decoration (1px border + 2px corner
+radius + 6–8px padding), and sizes are entirely content-driven — no hard-coded width or
+height; a
+status chip is "a small `column` with a background color wrapping a `text`" (`text` itself has no
+box-model decoration, so the background must come from a container); label/value alignment and the
+port matrix rely on the regular rows and columns of `grid`; the dark variant (pump status panel) is
+the same structure with different background and text colors. In real projects, replace literals
+like `content`, `color`, and `background-color` with `b:` bindings to connect data, and generate
+repeated structures like the port matrix with `<for>` bound to a list.
 
-### 电力资产铭牌（[breaker.xml](example/badges/breaker.xml)）
+### Power Asset Nameplate ([breaker.xml](../../example/badges/en/breaker.xml))
 
-深色标题条 + 状态 chip + `grid` 参数对齐：
+Dark title bar + status chip + `grid` parameter alignment:
 
-![电力资产铭牌](doc/images/badges/breaker.png)
+![Power Asset Nameplate](../../doc/images/badges/en/breaker.png)
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -64,37 +83,37 @@ target_link_libraries(your_target PRIVATE BroadItem::BroadItem)
             border-radius="2" background-radius="2">
         <row background-color="#2f3b4c" padding="8" padding-top="5" padding-bottom="5"
              space="8" cross-align="center">
-            <text font-size="12" bold="true" color="#ffffff">110kV 断路器</text>
+            <text font-size="12" bold="true" color="#ffffff">110kV Circuit Breaker</text>
             <text font-size="10" color="#9fb3c8">CB-1102-A</text>
             <column padding="4" padding-top="1" padding-bottom="1"
                     background-color="#2e7d32" background-radius="2">
-                <text font-size="10" bold="true" color="#ffffff">合闸</text>
+                <text font-size="10" bold="true" color="#ffffff">Closed</text>
             </column>
         </row>
         <grid columns="4" rows="3" space-column="12" space-row="3"
               padding="8" padding-top="6" padding-bottom="6">
-            <cell><text font-size="10" color="#6b7280">型号</text></cell>
+            <cell><text font-size="10" color="#6b7280">Model</text></cell>
             <cell><text font-size="10" color="#1f2937">LW36-126</text></cell>
-            <cell><text font-size="10" color="#6b7280">额定电压</text></cell>
+            <cell><text font-size="10" color="#6b7280">Rated Voltage</text></cell>
             <cell><text font-size="10" color="#1f2937">126 kV</text></cell>
-            <cell><text font-size="10" color="#6b7280">额定电流</text></cell>
+            <cell><text font-size="10" color="#6b7280">Rated Current</text></cell>
             <cell><text font-size="10" color="#1f2937">3150 A</text></cell>
-            <cell><text font-size="10" color="#6b7280">投运日期</text></cell>
+            <cell><text font-size="10" color="#6b7280">Commissioned</text></cell>
             <cell><text font-size="10" color="#1f2937">2019-06-12</text></cell>
-            <cell><text font-size="10" color="#6b7280">生产厂家</text></cell>
-            <cell><text font-size="10" color="#1f2937">平高电气</text></cell>
-            <cell><text font-size="10" color="#6b7280">最近检修</text></cell>
+            <cell><text font-size="10" color="#6b7280">Manufacturer</text></cell>
+            <cell><text font-size="10" color="#1f2937">Pinggao Electric</text></cell>
+            <cell><text font-size="10" color="#6b7280">Last Maintenance</text></cell>
             <cell><text font-size="10" color="#1f2937">2026-03-08</text></cell>
         </grid>
     </column>
 </root>
 ```
 
-### 遥测点组（[telemetry.xml](example/badges/telemetry.xml)）
+### Telemetry Group ([telemetry.xml](../../example/badges/en/telemetry.xml))
 
-大数字读数 + 单位 + 趋势行，三个块由外层 `row` 横向排列：
+Big-number readings + units + trend lines, three blocks arranged horizontally by an outer `row`:
 
-![遥测点组](doc/images/badges/telemetry.png)
+![Telemetry Group](../../doc/images/badges/en/telemetry.png)
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -105,7 +124,7 @@ target_link_libraries(your_target PRIVATE BroadItem::BroadItem)
                 border-radius="2" background-radius="2"
                 padding="8" padding-top="6" padding-bottom="6" space="2">
             <row space="6">
-                <text font-size="10" color="#6b7280">温度</text>
+                <text font-size="10" color="#6b7280">Temperature</text>
                 <text font-size="10" color="#9ca3af">T-2031</text>
             </row>
             <row space="2" cross-align="baseline">
@@ -119,38 +138,38 @@ target_link_libraries(your_target PRIVATE BroadItem::BroadItem)
                 border-radius="2" background-radius="2"
                 padding="8" padding-top="6" padding-bottom="6" space="2">
             <row space="6">
-                <text font-size="10" color="#6b7280">振动</text>
+                <text font-size="10" color="#6b7280">Vibration</text>
                 <text font-size="10" color="#9ca3af">V-2031</text>
             </row>
             <row space="2" cross-align="baseline">
                 <text font-size="20" bold="true" color="#1f2937">4.8</text>
                 <text font-size="10" color="#6b7280">mm/s</text>
             </row>
-            <text font-size="9" color="#f59e0b">▲ 接近预警 6.0</text>
+            <text font-size="9" color="#f59e0b">▲ Near warning 6.0</text>
         </column>
         <column background-color="#ffffff"
                 border-width="1" border-style="solid" border-color="#c9ced6"
                 border-radius="2" background-radius="2"
                 padding="8" padding-top="6" padding-bottom="6" space="2">
             <row space="6">
-                <text font-size="10" color="#6b7280">压力</text>
+                <text font-size="10" color="#6b7280">Pressure</text>
                 <text font-size="10" color="#9ca3af">P-2031</text>
             </row>
             <row space="2" cross-align="baseline">
                 <text font-size="20" bold="true" color="#1f2937">0.82</text>
                 <text font-size="10" color="#6b7280">MPa</text>
             </row>
-            <text font-size="9" color="#2e7d32">— 平稳</text>
+            <text font-size="9" color="#2e7d32">— Stable</text>
         </column>
     </row>
 </root>
 ```
 
-### 告警横幅（[alarm_banner.xml](example/badges/alarm_banner.xml)）
+### Alarm Banner ([alarm_banner.xml](../../example/badges/en/alarm_banner.xml))
 
-单行级别 chip + 时间 + 描述 + 确认状态：
+Single-line severity chip + time + description + acknowledgement state:
 
-![告警横幅](doc/images/badges/alarm_banner.png)
+![Alarm Banner](../../doc/images/badges/en/alarm_banner.png)
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -162,11 +181,11 @@ target_link_libraries(your_target PRIVATE BroadItem::BroadItem)
              padding="6" padding-top="4" padding-bottom="4" space="8" cross-align="center">
             <column padding="5" padding-top="1" padding-bottom="1"
                     background-color="#c62828" background-radius="2">
-                <text font-size="10" bold="true" color="#ffffff">紧急</text>
+                <text font-size="10" bold="true" color="#ffffff">Critical</text>
             </column>
             <text font-size="11" color="#6b7280">14:32:07</text>
-            <text font-size="11" color="#1f2937">2号主变油温 92°C 越上限</text>
-            <text font-size="11" bold="true" color="#c62828">未确认</text>
+            <text font-size="11" color="#1f2937">T2 transformer oil temp 92°C over limit</text>
+            <text font-size="11" bold="true" color="#c62828">Unacknowledged</text>
         </row>
         <row background-color="#fdf8ec"
              border-width="1" border-style="solid" border-color="#e8d9ae"
@@ -174,21 +193,22 @@ target_link_libraries(your_target PRIVATE BroadItem::BroadItem)
              padding="6" padding-top="4" padding-bottom="4" space="8" cross-align="center">
             <column padding="5" padding-top="1" padding-bottom="1"
                     background-color="#f59e0b" background-radius="2">
-                <text font-size="10" bold="true" color="#ffffff">预警</text>
+                <text font-size="10" bold="true" color="#ffffff">Warning</text>
             </column>
             <text font-size="11" color="#6b7280">14:28:51</text>
-            <text font-size="11" color="#1f2937">1号主变负载率 86% 持续 10 min</text>
-            <text font-size="11" color="#6b7280">已确认</text>
+            <text font-size="11" color="#1f2937">T1 transformer load 86% for 10 min</text>
+            <text font-size="11" color="#6b7280">Acknowledged</text>
         </row>
     </column>
 </root>
 ```
 
-### 交换机端口面板（[switch_ports.xml](example/badges/switch_ports.xml)）
+### Switch Port Panel ([switch_ports.xml](../../example/badges/en/switch_ports.xml))
 
-`grid` 12×2 端口矩阵，色块即状态（实际项目中端口由 `<for>` 绑定生成，此处为静态演示全部展开）：
+`grid` 12×2 port matrix, color as state (in real deployments ports are generated via `<for>`
+binding; shown fully expanded here as a static demo):
 
-![交换机端口面板](doc/images/badges/switch_ports.png)
+![Switch Port Panel](../../doc/images/badges/en/switch_ports.png)
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -199,10 +219,10 @@ target_link_libraries(your_target PRIVATE BroadItem::BroadItem)
         <row padding="8" padding-top="5" padding-bottom="5" space="8" cross-align="center"
              background-color="#f2f4f7">
             <text font-size="12" bold="true" color="#1f2937">SW-Core-01</text>
-            <text font-size="10" color="#6b7280">24 口千兆</text>
+            <text font-size="10" color="#6b7280">24-port GbE</text>
             <column padding="4" padding-top="1" padding-bottom="1"
                     background-color="#2e7d32" background-radius="2">
-                <text font-size="10" bold="true" color="#ffffff">在线</text>
+                <text font-size="10" bold="true" color="#ffffff">Online</text>
             </column>
         </row>
         <grid columns="12" rows="2" space="2"
@@ -233,20 +253,20 @@ target_link_libraries(your_target PRIVATE BroadItem::BroadItem)
             <cell><column padding="4" padding-top="2" padding-bottom="2" background-color="#c62828" background-radius="2"><text font-size="9" color="#ffffff">24</text></column></cell>
         </grid>
         <row padding="8" padding-top="0" padding-bottom="6" space="10">
-            <text font-size="9" color="#2e7d32">■ 已连接</text>
-            <text font-size="9" color="#9ca3af">■ 空闲</text>
-            <text font-size="9" color="#f59e0b">■ 半双工</text>
-            <text font-size="9" color="#c62828">■ 告警</text>
+            <text font-size="9" color="#2e7d32">■ Connected</text>
+            <text font-size="9" color="#9ca3af">■ Idle</text>
+            <text font-size="9" color="#f59e0b">■ Half-duplex</text>
+            <text font-size="9" color="#c62828">■ Alarm</text>
         </row>
     </column>
 </root>
 ```
 
-### 泵组状态牌（[pump.xml](example/badges/pump.xml)）
+### Pump Status Panel ([pump.xml](../../example/badges/en/pump.xml))
 
-深色面板变体，大数字工况读数 + 运行统计：
+Dark panel variant, big operating readings + runtime statistics:
 
-![泵组状态牌](doc/images/badges/pump.png)
+![Pump Status Panel](../../doc/images/badges/en/pump.png)
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -256,29 +276,29 @@ target_link_libraries(your_target PRIVATE BroadItem::BroadItem)
             border-radius="2" background-radius="2"
             padding="8" space="6">
         <row space="8" cross-align="center">
-            <text font-size="12" bold="true" color="#e5eaf1">循环水泵 P-301</text>
+            <text font-size="12" bold="true" color="#e5eaf1">Circulation Pump P-301</text>
             <column padding="4" padding-top="1" padding-bottom="1"
                     background-color="#2e7d32" background-radius="2">
-                <text font-size="10" bold="true" color="#ffffff">运行</text>
+                <text font-size="10" bold="true" color="#ffffff">Running</text>
             </column>
         </row>
         <row space="14">
             <column space="1">
-                <text font-size="9" color="#8b98ab">电流</text>
+                <text font-size="9" color="#8b98ab">Current</text>
                 <row space="2" cross-align="baseline">
                     <text font-size="18" bold="true" color="#4fc3f7">42.6</text>
                     <text font-size="9" color="#8b98ab">A</text>
                 </row>
             </column>
             <column space="1">
-                <text font-size="9" color="#8b98ab">转速</text>
+                <text font-size="9" color="#8b98ab">Speed</text>
                 <row space="2" cross-align="baseline">
                     <text font-size="18" bold="true" color="#e5eaf1">1480</text>
                     <text font-size="9" color="#8b98ab">rpm</text>
                 </row>
             </column>
             <column space="1">
-                <text font-size="9" color="#8b98ab">频率</text>
+                <text font-size="9" color="#8b98ab">Frequency</text>
                 <row space="2" cross-align="baseline">
                     <text font-size="18" bold="true" color="#e5eaf1">49.8</text>
                     <text font-size="9" color="#8b98ab">Hz</text>
@@ -286,22 +306,23 @@ target_link_libraries(your_target PRIVATE BroadItem::BroadItem)
             </column>
         </row>
         <row space="10">
-            <text font-size="9" color="#8b98ab">最近启停 2026-07-29 06:15</text>
-            <text font-size="9" color="#8b98ab">累计运行 1,240 h</text>
+            <text font-size="9" color="#8b98ab">Last start/stop 2026-07-29 06:15</text>
+            <text font-size="9" color="#8b98ab">Total runtime 1,240 h</text>
         </row>
     </column>
 </root>
 ```
 
-更多可运行示例见 `example/`（basic、status_panel、main_stretch 等）。
+More runnable examples in `example/` (basic, status_panel, main_stretch, etc.).
 
-## 测试
+## Testing
 
 ```bash
 ctest --test-dir build --output-on-failure      # Qt5
 ctest --test-dir build-qt6 --output-on-failure  # Qt6
 ```
 
-## 许可
+## License
 
-MIT，见 `LICENSE`。布局 XML 的结构约束由 `broaditem.xsd` 描述（安装后位于 `share/broaditem/`）。
+MIT, see `LICENSE`. Structural constraints of layout XML are described by `broaditem.xsd`
+(installed to `share/broaditem/`).

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Telemetry group: three compact reading blocks (temperature/vibration/pressure), big number + unit + trend. -->
+<root xmlns:b="urn:broaditem:binding">
+    <row space="4">
+
+        <column background-color="#ffffff"
+                border-width="1" border-style="solid" border-color="#c9ced6"
+                border-radius="2" background-radius="2"
+                padding="8" padding-top="6" padding-bottom="6" space="2">
+            <row space="6">
+                <text font-size="10" color="#6b7280">Temperature</text>
+                <text font-size="10" color="#9ca3af">T-2031</text>
+            </row>
+            <row space="2" cross-align="baseline">
+                <text font-size="20" bold="true" color="#1f2937">76.4</text>
+                <text font-size="10" color="#6b7280">°C</text>
+            </row>
+            <text font-size="9" color="#c62828">▲ +2.1 /h</text>
+        </column>
+
+        <column background-color="#ffffff"
+                border-width="1" border-style="solid" border-color="#c9ced6"
+                border-radius="2" background-radius="2"
+                padding="8" padding-top="6" padding-bottom="6" space="2">
+            <row space="6">
+                <text font-size="10" color="#6b7280">Vibration</text>
+                <text font-size="10" color="#9ca3af">V-2031</text>
+            </row>
+            <row space="2" cross-align="baseline">
+                <text font-size="20" bold="true" color="#1f2937">4.8</text>
+                <text font-size="10" color="#6b7280">mm/s</text>
+            </row>
+            <text font-size="9" color="#f59e0b">▲ Near warning 6.0</text>
+        </column>
+
+        <column background-color="#ffffff"
+                border-width="1" border-style="solid" border-color="#c9ced6"
+                border-radius="2" background-radius="2"
+                padding="8" padding-top="6" padding-bottom="6" space="2">
+            <row space="6">
+                <text font-size="10" color="#6b7280">Pressure</text>
+                <text font-size="10" color="#9ca3af">P-2031</text>
+            </row>
+            <row space="2" cross-align="baseline">
+                <text font-size="20" bold="true" color="#1f2937">0.82</text>
+                <text font-size="10" color="#6b7280">MPa</text>
+            </row>
+            <text font-size="9" color="#2e7d32">— Stable</text>
+        </column>
+    </row>
+</root>
