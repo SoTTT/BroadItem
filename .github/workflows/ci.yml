@@ -49,4 +49,5 @@ jobs:
           cmake --build build
 
       - name: 运行全部测试
-        run: ctest --test-dir build --output-on-failure
+        # runner 无显示服务器，Qt 测试必须走 offscreen 平台插件，否则全部 abort
+        run: QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
