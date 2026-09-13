@@ -1,0 +1,52 @@
+# 持续集成流水线：push / PR 时在 Linux 上构建并运行全部测试（含金图逐像素校验）。
+#
+# 环境纪律：Qt 精确版本（5.15.2 / 6.8.3）与 fonts-noto-cjk 是金图基线的
+# 采集环境（见 golden-capture.yml 与 tests/golden/golden-linux*/），
+# 变动任一者都会使 test_golden_render 失配，需整套重新采集审阅基线。
+
+name: ci
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - qt: 5.15.2
+            arch: gcc_64
+          - qt: 6.8.3
+            arch: linux_gcc_64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装系统依赖（offscreen 渲染 + 中日韩字体）
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgl1-mesa-dev libfontconfig1-dev libxkbcommon-dev libglib2.0-dev \
+            fonts-noto-cjk
+          fc-cache -f
+
+      - name: 安装 Qt ${{ matrix.qt }}
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ matrix.qt }}
+          host: linux
+          target: desktop
+          arch: ${{ matrix.arch }}
+          cache: true
+
+      - name: 配置与构建
+        run: |
+          cmake -B build -S . -G Ninja -DCMAKE_PREFIX_PATH="$QTDIR"
+          cmake --build build
+
+      - name: 运行全部测试
+        run: ctest --test-dir build --output-on-failure

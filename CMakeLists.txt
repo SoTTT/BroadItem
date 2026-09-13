@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(BroadItem VERSION 0.9.0 LANGUAGES CXX)
+project(BroadItem VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -181,7 +181,7 @@ configure_package_config_file(
     INSTALL_DESTINATION ${BroadItem_CMAKE_CONFIG_DIR}
 )
 
-# 0.x 阶段按 SameMinorVersion 判定兼容（0.y 系列内 API 稳定，跨 minor 允许调整）。
+# 按 SameMinorVersion 判定兼容（1.y 系列内 API 稳定，跨 minor 允许调整）。
 write_basic_package_version_file(
     ${CMAKE_CURRENT_BINARY_DIR}/BroadItemConfigVersion.cmake
     VERSION ${PROJECT_VERSION}
