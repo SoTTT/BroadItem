@@ -1,5 +1,11 @@
 # BroadItem
 
+[![ci](https://github.com/SoTTT/BroadItem/actions/workflows/ci.yml/badge.svg)](https://github.com/SoTTT/BroadItem/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/SoTTT/BroadItem)](https://github.com/SoTTT/BroadItem/releases/latest)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![C++11 baseline](https://img.shields.io/badge/C%2B%2B-11%20baseline-blue.svg)
+![Qt5 | Qt6](https://img.shields.io/badge/Qt-5%20%7C%206-41CD52.svg)
+
 [English](doc/en/README.md)
 
 **给已被锁定在 QGraphicsView 技术栈里的既有应用，提供数据驱动的场景内信息标牌。**
